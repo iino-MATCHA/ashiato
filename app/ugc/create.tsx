@@ -5,10 +5,10 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Button, Eyebrow } from '@/components/ui';
-import { JapanSvgMap, visitedSlugs } from '@/components/JapanSvgMap';
+import { JapanSvgMap } from '@/components/JapanSvgMap';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { trips, goshuinList } from '@/lib/mock';
+import { useVisitedPrefectures } from '@/lib/useData';
 
 const ratios = [
   { key: '9:16', label: 'Stories', sub: '9 : 16' },
@@ -26,10 +26,7 @@ export default function UgcCreate() {
   const [selected, setSelected] = useState<string[]>(['Route trace', 'Distance', 'Prefectures visited']);
 
   const toggle = (t: string) => setSelected((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]));
-  const visited = visitedSlugs(
-    trips.flatMap((t) => t.prefectures),
-    goshuinList.filter((g) => g.acquired).map((g) => g.prefectureName)
-  );
+  const { codes: visited } = useVisitedPrefectures();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>

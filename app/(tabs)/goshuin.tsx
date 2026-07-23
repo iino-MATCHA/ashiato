@@ -2,10 +2,11 @@ import { View, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { AppText, Screen, Row, Rule, Gap, Eyebrow } from '@/components/ui';
 import { Stamp } from '@/components/Stamp';
-import { JapanSvgMap, visitedSlugs } from '@/components/JapanSvgMap';
+import { JapanSvgMap } from '@/components/JapanSvgMap';
 import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { goshuinList, acquiredCount, PREFECTURE_TOTAL, trips } from '@/lib/mock';
+import { goshuinList, acquiredCount, PREFECTURE_TOTAL } from '@/lib/mock';
+import { useVisitedPrefectures } from '@/lib/useData';
 
 function rank(count: number) {
   if (count >= 47) return 'Grand Master';
@@ -18,10 +19,7 @@ function rank(count: number) {
 export default function GoshuinBook() {
   const { palette } = useTheme();
   const { width } = useWindowDimensions();
-  const visited = visitedSlugs(
-    trips.flatMap((t) => t.prefectures),
-    goshuinList.filter((g) => g.acquired).map((g) => g.prefectureName)
-  );
+  const { codes: visited } = useVisitedPrefectures();
 
   return (
     <Screen contentContainerStyle={{ paddingBottom: space.xxl }}>

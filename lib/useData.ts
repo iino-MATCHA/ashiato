@@ -4,8 +4,9 @@
  */
 import { useEffect, useState } from 'react';
 import { isSupabaseConfigured } from './supabase';
-import { fetchTrips, fetchTrip } from './api';
-import { trips as mockTrips, findTrip as mockFindTrip, type Trip } from './mock';
+import { fetchTrips, fetchTrip, fetchVisitedPrefectureCodes } from './api';
+import { trips as mockTrips, findTrip as mockFindTrip, goshuinList, type Trip } from './mock';
+import { PREFECTURE_ID_BY_SLUG, slugForName } from './prefectures';
 
 export function useTrips(): { trips: Trip[]; loading: boolean } {
   const [trips, setTrips] = useState<Trip[]>(isSupabaseConfigured ? [] : mockTrips);
@@ -24,6 +25,38 @@ export function useTrips(): { trips: Trip[]; loading: boolean } {
   }, []);
 
   return { trips, loading };
+}
+
+/** 訪問済み都道府県コード(1..47)。Supabaseは RPC、未設定はモック（旅＋獲得御朱印から算出）。 */
+export function useVisitedPrefectures(): { codes: number[]; loading: boolean } {
+  const mockCodes = () => {
+    const names = [
+      ...mockTrips.flatMap((t) => t.prefectures),
+      ...goshuinList.filter((g) => g.acquired).map((g) => g.prefectureName),
+    ];
+    const set = new Set<number>();
+    names.forEach((n) => {
+      const id = PREFECTURE_ID_BY_SLUG[slugForName(n)];
+      if (id) set.add(id);
+    });
+    return Array.from(set);
+  };
+  const [codes, setCodes] = useState<number[]>(isSupabaseConfigured ? [] : mockCodes());
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let alive = true;
+    fetchVisitedPrefectureCodes()
+      .then((c) => alive && setCodes(c.length ? c : mockCodes()))
+      .catch(() => alive && setCodes(mockCodes()))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return { codes, loading };
 }
 
 export function useTrip(id?: string): { trip: Trip | null; loading: boolean } {
