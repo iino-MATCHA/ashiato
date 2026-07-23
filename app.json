@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "足跡",
+    "slug": "ashiato",
+    "scheme": "ashiato",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#F4F1EA",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ashiato.app"
+    },
+    "android": {
+      "package": "com.ashiato.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#F4F1EA"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
