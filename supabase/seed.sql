@@ -32,17 +32,18 @@ declare
   lid uuid;
   prev uuid;
   -- 周遊コース: [municipality_code, prefecture_code, title, note, mode, photoSeed]
+  -- [code, prefCode, title, note, mode, photoKeywords]
   rows text[][] := array[
-    ['13101','13','Start in Tokyo','The neon capital. Where the loop begins.','plane','gtTokyo'],
-    ['17201','17','Kanazawa Gold','Kenrokuen garden and gold leaf.','shinkansen','gtKanazawa'],
-    ['26100','26','Kyoto Temples','A thousand vermilion gates.','train','gtKyoto'],
-    ['27100','27','Osaka Nights','Street food until midnight.','train','gtOsaka'],
-    ['34100','34','Hiroshima Peace','The dome and the quiet river.','shinkansen','gtHiroshima'],
-    ['40130','40','Fukuoka Ramen','Tonkotsu at a riverside yatai.','shinkansen','gtFukuoka'],
-    ['47201','47','Okinawa Blue','Turquoise sea, Shuri stone.','plane','gtOkinawa'],
-    ['1100','1','Sapporo North','From the far south to the far north.','plane','gtSapporo'],
-    ['4100','4','Sendai Green','City of trees on the way home.','plane','gtSendai'],
-    ['13101','13','Back to Tokyo','The loop closes where it began.','shinkansen','gtTokyo2']
+    ['13101','13','Start in Tokyo','The neon capital. Where the loop begins.','plane','tokyo,skyline'],
+    ['17201','17','Kanazawa Gold','Kenrokuen garden and gold leaf.','shinkansen','kanazawa,castle'],
+    ['26100','26','Kyoto Temples','A thousand vermilion gates.','train','kyoto,temple'],
+    ['27100','27','Osaka Nights','Street food until midnight.','train','osaka,night'],
+    ['34100','34','Hiroshima Peace','The dome and the quiet river.','shinkansen','hiroshima,itsukushima'],
+    ['40130','40','Fukuoka Ramen','Tonkotsu at a riverside yatai.','shinkansen','fukuoka,japan'],
+    ['47201','47','Okinawa Blue','Turquoise sea, Shuri stone.','plane','okinawa,beach'],
+    ['1100','1','Sapporo North','From the far south to the far north.','plane','sapporo,hokkaido'],
+    ['4100','4','Sendai Green','City of trees on the way home.','plane','sendai,japan'],
+    ['13101','13','Back to Tokyo','The loop closes where it began.','shinkansen','tokyo,street']
   ];
   i int;
 begin

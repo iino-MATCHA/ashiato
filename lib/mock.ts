@@ -66,8 +66,28 @@ export interface GalleryCard {
 
 export const PREFECTURE_TOTAL = 47;
 
-const photos = (seed: string, n = 6) =>
-  Array.from({ length: n }, (_, i) => `https://picsum.photos/seed/${seed}${i}/700/700`);
+// Keyword-based real photos of each place (loremflickr pulls tagged Flickr photos).
+// `lock` keeps each slot stable so images don't reshuffle on every render.
+const KEYWORDS: Record<string, string> = {
+  gtTokyo: 'tokyo,skyline', gtTokyo2: 'tokyo,street', gtKanazawa: 'kanazawa,castle',
+  gtKyoto: 'kyoto,temple', gtOsaka: 'osaka,night', gtHiroshima: 'hiroshima,itsukushima',
+  gtFukuoka: 'fukuoka,japan', gtOkinawa: 'okinawa,beach', gtSapporo: 'sapporo,hokkaido',
+  gtSendai: 'sendai,japan', mkNaoshima: 'naoshima,art', mkOkayama: 'okayama,garden',
+  rkAomori: 'aomori,japan', rkAkita: 'akita,samurai',
+};
+function seedHash(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100000;
+  return h;
+}
+const photos = (seed: string, n = 6) => {
+  const kw = KEYWORDS[seed] ?? 'japan,travel';
+  const base = seedHash(seed);
+  return Array.from(
+    { length: n },
+    (_, i) => `https://loremflickr.com/800/600/${encodeURIComponent(kw)}?lock=${base + i}`
+  );
+};
 
 // ---------------------------------------------------------------- showcase
 const grandTour: Trip = {

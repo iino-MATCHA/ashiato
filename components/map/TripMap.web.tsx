@@ -16,6 +16,8 @@ interface Props {
   bottomInset?: number;
   /** transport mode per stop (index-aligned to steps). Changing it redraws routes. */
   modes?: TransportMode[];
+  /** when true, frame the whole route (overview) instead of the active stop */
+  overview?: boolean;
 }
 
 /**
@@ -29,6 +31,7 @@ export function TripMap({
   height = 360,
   bottomInset = 150,
   modes,
+  overview = false,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -122,20 +125,40 @@ export function TripMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modesKey]);
 
-  // fly to active step + highlight its pin
+  // fly to active step (or frame the whole route in overview)
   useEffect(() => {
-    if (readyRef.current) updateActive(activeIndex);
+    if (!readyRef.current) return;
+    if (overview) frameAll();
+    else updateActive(activeIndex);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeIndex]);
+  }, [activeIndex, overview]);
+
+  function frameAll() {
+    const map = mapRef.current;
+    if (!map || steps.length === 0) return;
+    let w = 180, e = -180, s = 90, n = -90;
+    steps.forEach((st) => {
+      w = Math.min(w, st.lng); e = Math.max(e, st.lng);
+      s = Math.min(s, st.lat); n = Math.max(n, st.lat);
+    });
+    map.fitBounds([[w, s], [e, n]], { padding: { top: 90, bottom: bottomInset, left: 60, right: 60 }, duration: 1800, essential: true });
+    markersRef.current.forEach((m) => {
+      m.inner.style.transform = 'scale(1)';
+      m.el.style.borderColor = '#fff';
+      m.root.style.zIndex = '1';
+    });
+  }
 
   function updateActive(i: number) {
     const map = mapRef.current;
     const step = steps[i];
     if (!map || !step) return;
-    map.easeTo({
+    // slower + more overhead so the movement reads clearly and stays legible
+    map.flyTo({
       center: [step.lng, step.lat],
-      zoom: 10,
-      duration: 1400,
+      zoom: 8.4,
+      duration: 2400,
+      curve: 1.4,
       offset: [0, -bottomInset / 2],
       essential: true,
     });
