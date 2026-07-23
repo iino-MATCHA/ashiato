@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Button, Eyebrow } from '@/components/ui';
+import { JapanSvgMap, visitedSlugs } from '@/components/JapanSvgMap';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
+import { trips, goshuinList } from '@/lib/mock';
 
 const ratios = [
   { key: '9:16', label: 'Stories', sub: '9 : 16' },
@@ -18,11 +20,16 @@ const items = ['Route trace', 'Distance', 'Prefectures visited', 'Goshuin earned
 
 export default function UgcCreate() {
   const { palette } = useTheme();
+  const { width } = useWindowDimensions();
   const [ratio, setRatio] = useState<string>('9:16');
   const [color, setColor] = useState(swatches[0]);
   const [selected, setSelected] = useState<string[]>(['Route trace', 'Distance', 'Prefectures visited']);
 
   const toggle = (t: string) => setSelected((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]));
+  const visited = visitedSlugs(
+    trips.flatMap((t) => t.prefectures),
+    goshuinList.filter((g) => g.acquired).map((g) => g.prefectureName)
+  );
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
@@ -30,6 +37,13 @@ export default function UgcCreate() {
       <Rule />
       <View style={{ flex: 1, paddingHorizontal: space.lg }}>
         <Gap h={space.lg} />
+        {/* Prefecture coverage preview (rendered from the SVG Japan map) */}
+        <Eyebrow>Prefectures visited</Eyebrow>
+        <Gap h={space.sm} />
+        <View style={[styles.coverage, { backgroundColor: color }]}>
+          <JapanSvgMap visited={visited} width={Math.min(width * 0.5, 220)} tint="#FFFFFF" />
+        </View>
+        <Gap h={space.xl} />
         <Eyebrow>Size</Eyebrow>
         <Gap h={space.md} />
         <Row style={{ gap: space.md }}>
@@ -86,6 +100,7 @@ export default function UgcCreate() {
 }
 
 const styles = StyleSheet.create({
+  coverage: { alignItems: 'center', justifyContent: 'center', borderRadius: 6, paddingVertical: space.lg },
   ratio: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, borderWidth: hairline * 2, borderRadius: 3, padding: space.md },
   ratioIcon: { borderWidth: 2, borderRadius: 2 },
   swatch: { width: 40, height: 40, borderRadius: 20 },

@@ -16,7 +16,8 @@ import { AppText, Row, Gap } from '@/components/ui';
 import { TripMap } from '@/components/map/TripMap';
 import { space, hairline, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { findTrip, transportLabel, type Step, type TransportMode } from '@/lib/mock';
+import { transportLabel, type Step, type TransportMode } from '@/lib/mock';
+import { useTrip } from '@/lib/useData';
 
 const transportIcon: Record<TransportMode, any> = {
   car: 'car-outline',
@@ -33,8 +34,7 @@ export default function TripDetail() {
   const { palette } = useTheme();
   const { width, height: winH } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const trip = findTrip(id);
-  const steps = trip.steps;
+  const { trip, loading } = useTrip(id);
 
   const CARD_W = Math.min(width * 0.82, 360);
   const SNAP = CARD_W + CARD_GAP;
@@ -42,6 +42,15 @@ export default function TripDetail() {
 
   const [active, setActive] = useState(0);
   const scrollRef = useRef<ScrollView | null>(null);
+
+  if (!trip) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi, alignItems: 'center', justifyContent: 'center' }}>
+        <AppText variant="small" tone="inkFaint">{loading ? 'Loading…' : 'Trip not found'}</AppText>
+      </SafeAreaView>
+    );
+  }
+  const steps = trip.steps;
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const idx = Math.round(e.nativeEvent.contentOffset.x / SNAP);

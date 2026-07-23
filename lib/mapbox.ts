@@ -88,18 +88,27 @@ export function arcBetween(
   return pts;
 }
 
-/** Directions API を使う交通手段か（道路に乗るもの）。 */
+/**
+ * Directions API のプロファイルを返す。陸上移動（車/電車/新幹線/バス）は
+ * driving で道路ネットワーク上のルートを描く。徒歩は walking。
+ * 飛行機・フェリーは道路に乗らないため null（弧で描画）。
+ */
 export function directionsProfile(
   mode: string
 ): 'driving' | 'walking' | 'cycling' | null {
   switch (mode) {
-    case 'car':
-      return 'driving';
     case 'walk':
       return 'walking';
     case 'bike':
       return 'cycling';
-    // 飛行機・新幹線・電車・フェリーは弧で描く
+    case 'car':
+    case 'train':
+    case 'shinkansen':
+    case 'bus':
+      return 'driving';
+    // 飛行機・フェリーは弧で描く
+    case 'plane':
+    case 'ferry':
     default:
       return null;
   }

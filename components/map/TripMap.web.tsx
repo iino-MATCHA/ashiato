@@ -52,30 +52,38 @@ export function TripMap({
         mapRef.current = map;
         map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
 
-        // photo pins
+        // Photo pins. Fixed-size box anchored at its CENTER so the anchor point
+        // never moves; the active state scales via transform (no reflow → no drift).
         steps.forEach((s, i) => {
           const wrap = document.createElement('div');
-          wrap.style.cssText =
-            'display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:transform .2s ease;';
+          wrap.style.cssText = [
+            'position:relative;width:52px;height:52px;cursor:pointer;',
+            'transform-origin:center center;transition:transform .2s ease;',
+            'will-change:transform;',
+          ].join('');
 
           const el = document.createElement('div');
           el.style.cssText = [
-            'width:44px;height:44px;border-radius:50%;',
+            'position:absolute;inset:0;border-radius:50%;',
             `background-image:url(${s.images[0]});background-size:cover;background-position:center;`,
-            'border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.35);',
-            'transition:all .2s ease;',
+            'border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.35);',
+            'transition:border-color .2s ease;',
           ].join('');
 
           const badge = document.createElement('div');
           badge.textContent = String(i + 1);
-          badge.style.cssText =
-            'margin-top:2px;font-size:10px;font-weight:700;color:#fff;background:#1B1815;border-radius:8px;padding:0 5px;line-height:15px;';
+          badge.style.cssText = [
+            'position:absolute;top:-4px;right:-4px;',
+            'font-size:10px;font-weight:700;color:#fff;background:#1B1815;',
+            'border-radius:9px;min-width:16px;height:16px;line-height:16px;text-align:center;',
+            'border:1.5px solid #fff;padding:0 2px;',
+          ].join('');
 
           wrap.appendChild(el);
           wrap.appendChild(badge);
           wrap.addEventListener('click', () => onSelectRef.current(i));
 
-          new mapboxgl.Marker({ element: wrap, anchor: 'bottom' })
+          new mapboxgl.Marker({ element: wrap, anchor: 'center' })
             .setLngLat([s.lng, s.lat])
             .addTo(map);
           markersRef.current.push({ el, wrap });
@@ -128,8 +136,8 @@ export function TripMap({
 
     markersRef.current.forEach((m, idx) => {
       const active = idx === i;
-      m.el.style.width = active ? '64px' : '44px';
-      m.el.style.height = active ? '64px' : '44px';
+      // scale from center — anchor point stays fixed, so the pin never drifts
+      m.wrap.style.transform = active ? 'scale(1.28)' : 'scale(1)';
       m.el.style.borderColor = active ? '#C4432B' : '#fff';
       m.wrap.style.zIndex = active ? '10' : '1';
     });

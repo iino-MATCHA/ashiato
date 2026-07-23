@@ -7,23 +7,23 @@
 import { Platform, StyleSheet } from 'react-native';
 
 const light = {
-  // 地
-  washi: '#F4F1EA', // 和紙
-  paper: '#FBFAF6', // 一段明るい面
+  // 地（白ベース：記録を邪魔しないクリーンな下地）
+  washi: '#FFFFFF',
+  paper: '#FFFFFF',
   // 墨
-  ink: '#1B1815', // 本文
-  inkSoft: '#5A544C', // 副文
-  inkFaint: '#938C80', // キャプション
+  ink: '#171717', // 本文
+  inkSoft: '#5E5E5E', // 副文
+  inkFaint: '#9B9B9B', // キャプション
   // 藍（構造色）
   ai: '#2B4257',
-  aiSoft: '#6C8199',
+  aiSoft: '#7C93A8',
   // 朱（差し色・御朱印・アクティブ）
   shu: '#C4432B',
   shuSoft: '#D98266',
   // 罫・面
-  rule: '#DAD5C7', // 罫線
-  ruleStrong: '#BCB5A3',
-  fill: '#EEEAE0', // 面(薄)
+  rule: '#ECECEC', // 罫線
+  ruleStrong: '#D7D7D7',
+  fill: '#F4F4F2', // 面(薄グレー)
   // 状態
   gold: '#A98037', // 限定バッジ等
 } as const;

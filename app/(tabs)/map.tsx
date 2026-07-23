@@ -1,12 +1,13 @@
-import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, ScrollView, Pressable, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AppText, Row, Rule, Gap, Eyebrow } from '@/components/ui';
+import { AppText, Row, Gap } from '@/components/ui';
 import { GlobeMap } from '@/components/map/GlobeMap';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { trips, acquiredCount, PREFECTURE_TOTAL, type Trip } from '@/lib/mock';
+import { acquiredCount, PREFECTURE_TOTAL, type Trip } from '@/lib/mock';
+import { useTrips } from '@/lib/useData';
 
 const statusLabel: Record<Trip['status'], string> = {
   planning: 'Planning',
@@ -16,62 +17,39 @@ const statusLabel: Record<Trip['status'], string> = {
 
 export default function Home() {
   const { palette } = useTheme();
-  const ongoing = trips.filter((t) => t.status === 'ongoing');
-  const past = trips.filter((t) => t.status !== 'ongoing');
+  const { trips } = useTrips();
   const pct = Math.round((acquiredCount / PREFECTURE_TOTAL) * 100);
+  const ordered = [...trips].sort((a, b) => (a.status === 'ongoing' ? -1 : b.status === 'ongoing' ? 1 : 0));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.xxl }}>
         {/* Rotating globe */}
-        <GlobeMap height={320} />
+        <GlobeMap height={300} />
 
         <View style={{ paddingHorizontal: space.lg }}>
           <Gap h={space.lg} />
-          <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
-            <View>
-              <Eyebrow>Your journeys across Japan</Eyebrow>
-              <Gap h={space.xs} />
-              <AppText variant="h1" tone="ink">Your Trips</AppText>
-            </View>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <AppText variant="h2" tone="ink">Your Trips</AppText>
             <Pressable onPress={() => router.push('/trip/new')} hitSlop={8}>
-              <View style={[styles.add, { borderColor: palette.ink }]}>
-                <Ionicons name="add" size={22} color={palette.ink} />
-              </View>
+              <Row style={{ gap: 5, alignItems: 'center' }}>
+                <Ionicons name="add-circle" size={22} color={palette.shu} />
+                <AppText variant="bodyStrong" tone="shu">New</AppText>
+              </Row>
             </Pressable>
           </Row>
 
-          {/* slim stats */}
-          <Gap h={space.lg} />
-          <Row style={{ alignItems: 'stretch' }}>
-            <Stat value={`${pct}%`} label="Prefectures" palette={palette} />
-            <Rule vertical />
-            <Stat value={String(acquiredCount)} label="Goshuin" palette={palette} />
-            <Rule vertical />
-            <Stat value={String(trips.length)} label="Trips" palette={palette} />
+          {/* slim inline stats */}
+          <Gap h={space.sm} />
+          <Row style={{ gap: space.lg }}>
+            <InlineStat value={`${pct}%`} label="of Japan" palette={palette} />
+            <InlineStat value={String(acquiredCount)} label="goshuin" palette={palette} />
+            <InlineStat value={String(trips.length)} label="trips" palette={palette} />
           </Row>
 
-          {/* Ongoing */}
-          <Gap h={space.xl} />
-          {ongoing.length > 0 && (
-            <>
-              <Eyebrow tone="inkFaint">On the road now</Eyebrow>
-              <Gap h={space.md} />
-              {ongoing.map((t) => (
-                <Featured key={t.id} trip={t} palette={palette} />
-              ))}
-              <Gap h={space.xl} />
-              <Eyebrow tone="inkFaint">Past trips</Eyebrow>
-              <Gap h={space.sm} />
-            </>
-          )}
-
-          <Rule />
-          {past.map((t) => (
-            <View key={t.id}>
-              <TripRow trip={t} palette={palette} />
-              <Rule />
-            </View>
+          <Gap h={space.lg} />
+          {ordered.map((t) => (
+            <TripCard key={t.id} trip={t} palette={palette} />
           ))}
         </View>
       </ScrollView>
@@ -79,77 +57,60 @@ export default function Home() {
   );
 }
 
-function Featured({ trip, palette }: { trip: Trip; palette: any }) {
+function TripCard({ trip, palette }: { trip: Trip; palette: any }) {
+  const cover = trip.steps[0]?.images[0];
+  const ongoing = trip.status === 'ongoing';
   return (
-    <Pressable onPress={() => router.push(`/trip/${trip.id}`)} style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}>
-      <View style={[styles.hero, { backgroundColor: palette.ai }]}>
-        <Row style={{ gap: 6 }}>
-          <View style={[styles.pulse, { backgroundColor: palette.shuSoft }]} />
-          <AppText variant="eyebrow" style={{ color: palette.paper }}>
-            {statusLabel[trip.status]} · {trip.subtitle}
+    <Pressable onPress={() => router.push(`/trip/${trip.id}`)} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
+      <View style={styles.cover}>
+        {cover && <Image source={{ uri: cover }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />}
+        <View style={styles.coverShade} />
+        {ongoing && (
+          <View style={[styles.pill, { backgroundColor: palette.shu }]}>
+            <View style={styles.pulse} />
+            <AppText variant="eyebrow" style={{ color: '#fff' }}>{statusLabel[trip.status]}</AppText>
+          </View>
+        )}
+        <View style={styles.coverText}>
+          <AppText variant="h2" style={{ color: '#fff' }} numberOfLines={2}>{trip.title}</AppText>
+          <AppText variant="small" style={{ color: 'rgba(255,255,255,0.85)' }}>
+            {trip.startDate.replace(/-/g, '.')} · {trip.subtitle}
           </AppText>
-        </Row>
-        <Gap h={space.md} />
-        <AppText variant="h1" style={{ color: palette.paper }}>{trip.title}</AppText>
-        <Gap h={space.md} />
-        <Row style={{ gap: space.lg }}>
-          <Mini value={String(trip.steps.length)} label="Stops" color={palette.paper} />
-          <Mini value={`${trip.distanceKm}km`} label="Distance" color={palette.paper} />
-          <Mini value={String(trip.members.length)} label="Travellers" color={palette.paper} />
-        </Row>
+        </View>
       </View>
+      <Row style={{ gap: space.lg, paddingVertical: space.md }}>
+        <Meta icon="footsteps-outline" text={`${trip.steps.length} stops`} palette={palette} />
+        <Meta icon="navigate-outline" text={`${trip.distanceKm} km`} palette={palette} />
+        <Meta icon="people-outline" text={`${trip.members.length}`} palette={palette} />
+        <View style={{ flex: 1 }} />
+        <Ionicons name="chevron-forward" size={18} color={palette.inkFaint} />
+      </Row>
     </Pressable>
   );
 }
 
-function TripRow({ trip, palette }: { trip: Trip; palette: any }) {
+function InlineStat({ value, label, palette }: any) {
   return (
-    <Pressable onPress={() => router.push(`/trip/${trip.id}`)} style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}>
-      <View style={{ flex: 1 }}>
-        <AppText variant="small" tone="inkFaint">
-          {trip.startDate.replace(/-/g, '.')} — {trip.prefectures.join(' · ')}
-        </AppText>
-        <Gap h={2} />
-        <AppText variant="h3" tone="ink">{trip.title}</AppText>
-        <Gap h={space.xs} />
-        <Row style={{ gap: space.md }}>
-          <Meta icon="footsteps-outline" text={`${trip.steps.length} stops`} palette={palette} />
-          <Meta icon="navigate-outline" text={`${trip.distanceKm} km`} palette={palette} />
-        </Row>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color={palette.inkFaint} />
-    </Pressable>
-  );
-}
-
-function Stat({ value, label, palette }: any) {
-  return (
-    <View style={{ flex: 1, alignItems: 'center' }}>
-      <AppText variant="h2" tone="ink">{value}</AppText>
-      <AppText variant="eyebrow" tone="inkFaint">{label}</AppText>
-    </View>
-  );
-}
-function Mini({ value, label, color }: any) {
-  return (
-    <View>
-      <AppText variant="h3" style={{ color }}>{value}</AppText>
-      <AppText variant="eyebrow" style={{ color, opacity: 0.7 }}>{label}</AppText>
-    </View>
+    <Row style={{ alignItems: 'baseline', gap: 4 }}>
+      <AppText variant="h3" tone="ink">{value}</AppText>
+      <AppText variant="small" tone="inkFaint">{label}</AppText>
+    </Row>
   );
 }
 function Meta({ icon, text, palette }: any) {
   return (
     <Row style={{ gap: 4 }}>
-      <Ionicons name={icon} size={13} color={palette.inkFaint} />
-      <AppText variant="small" tone="inkFaint">{text}</AppText>
+      <Ionicons name={icon} size={14} color={palette.inkFaint} />
+      <AppText variant="small" tone="inkSoft">{text}</AppText>
     </Row>
   );
 }
 
 const styles = StyleSheet.create({
-  add: { width: 40, height: 40, borderRadius: 20, borderWidth: hairline * 2, alignItems: 'center', justifyContent: 'center' },
-  hero: { padding: space.lg, borderRadius: 3 },
-  pulse: { width: 7, height: 7, borderRadius: 4 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: space.lg, gap: space.md },
+  card: { marginBottom: space.lg },
+  cover: { height: 200, borderRadius: 10, overflow: 'hidden', backgroundColor: '#ddd', justifyContent: 'flex-end' },
+  coverShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.28)' },
+  coverText: { padding: space.md, gap: 2 },
+  pill: { position: 'absolute', top: space.md, left: space.md, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  pulse: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
 });

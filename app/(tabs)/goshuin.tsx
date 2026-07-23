@@ -1,10 +1,11 @@
-import { View, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { AppText, Screen, Row, Rule, Gap, Eyebrow } from '@/components/ui';
 import { Stamp } from '@/components/Stamp';
+import { JapanSvgMap, visitedSlugs } from '@/components/JapanSvgMap';
 import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { goshuinList, acquiredCount, PREFECTURE_TOTAL } from '@/lib/mock';
+import { goshuinList, acquiredCount, PREFECTURE_TOTAL, trips } from '@/lib/mock';
 
 function rank(count: number) {
   if (count >= 47) return 'Grand Master';
@@ -16,6 +17,11 @@ function rank(count: number) {
 
 export default function GoshuinBook() {
   const { palette } = useTheme();
+  const { width } = useWindowDimensions();
+  const visited = visitedSlugs(
+    trips.flatMap((t) => t.prefectures),
+    goshuinList.filter((g) => g.acquired).map((g) => g.prefectureName)
+  );
 
   return (
     <Screen contentContainerStyle={{ paddingBottom: space.xxl }}>
@@ -28,6 +34,17 @@ export default function GoshuinBook() {
           <AppText variant="display" tone="shu" style={{ lineHeight: 44 }}>{acquiredCount}</AppText>
           <AppText variant="small" tone="inkFaint">/ {PREFECTURE_TOTAL}</AppText>
         </View>
+      </Row>
+
+      {/* Coverage map — which prefectures you've reached */}
+      <Gap h={space.lg} />
+      <View style={{ alignItems: 'center' }}>
+        <JapanSvgMap visited={visited} width={Math.min(width - space.lg * 2, 380)} />
+      </View>
+      <Gap h={space.xs} />
+      <Row style={{ justifyContent: 'center', gap: space.lg }}>
+        <LegendDot color={palette.shu} label="Visited" palette={palette} />
+        <LegendDot color={palette.fill} label="Not yet" palette={palette} border={palette.ruleStrong} />
       </Row>
 
       <Gap h={space.lg} />
@@ -57,6 +74,15 @@ export default function GoshuinBook() {
         Goshuin are stamped automatically when you check in to a prefecture on a trip. Seasonal and collaboration editions are only available for a limited time.
       </AppText>
     </Screen>
+  );
+}
+
+function LegendDot({ color, label, palette, border }: any) {
+  return (
+    <Row style={{ gap: 6, alignItems: 'center' }}>
+      <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: color, borderWidth: border ? StyleSheet.hairlineWidth : 0, borderColor: border }} />
+      <AppText variant="small" tone="inkFaint">{label}</AppText>
+    </Row>
   );
 }
 
