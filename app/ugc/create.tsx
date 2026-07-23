@@ -89,7 +89,7 @@ export default function UgcCreate() {
           <Ionicons name="construct-outline" size={13} color={palette.inkFaint} />
           <AppText variant="small" tone="inkFaint">High-res rendering (Skia) is planned.</AppText>
         </Row>
-        <Button label="Generate preview" tone="shu" onPress={() => router.push('/ugc/preview')} />
+        <Button label="Generate preview" tone="matcha" onPress={() => router.push('/ugc/preview')} />
         <Gap h={space.md} />
       </View>
     </SafeAreaView>

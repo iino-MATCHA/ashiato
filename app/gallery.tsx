@@ -30,7 +30,7 @@ export default function Gallery() {
           const on = filter === f;
           return (
             <Pressable key={f} onPress={() => setFilter(f)}>
-              <AppText variant="bodyStrong" tone={on ? 'shu' : 'inkFaint'}>{f}</AppText>
+              <AppText variant="bodyStrong" tone={on ? 'matcha' : 'inkFaint'}>{f}</AppText>
             </Pressable>
           );
         })}

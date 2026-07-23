@@ -97,7 +97,7 @@ export default function NewTrip() {
       </View>
 
       <View style={{ padding: space.lg }}>
-        <Button label="Start the trip" tone="shu" onPress={() => router.replace('/trip/t3')} />
+        <Button label="Start the trip" tone="matcha" onPress={() => router.replace('/trip/t3')} />
       </View>
     </SafeAreaView>
   );

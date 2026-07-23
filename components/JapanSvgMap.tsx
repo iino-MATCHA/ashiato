@@ -44,7 +44,7 @@ export function JapanSvgMap({
   const { palette } = useTheme();
   const set = toSlugSet(visited);
   const height = (width * VB_H) / VB_W;
-  const fillVisited = tint ?? palette.shu;
+  const fillVisited = tint ?? palette.matcha;
 
   return (
     <View style={{ width, height }}>

@@ -27,7 +27,7 @@ export default function UgcPreview() {
         </Row>
       </View>
       <View style={{ padding: space.lg }}>
-        <Button label="Share" tone="shu" onPress={() => router.push('/share')} />
+        <Button label="Share" tone="matcha" onPress={() => router.push('/share')} />
         <Gap h={space.sm} />
         <Button label="Back to editing" variant="text" tone="ink" onPress={() => router.back()} />
       </View>

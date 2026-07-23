@@ -52,7 +52,7 @@ export default function Onboarding() {
       </Row>
 
       <Gap h={space.xl} />
-      <Button label="Get started" tone="shu" onPress={() => router.replace('/(tabs)/map')} />
+      <Button label="Get started" tone="matcha" onPress={() => router.replace('/(tabs)/map')} />
     </Screen>
   );
 }

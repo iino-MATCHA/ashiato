@@ -102,7 +102,7 @@ export default function TripDetail() {
                 width: i === active ? 18 : 6,
                 height: 6,
                 borderRadius: 3,
-                backgroundColor: i === active ? palette.shu : palette.paper,
+                backgroundColor: i === active ? palette.matcha : palette.paper,
                 opacity: i === active ? 1 : 0.7,
               }}
             />
@@ -175,7 +175,7 @@ function LocationCard({
           <Ionicons name="images-outline" size={12} color="#fff" />
           <AppText variant="small" style={{ color: '#fff' }}>{step.images.length}</AppText>
         </View>
-        <View style={[styles.transport, { backgroundColor: palette.shu }]}>
+        <View style={[styles.transport, { backgroundColor: palette.matcha }]}>
           <Ionicons name={transportIcon[step.transport]} size={13} color="#fff" />
           <AppText variant="small" style={{ color: '#fff' }}>{transportLabel[step.transport]}</AppText>
         </View>

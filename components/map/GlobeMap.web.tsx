@@ -44,7 +44,7 @@ export function GlobeMap({ height = 300 }: { height?: number }) {
             if (!s) return;
             const el = document.createElement('div');
             el.style.cssText =
-              'width:12px;height:12px;border-radius:50%;background:#C4432B;box-shadow:0 0 0 3px rgba(196,67,43,0.35);border:1.5px solid #fff;';
+              'width:12px;height:12px;border-radius:50%;background:#69AF00;box-shadow:0 0 0 3px rgba(105,175,0,0.35);border:1.5px solid #fff;';
             new mapboxgl.Marker({ element: el }).setLngLat([s.lng, s.lat]).addTo(map);
           });
         });

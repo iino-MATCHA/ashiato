@@ -58,13 +58,13 @@ export function StepEditor({ step }: { step?: Step }) {
         <TextInput placeholder="Write down what you felt, what you want to remember…" placeholderTextColor={palette.inkFaint} value={note} onChangeText={setNote} multiline style={[styles.noteInput, { color: palette.inkSoft }]} />
 
         <Gap h={space.xl} />
-        <Eyebrow tone="shu">Where did you go? (check in)</Eyebrow>
+        <Eyebrow tone="matcha">Where did you go? (check in)</Eyebrow>
         <Gap h={space.md} />
         <Row style={{ gap: space.sm, flexWrap: 'wrap' }}>
           {suggestPrefs.map((p) => {
             const on = prefecture === p;
             return (
-              <Pressable key={p} onPress={() => setPrefecture(on ? null : p)} style={[styles.chip, { borderColor: on ? palette.shu : palette.rule }, on && { backgroundColor: palette.shu }]}>
+              <Pressable key={p} onPress={() => setPrefecture(on ? null : p)} style={[styles.chip, { borderColor: on ? palette.matcha : palette.rule }, on && { backgroundColor: palette.matcha }]}>
                 <AppText variant="small" style={{ color: on ? palette.paper : palette.inkSoft }}>{p}</AppText>
               </Pressable>
             );
@@ -112,7 +112,7 @@ export function StepEditor({ step }: { step?: Step }) {
         </Row>
 
         <Gap h={space.xl} />
-        <Button label={editing ? 'Save changes' : 'Save stop'} tone="shu" onPress={() => router.back()} />
+        <Button label={editing ? 'Save changes' : 'Save stop'} tone="matcha" onPress={() => router.back()} />
       </ScrollView>
     </SafeAreaView>
   );

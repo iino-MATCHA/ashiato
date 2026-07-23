@@ -21,7 +21,7 @@ export default function Login() {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: palette.washi }]}>
       <View style={styles.top}>
-        <AppText variant="eyebrow" tone="shu">ASHIATO — TRACE YOUR JOURNEY ACROSS JAPAN</AppText>
+        <AppText variant="eyebrow" tone="matcha">ASHIATO — TRACE YOUR JOURNEY ACROSS JAPAN</AppText>
         <Gap h={space.lg} />
         <AppText style={styles.brand} tone="ink">足跡</AppText>
         <Gap h={space.sm} />

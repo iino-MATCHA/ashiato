@@ -33,7 +33,17 @@ type Variant =
   | 'eyebrow'
   | 'mono';
 
-type ToneKey = 'ink' | 'inkSoft' | 'inkFaint' | 'ai' | 'shu' | 'gold' | 'paper';
+type ToneKey =
+  | 'ink'
+  | 'inkSoft'
+  | 'inkFaint'
+  | 'ai'
+  | 'aiSoft'
+  | 'shu'
+  | 'matcha'
+  | 'matchaSoft'
+  | 'gold'
+  | 'paper';
 
 interface AppTextProps extends TextProps {
   variant?: Variant;
@@ -198,7 +208,7 @@ export function Rule({
 /** 小見出しラベル（縦の朱の短い線 + 大文字トラッキング）。 */
 export function Eyebrow({
   children,
-  tone = 'shu',
+  tone = 'matcha',
 }: {
   children: React.ReactNode;
   tone?: ToneKey;
@@ -226,7 +236,7 @@ export function Eyebrow({
 interface ButtonProps extends PressableProps {
   label: string;
   variant?: 'solid' | 'outline' | 'text';
-  tone?: 'ai' | 'shu' | 'ink';
+  tone?: 'ai' | 'shu' | 'ink' | 'matcha';
 }
 
 export function Button({

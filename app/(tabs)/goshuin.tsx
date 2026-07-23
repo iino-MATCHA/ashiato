@@ -41,7 +41,7 @@ export default function GoshuinBook() {
       </View>
       <Gap h={space.xs} />
       <Row style={{ justifyContent: 'center', gap: space.lg }}>
-        <LegendDot color={palette.shu} label="Visited" palette={palette} />
+        <LegendDot color={palette.matcha} label="Visited" palette={palette} />
         <LegendDot color={palette.fill} label="Not yet" palette={palette} border={palette.ruleStrong} />
       </Row>
 

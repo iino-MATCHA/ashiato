@@ -17,7 +17,7 @@ export default function Explore() {
   return (
     <Screen>
       <Gap h={space.md} />
-      <AppText variant="eyebrow" tone="shu">EXPLORE</AppText>
+      <AppText variant="eyebrow" tone="matcha">EXPLORE</AppText>
       <Gap h={space.sm} />
       <AppText variant="h2" tone="ink">Get inspired by other travellers</AppText>
 

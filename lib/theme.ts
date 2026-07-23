@@ -14,10 +14,13 @@ const light = {
   ink: '#171717', // 本文
   inkSoft: '#5E5E5E', // 副文
   inkFaint: '#9B9B9B', // キャプション
+  // 抹茶（MATCHAブランド色＝アプリの主アクセント）
+  matcha: '#69AF00',
+  matchaSoft: '#9CC455',
   // 藍（構造色）
   ai: '#2B4257',
   aiSoft: '#7C93A8',
-  // 朱（差し色・御朱印・アクティブ）
+  // 朱（御朱印専用の差し色）
   shu: '#C4432B',
   shuSoft: '#D98266',
   // 罫・面
@@ -34,6 +37,8 @@ const dark = {
   ink: '#EDE9E0',
   inkSoft: '#B3AB9D',
   inkFaint: '#7E766A',
+  matcha: '#8FC93A',
+  matchaSoft: '#6E9A2E',
   ai: '#8FB0D4',
   aiSoft: '#5D7590',
   shu: '#E2745F',

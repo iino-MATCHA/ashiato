@@ -33,7 +33,7 @@ export default function Home() {
             <AppText variant="h2" tone="ink">Your Trips</AppText>
             <Pressable onPress={() => router.push('/trip/new')} hitSlop={8}>
               <Row style={{ gap: 5, alignItems: 'center' }}>
-                <Ionicons name="add-circle" size={22} color={palette.shu} />
+                <Ionicons name="add-circle" size={22} color={palette.matcha} />
                 <AppText variant="bodyStrong" tone="shu">New</AppText>
               </Row>
             </Pressable>
@@ -66,7 +66,7 @@ function TripCard({ trip, palette }: { trip: Trip; palette: any }) {
         {cover && <Image source={{ uri: cover }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />}
         <View style={styles.coverShade} />
         {ongoing && (
-          <View style={[styles.pill, { backgroundColor: palette.shu }]}>
+          <View style={[styles.pill, { backgroundColor: palette.matcha }]}>
             <View style={styles.pulse} />
             <AppText variant="eyebrow" style={{ color: '#fff' }}>{statusLabel[trip.status]}</AppText>
           </View>

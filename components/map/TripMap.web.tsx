@@ -29,7 +29,7 @@ export function TripMap({
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
-  const markersRef = useRef<{ el: HTMLDivElement; wrap: HTMLDivElement }[]>([]);
+  const markersRef = useRef<{ el: HTMLDivElement; inner: HTMLDivElement; root: HTMLDivElement }[]>([]);
   const readyRef = useRef(false);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
@@ -44,7 +44,7 @@ export function TripMap({
 
         const map = new mapboxgl.Map({
           container: containerRef.current,
-          style: 'mapbox://styles/mapbox/outdoors-v12',
+          style: 'mapbox://styles/mapbox/satellite-streets-v12', // realistic aerial (Polarsteps-like)
           center: [steps[0]?.lng ?? 138, steps[0]?.lat ?? 36],
           zoom: 5,
           attributionControl: false,
@@ -52,22 +52,24 @@ export function TripMap({
         mapRef.current = map;
         map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
 
-        // Photo pins. Fixed-size box anchored at its CENTER so the anchor point
-        // never moves; the active state scales via transform (no reflow → no drift).
+        // Photo pins. IMPORTANT: mapbox writes `transform: translate(...)` onto the
+        // marker root every frame. We must NOT put a CSS transition on the root, or
+        // the position gets eased and the pin visibly drifts. So the root only holds
+        // position; a separate inner element does the scale + transition.
         steps.forEach((s, i) => {
-          const wrap = document.createElement('div');
-          wrap.style.cssText = [
-            'position:relative;width:52px;height:52px;cursor:pointer;',
-            'transform-origin:center center;transition:transform .2s ease;',
-            'will-change:transform;',
-          ].join('');
+          const root = document.createElement('div'); // mapbox controls this transform
+          root.style.cssText = 'width:52px;height:52px;cursor:pointer;';
+
+          const inner = document.createElement('div'); // our scale lives here
+          inner.style.cssText =
+            'position:absolute;inset:0;transform-origin:center center;transition:transform .18s ease;will-change:transform;';
 
           const el = document.createElement('div');
           el.style.cssText = [
             'position:absolute;inset:0;border-radius:50%;',
             `background-image:url(${s.images[0]});background-size:cover;background-position:center;`,
             'border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.35);',
-            'transition:border-color .2s ease;',
+            'transition:border-color .18s ease;',
           ].join('');
 
           const badge = document.createElement('div');
@@ -79,14 +81,15 @@ export function TripMap({
             'border:1.5px solid #fff;padding:0 2px;',
           ].join('');
 
-          wrap.appendChild(el);
-          wrap.appendChild(badge);
-          wrap.addEventListener('click', () => onSelectRef.current(i));
+          inner.appendChild(el);
+          inner.appendChild(badge);
+          root.appendChild(inner);
+          root.addEventListener('click', () => onSelectRef.current(i));
 
-          new mapboxgl.Marker({ element: wrap, anchor: 'center' })
+          new mapboxgl.Marker({ element: root, anchor: 'center' })
             .setLngLat([s.lng, s.lat])
             .addTo(map);
-          markersRef.current.push({ el, wrap });
+          markersRef.current.push({ el, inner, root });
         });
 
         map.on('load', async () => {
@@ -136,10 +139,11 @@ export function TripMap({
 
     markersRef.current.forEach((m, idx) => {
       const active = idx === i;
-      // scale from center — anchor point stays fixed, so the pin never drifts
-      m.wrap.style.transform = active ? 'scale(1.28)' : 'scale(1)';
-      m.el.style.borderColor = active ? '#C4432B' : '#fff';
-      m.wrap.style.zIndex = active ? '10' : '1';
+      // scale on the INNER element only — the root's translate (set by mapbox)
+      // is untouched, so the anchor never drifts
+      m.inner.style.transform = active ? 'scale(1.28)' : 'scale(1)';
+      m.el.style.borderColor = active ? '#69AF00' : '#fff';
+      m.root.style.zIndex = active ? '10' : '1';
     });
   }
 
@@ -181,7 +185,7 @@ async function buildRoutes(map: any, steps: Step[]) {
     source: 'route',
     filter: ['==', ['get', 'road'], true],
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': '#C4432B', 'line-width': 3.5 },
+    paint: { 'line-color': '#69AF00', 'line-width': 3.5 },
   });
   // air/rail legs: dashed arc
   map.addLayer({
@@ -190,6 +194,6 @@ async function buildRoutes(map: any, steps: Step[]) {
     source: 'route',
     filter: ['==', ['get', 'road'], false],
     layout: { 'line-cap': 'round' },
-    paint: { 'line-color': '#C4432B', 'line-width': 2.5, 'line-dasharray': [1.5, 1.5] },
+    paint: { 'line-color': '#69AF00', 'line-width': 2.5, 'line-dasharray': [1.5, 1.5] },
   });
 }
