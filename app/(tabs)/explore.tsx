@@ -1,4 +1,5 @@
-import { View, Image, Pressable, StyleSheet, TextInput, useWindowDimensions } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Image, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText, Screen, Row, Rule, Gap, Eyebrow } from '@/components/ui';
@@ -13,11 +14,6 @@ export default function Explore() {
   const { trips } = usePublicTrips();
   const colW = (width - space.lg * 2 - space.md) / 2;
 
-  const feature = trips[0];
-  const rest = trips.slice(1);
-  const left = rest.filter((_, i) => i % 2 === 0);
-  const right = rest.filter((_, i) => i % 2 === 1);
-
   return (
     <Screen>
       <Gap h={space.md} />
@@ -31,13 +27,13 @@ export default function Explore() {
         <TextInput placeholder="Search places, spots, people" placeholderTextColor={palette.inkFaint} style={[styles.searchInput, { color: palette.ink }]} />
       </Row>
 
-      {/* Featured public trip */}
-      {feature && (
+      {/* Auto-scrolling featured journeys */}
+      {trips.length > 0 && (
         <>
           <Gap h={space.xl} />
-          <Eyebrow>Featured journey</Eyebrow>
+          <Eyebrow>Featured journeys</Eyebrow>
           <Gap h={space.md} />
-          <FeatureCard trip={feature} palette={palette} />
+          <FeaturedCarousel trips={trips} palette={palette} screenW={width} />
         </>
       )}
 
@@ -63,50 +59,85 @@ export default function Explore() {
         </View>
       ))}
 
-      {/* More public trips */}
-      {rest.length > 0 && (
-        <>
-          <Gap h={space.xl} />
-          <Eyebrow>More journeys</Eyebrow>
-          <Gap h={space.md} />
-          <Row style={{ alignItems: 'flex-start', gap: space.md }}>
-            <View style={{ gap: space.md, flex: 1 }}>
-              {left.map((t) => <MiniCard key={t.id} trip={t} width={colW} palette={palette} />)}
-            </View>
-            <View style={{ gap: space.md, flex: 1 }}>
-              {right.map((t) => <MiniCard key={t.id} trip={t} width={colW} palette={palette} />)}
-            </View>
-          </Row>
-        </>
-      )}
+      {/* Grid of all public trips */}
+      <Gap h={space.xl} />
+      <Eyebrow>All journeys</Eyebrow>
+      <Gap h={space.md} />
+      <Row style={{ alignItems: 'flex-start', gap: space.md }}>
+        <View style={{ gap: space.md, flex: 1 }}>
+          {trips.filter((_, i) => i % 2 === 0).map((t) => <MiniCard key={t.id} trip={t} width={colW} />)}
+        </View>
+        <View style={{ gap: space.md, flex: 1 }}>
+          {trips.filter((_, i) => i % 2 === 1).map((t) => <MiniCard key={t.id} trip={t} width={colW} />)}
+        </View>
+      </Row>
     </Screen>
   );
 }
 
-function FeatureCard({ trip, palette }: { trip: Trip; palette: any }) {
-  const cover = trip.steps[0]?.images[0];
+function FeaturedCarousel({ trips, palette, screenW }: { trips: Trip[]; palette: any; screenW: number }) {
+  const ref = useRef<ScrollView | null>(null);
+  const [idx, setIdx] = useState(0);
+  const cardW = screenW - space.lg * 2;
+  const SNAP = cardW + space.md;
+
+  // auto-advance
+  useEffect(() => {
+    if (trips.length < 2) return;
+    const t = setInterval(() => {
+      setIdx((cur) => {
+        const next = (cur + 1) % trips.length;
+        ref.current?.scrollTo({ x: next * SNAP, animated: true });
+        return next;
+      });
+    }, 3500);
+    return () => clearInterval(t);
+  }, [trips.length, SNAP]);
+
   return (
-    <Pressable onPress={() => router.push(`/trip/${trip.id}?readonly=1`)} style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}>
-      <View style={styles.featureCover}>
-        {cover && <Image source={{ uri: cover }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />}
-        <View style={styles.shade} />
-        <View style={styles.featureText}>
-          <AppText variant="eyebrow" style={{ color: 'rgba(255,255,255,0.85)' }}>{trip.prefectures.slice(0, 4).join(' · ')}</AppText>
-          <Gap h={4} />
-          <AppText variant="h1" style={{ color: '#fff' }} numberOfLines={2}>{trip.title}</AppText>
-          <Gap h={space.xs} />
-          <Row style={{ gap: space.md }}>
-            <Meta icon="footsteps-outline" text={`${trip.steps.length} stops`} />
-            <Meta icon="navigate-outline" text={`${trip.distanceKm} km`} />
-            <Meta icon="person-circle-outline" text={trip.members[0] ?? 'Traveller'} />
-          </Row>
-        </View>
-      </View>
-    </Pressable>
+    <View>
+      <ScrollView
+        ref={ref}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={SNAP}
+        decelerationRate="fast"
+        onMomentumScrollEnd={(e) => setIdx(Math.round(e.nativeEvent.contentOffset.x / SNAP))}
+        contentContainerStyle={{ gap: space.md }}
+      >
+        {trips.map((t) => {
+          const cover = t.steps[0]?.images[0];
+          return (
+            <Pressable key={t.id} onPress={() => router.push(`/trip/${t.id}?readonly=1`)} style={{ width: cardW }}>
+              <View style={[styles.featureCover, { width: cardW }]}>
+                {cover && <Image source={{ uri: cover }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />}
+                <View style={styles.shade} />
+                <View style={styles.featureText}>
+                  <AppText variant="eyebrow" style={{ color: 'rgba(255,255,255,0.85)' }}>{t.prefectures.slice(0, 4).join(' · ')}</AppText>
+                  <Gap h={4} />
+                  <AppText variant="h1" style={{ color: '#fff' }} numberOfLines={2}>{t.title}</AppText>
+                  <Gap h={space.xs} />
+                  <Row style={{ gap: space.md }}>
+                    <Meta icon="footsteps-outline" text={`${t.steps.length} stops`} />
+                    <Meta icon="navigate-outline" text={`${t.distanceKm} km`} />
+                    <Meta icon="person-circle-outline" text={t.members[0] ?? 'Traveller'} />
+                  </Row>
+                </View>
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      <Row style={{ justifyContent: 'center', gap: 6, marginTop: space.sm }}>
+        {trips.map((_, i) => (
+          <View key={i} style={{ width: i === idx ? 18 : 6, height: 6, borderRadius: 3, backgroundColor: i === idx ? palette.matcha : palette.rule }} />
+        ))}
+      </Row>
+    </View>
   );
 }
 
-function MiniCard({ trip, width, palette }: { trip: Trip; width: number; palette: any }) {
+function MiniCard({ trip, width }: { trip: Trip; width: number }) {
   const cover = trip.steps[0]?.images[0];
   return (
     <Pressable onPress={() => router.push(`/trip/${trip.id}?readonly=1`)}>

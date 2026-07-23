@@ -1,5 +1,4 @@
-import { View, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
-import { router } from 'expo-router';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import { AppText, Screen, Row, Rule, Gap, Eyebrow } from '@/components/ui';
 import { Stamp } from '@/components/Stamp';
 import { JapanSvgMap } from '@/components/JapanSvgMap';
@@ -54,14 +53,11 @@ export default function GoshuinBook() {
       <Gap h={space.xl} />
       <View style={styles.grid}>
         {goshuinList.map((g, i) => (
-          <Pressable key={g.id} onPress={() => router.push(`/goshuin/${g.id}`)} style={styles.cell}>
-            <Stamp goshuin={g} size={88} rotate={((i * 7) % 9) - 4} />
+          <View key={g.id} style={styles.cell}>
+            <Stamp goshuin={g} size={80} rotate={((i * 7) % 9) - 4} />
             <Gap h={space.sm} />
             <AppText variant="small" tone={g.acquired ? 'inkSoft' : 'inkFaint'} center numberOfLines={1}>{g.prefectureName}</AppText>
-            {g.acquired && (g.rarity === 'limited' || g.rarity === 'collab') && (
-              <AppText variant="eyebrow" tone="gold">LIMITED</AppText>
-            )}
-          </Pressable>
+          </View>
         ))}
       </View>
 
@@ -69,7 +65,7 @@ export default function GoshuinBook() {
       <Rule />
       <Gap h={space.md} />
       <AppText variant="small" tone="inkFaint">
-        Goshuin are stamped automatically when you check in to a prefecture on a trip. Seasonal and collaboration editions are only available for a limited time.
+        One goshuin per prefecture. A stamp is received automatically when you check in to that prefecture on a trip.
       </AppText>
     </Screen>
   );

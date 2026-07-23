@@ -1,5 +1,7 @@
+import { useLocalSearchParams } from 'expo-router';
 import { StepEditor } from '@/components/StepEditor';
 
 export default function NewStep() {
-  return <StepEditor />;
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return <StepEditor tripId={id} />;
 }

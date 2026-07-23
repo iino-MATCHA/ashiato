@@ -32,18 +32,19 @@ declare
   lid uuid;
   prev uuid;
   -- 周遊コース: [municipality_code, prefecture_code, title, note, mode, photoSeed]
-  -- [code, prefCode, title, note, mode, photoKeywords]
+  -- [code, prefCode, title, note, mode, imageUrl(Wikimedia, accurate)]
+  wc text := 'https://upload.wikimedia.org/wikipedia/commons/thumb';
   rows text[][] := array[
-    ['13101','13','Start in Tokyo','The neon capital. Where the loop begins.','plane','tokyo,skyline'],
-    ['17201','17','Kanazawa Gold','Kenrokuen garden and gold leaf.','shinkansen','kanazawa,castle'],
-    ['26100','26','Kyoto Temples','A thousand vermilion gates.','train','kyoto,temple'],
-    ['27100','27','Osaka Nights','Street food until midnight.','train','osaka,night'],
-    ['34100','34','Hiroshima Peace','The dome and the quiet river.','shinkansen','hiroshima,itsukushima'],
-    ['40130','40','Fukuoka Ramen','Tonkotsu at a riverside yatai.','shinkansen','fukuoka,japan'],
-    ['47201','47','Okinawa Blue','Turquoise sea, Shuri stone.','plane','okinawa,beach'],
-    ['1100','1','Sapporo North','From the far south to the far north.','plane','sapporo,hokkaido'],
-    ['4100','4','Sendai Green','City of trees on the way home.','plane','sendai,japan'],
-    ['13101','13','Back to Tokyo','The loop closes where it began.','shinkansen','tokyo,street']
+    ['13101','13','Start in Tokyo','The neon capital. Where the loop begins.','plane','/b/b2/Skyscrapers_of_Shinjuku_2009_January.jpg/800px-Skyscrapers_of_Shinjuku_2009_January.jpg'],
+    ['17201','17','Kanazawa Gold','Kenrokuen garden and gold leaf.','shinkansen','/3/31/Stone_lantern_Kenrokuen.jpg/800px-Stone_lantern_Kenrokuen.jpg'],
+    ['26100','26','Kyoto Temples','A thousand vermilion gates.','train','/0/0e/Torii_path_with_lantern_at_Fushimi_Inari_Taisha_Shrine%2C_Kyoto%2C_Japan.jpg/800px-Torii_path_with_lantern_at_Fushimi_Inari_Taisha_Shrine%2C_Kyoto%2C_Japan.jpg'],
+    ['27100','27','Osaka Nights','Street food until midnight.','train','/f/f4/Osaka_Dotonbori_Ebisu_Bridge.jpg/800px-Osaka_Dotonbori_Ebisu_Bridge.jpg'],
+    ['34100','34','Hiroshima Peace','The dome and the quiet river.','shinkansen','/e/ef/Itsukushima_Shrine_Torii_Gate_%2813890465459%29.jpg/800px-Itsukushima_Shrine_Torii_Gate_%2813890465459%29.jpg'],
+    ['40130','40','Fukuoka Ramen','Tonkotsu at a riverside yatai.','shinkansen','/b/bd/Fukuoka_Skyline_of_Seaside_Momochi.jpg/800px-Fukuoka_Skyline_of_Seaside_Momochi.jpg'],
+    ['47201','47','Okinawa Blue','Turquoise sea, Shuri stone.','plane','/5/56/Naha_Okinawa_Japan_Shuri-Castle-01.jpg/800px-Naha_Okinawa_Japan_Shuri-Castle-01.jpg'],
+    ['1100','1','Sapporo North','From the far south to the far north.','plane','/5/54/SapporoCity_Skylines2020.jpg/800px-SapporoCity_Skylines2020.jpg'],
+    ['4100','4','Sendai Green','City of trees on the way home.','plane','/1/1d/SendaiCity_Skylines_from_Mukaiyama2018.jpg/800px-SendaiCity_Skylines_from_Mukaiyama2018.jpg'],
+    ['13101','13','Back to Tokyo','The loop closes where it began.','shinkansen','/b/b2/Skyscrapers_of_Shinjuku_2009_January.jpg/800px-Skyscrapers_of_Shinjuku_2009_January.jpg']
   ];
   i int;
 begin

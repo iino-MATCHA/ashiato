@@ -6,8 +6,9 @@ import { AppText, Row, Gap, Rule } from '@/components/ui';
 import { GlobeMap } from '@/components/map/GlobeMap';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { acquiredCount, PREFECTURE_TOTAL, me, friends, type Trip } from '@/lib/mock';
+import { acquiredCount, PREFECTURE_TOTAL, friends, type Trip } from '@/lib/mock';
 import { useTrips } from '@/lib/useData';
+import { useProfile } from '@/lib/useProfile';
 
 const statusLabel: Record<Trip['status'], string> = {
   planning: 'Planning',
@@ -18,6 +19,7 @@ const statusLabel: Record<Trip['status'], string> = {
 export default function Home() {
   const { palette } = useTheme();
   const { trips } = useTrips();
+  const { profile } = useProfile();
   const pct = Math.round((acquiredCount / PREFECTURE_TOTAL) * 100);
   const ordered = [...trips].sort((a, b) => (a.status === 'ongoing' ? -1 : b.status === 'ongoing' ? 1 : 0));
 
@@ -28,13 +30,30 @@ export default function Home() {
         <GlobeMap height={300} />
 
         <View style={{ paddingHorizontal: space.lg }}>
+          {/* Profile row — links to the profile page */}
+          <Gap h={space.md} />
+          <Pressable onPress={() => router.push('/profile')} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
+            <Row style={{ gap: space.md, alignItems: 'center' }}>
+              <View style={[styles.avatar, { backgroundColor: palette.matcha }]}>
+                <AppText variant="bodyStrong" style={{ color: '#fff' }}>{profile.name.slice(0, 1)}</AppText>
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodyStrong" tone="ink">{profile.name}</AppText>
+                <AppText variant="small" tone="inkFaint">@{profile.username}</AppText>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={palette.inkFaint} />
+            </Row>
+          </Pressable>
+
+          <Gap h={space.lg} />
+          <Rule />
           <Gap h={space.lg} />
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <AppText variant="h2" tone="ink">Your Trips</AppText>
             <Pressable onPress={() => router.push('/trip/new')} hitSlop={8}>
               <Row style={{ gap: 5, alignItems: 'center' }}>
                 <Ionicons name="add-circle" size={22} color={palette.matcha} />
-                <AppText variant="bodyStrong" tone="shu">New</AppText>
+                <AppText variant="bodyStrong" tone="matcha">New</AppText>
               </Row>
             </Pressable>
           </Row>
@@ -52,26 +71,9 @@ export default function Home() {
             <TripCard key={t.id} trip={t} palette={palette} />
           ))}
 
-          {/* You & Friends */}
+          {/* Friends */}
           <Gap h={space.md} />
           <View style={[styles.section, { borderColor: palette.rule }]}>
-            <Pressable onPress={() => router.push('/(tabs)/profile')} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
-              <Row style={{ gap: space.md, alignItems: 'center' }}>
-                <View style={[styles.avatar, { backgroundColor: palette.matcha }]}>
-                  <AppText variant="bodyStrong" style={{ color: '#fff' }}>{me.name.slice(0, 1)}</AppText>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <AppText variant="bodyStrong" tone="ink">{me.name}</AppText>
-                  <AppText variant="small" tone="inkFaint">@{me.username}</AppText>
-                </View>
-                <Ionicons name="create-outline" size={18} color={palette.inkFaint} />
-              </Row>
-            </Pressable>
-
-            <Gap h={space.md} />
-            <Rule />
-            <Gap h={space.md} />
-
             <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
               <AppText variant="eyebrow" tone="inkFaint">Friends · {friends.length}</AppText>
               <Pressable onPress={() => router.push('/friends')}>

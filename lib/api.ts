@@ -171,6 +171,159 @@ export async function fetchGoshuin(): Promise<Goshuin[]> {
   }));
 }
 
+// ---------------------------------------------------------------- check-in search
+export interface PlaceHit {
+  key: string;
+  title: string;      // 場所名（tourism area か 市区町村名）
+  subtitle: string;   // 市区町村 / 都道府県
+  municipalityCode: number;
+  prefectureCode?: number;
+  lat?: number;
+  lng?: number;
+}
+
+/** 検索バー用: tourism_area_master と municipalities_master を横断検索。都道府県では検索しない。 */
+export async function searchPlaces(q: string): Promise<PlaceHit[]> {
+  const term = q.trim();
+  if (!isSupabaseConfigured || term.length < 1) return [];
+  const like = `%${term}%`;
+  const [{ data: areas }, { data: munis }] = await Promise.all([
+    supabase
+      .from('tourism_area_master')
+      .select('tourism_area_id, name_en, name_ja, municipality_en, municipality_code')
+      .or(`name_en.ilike.${like},name_ja.ilike.${like}`)
+      .limit(8),
+    supabase
+      .from('municipalities_master')
+      .select('municipality_code, municipality_en, municipality_ja, prefecture_en, prefecture_code, latitude, longitude')
+      .or(`municipality_en.ilike.${like},municipality_ja.ilike.${like}`)
+      .limit(8),
+  ]);
+
+  const hits: PlaceHit[] = [];
+  (areas ?? []).forEach((a: any) =>
+    hits.push({
+      key: `a:${a.tourism_area_id}`,
+      title: a.name_en || a.name_ja,
+      subtitle: a.municipality_en ?? '',
+      municipalityCode: a.municipality_code,
+    })
+  );
+  (munis ?? []).forEach((m: any) =>
+    hits.push({
+      key: `m:${m.municipality_code}`,
+      title: m.municipality_en || m.municipality_ja,
+      subtitle: m.prefecture_en ?? '',
+      municipalityCode: m.municipality_code,
+      prefectureCode: m.prefecture_code,
+      lat: m.latitude,
+      lng: m.longitude,
+    })
+  );
+  return hits;
+}
+
+/** tourism area 選択時など、municipality_code から座標・都道府県を解決。 */
+export async function resolvePlace(municipalityCode: number): Promise<{ lat: number; lng: number; prefectureCode: number; prefectureEn: string } | null> {
+  const { data } = await supabase
+    .from('municipalities_master')
+    .select('latitude, longitude, prefecture_code, prefecture_en')
+    .eq('municipality_code', municipalityCode)
+    .single();
+  if (!data) return null;
+  return { lat: data.latitude, lng: data.longitude, prefectureCode: data.prefecture_code, prefectureEn: data.prefecture_en };
+}
+
+// ---------------------------------------------------------------- writes
+async function currentUserId(): Promise<string | null> {
+  const { data } = await supabase.auth.getUser();
+  return data?.user?.id ?? null;
+}
+
+/** 画像を画質を保ったまま縮小圧縮（Web）。ネイティブは非対応でそのまま返す。 */
+async function compressImage(blob: Blob, maxDim = 1600, quality = 0.82): Promise<Blob> {
+  if (typeof document === 'undefined' || typeof createImageBitmap === 'undefined') return blob;
+  try {
+    const bmp = await createImageBitmap(blob);
+    const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+    const w = Math.round(bmp.width * scale);
+    const h = Math.round(bmp.height * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(bmp, 0, 0, w, h);
+    const out: Blob | null = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', quality));
+    return out ?? blob;
+  } catch {
+    return blob;
+  }
+}
+
+/** Storage にアップロードして storage_path を返す。 */
+export async function uploadPhoto(uid: string, tripId: string, fileOrBlob: Blob): Promise<string | null> {
+  try {
+    const compressed = await compressImage(fileOrBlob);
+    const path = `${uid}/${tripId}/${Math.round(compressed.size)}-${compressed.type.includes('png') ? 'p' : 'j'}.jpg`;
+    const { error } = await supabase.storage.from('photos').upload(path, compressed, { upsert: true, contentType: 'image/jpeg' });
+    if (error) return null;
+    return path;
+  } catch {
+    return null;
+  }
+}
+
+export async function createTrip(input: { title: string; visibility?: string; startDate?: string; endDate?: string }): Promise<string | null> {
+  const uid = await currentUserId();
+  if (!uid) return null;
+  const { data, error } = await supabase
+    .from('trips')
+    .insert({ owner_id: uid, title: input.title, visibility: input.visibility ?? 'private', status: 'ongoing', start_date: input.startDate, end_date: input.endDate })
+    .select('id')
+    .single();
+  if (error || !data) return null;
+  return data.id;
+}
+
+export async function createStep(input: {
+  tripId: string;
+  title: string;
+  note: string;
+  municipalityCode: number;
+  prefectureCode: number;
+  loggedAt: string;
+  transport: string;
+  photoBlobs?: Blob[];
+}): Promise<string | null> {
+  const uid = await currentUserId();
+  if (!uid) return null;
+  // 末尾に追加するため sort_order = 現在の件数
+  const { count } = await supabase.from('logs').select('id', { count: 'exact', head: true }).eq('trip_id', input.tripId);
+  const sortOrder = count ?? 0;
+
+  const { data: log, error } = await supabase
+    .from('logs')
+    .insert({
+      trip_id: input.tripId, author_id: uid, title: input.title, note: input.note,
+      municipality_code: input.municipalityCode, prefecture_code: input.prefectureCode,
+      logged_at: input.loggedAt, sort_order: sortOrder,
+    })
+    .select('id')
+    .single();
+  if (error || !log) return null;
+
+  if (sortOrder > 0) {
+    await supabase.from('transports').insert({ trip_id: input.tripId, to_log_id: log.id, mode: input.transport, distance_km: 0 });
+  }
+
+  const blobs = input.photoBlobs ?? [];
+  for (let i = 0; i < blobs.length; i++) {
+    const path = await uploadPhoto(uid, input.tripId, blobs[i]);
+    if (path) await supabase.from('photos').insert({ log_id: log.id, trip_id: input.tripId, uploader_id: uid, storage_path: path, sort_order: i });
+  }
+  return log.id;
+}
+
 /** 記録→カウント→ユーザー：訪問済み都道府県コード(1..47)。RPC my_visited_prefectures を使用。 */
 export async function fetchVisitedPrefectureCodes(): Promise<number[]> {
   const { data, error } = await supabase.rpc('my_visited_prefectures');

@@ -5,6 +5,8 @@
  * (supabase/seed.sql) so it is DB-linked once connected.
  */
 
+import { PREFECTURE_EN_BY_ID, PREFECTURE_KANJI_BY_ID } from './prefectures';
+
 export type TransportMode = 'car' | 'train' | 'shinkansen' | 'plane' | 'walk' | 'ferry' | 'bus';
 
 export interface Goshuin {
@@ -66,28 +68,25 @@ export interface GalleryCard {
 
 export const PREFECTURE_TOTAL = 47;
 
-// Keyword-based real photos of each place (loremflickr pulls tagged Flickr photos).
-// `lock` keeps each slot stable so images don't reshuffle on every render.
-const KEYWORDS: Record<string, string> = {
-  gtTokyo: 'tokyo,skyline', gtTokyo2: 'tokyo,street', gtKanazawa: 'kanazawa,castle',
-  gtKyoto: 'kyoto,temple', gtOsaka: 'osaka,night', gtHiroshima: 'hiroshima,itsukushima',
-  gtFukuoka: 'fukuoka,japan', gtOkinawa: 'okinawa,beach', gtSapporo: 'sapporo,hokkaido',
-  gtSendai: 'sendai,japan', mkNaoshima: 'naoshima,art', mkOkayama: 'okayama,garden',
-  rkAomori: 'aomori,japan', rkAkita: 'akita,samurai',
+// Accurate, place-specific photos from Wikimedia Commons (one correct image per stop).
+const C = 'https://upload.wikimedia.org/wikipedia/commons/thumb';
+const IMAGE: Record<string, string> = {
+  gtTokyo: `${C}/b/b2/Skyscrapers_of_Shinjuku_2009_January.jpg/800px-Skyscrapers_of_Shinjuku_2009_January.jpg`,
+  gtTokyo2: `${C}/b/b2/Skyscrapers_of_Shinjuku_2009_January.jpg/800px-Skyscrapers_of_Shinjuku_2009_January.jpg`,
+  gtKanazawa: `${C}/3/31/Stone_lantern_Kenrokuen.jpg/800px-Stone_lantern_Kenrokuen.jpg`,
+  gtKyoto: `${C}/0/0e/Torii_path_with_lantern_at_Fushimi_Inari_Taisha_Shrine%2C_Kyoto%2C_Japan.jpg/800px-Torii_path_with_lantern_at_Fushimi_Inari_Taisha_Shrine%2C_Kyoto%2C_Japan.jpg`,
+  gtOsaka: `${C}/f/f4/Osaka_Dotonbori_Ebisu_Bridge.jpg/800px-Osaka_Dotonbori_Ebisu_Bridge.jpg`,
+  gtHiroshima: `${C}/e/ef/Itsukushima_Shrine_Torii_Gate_%2813890465459%29.jpg/800px-Itsukushima_Shrine_Torii_Gate_%2813890465459%29.jpg`,
+  gtFukuoka: `${C}/b/bd/Fukuoka_Skyline_of_Seaside_Momochi.jpg/800px-Fukuoka_Skyline_of_Seaside_Momochi.jpg`,
+  gtOkinawa: `${C}/5/56/Naha_Okinawa_Japan_Shuri-Castle-01.jpg/800px-Naha_Okinawa_Japan_Shuri-Castle-01.jpg`,
+  gtSapporo: `${C}/5/54/SapporoCity_Skylines2020.jpg/800px-SapporoCity_Skylines2020.jpg`,
+  gtSendai: `${C}/1/1d/SendaiCity_Skylines_from_Mukaiyama2018.jpg/800px-SendaiCity_Skylines_from_Mukaiyama2018.jpg`,
+  mkNaoshima: `${C}/6/60/Beachside_Torii%2C_Naoshima.jpg/800px-Beachside_Torii%2C_Naoshima.jpg`,
+  mkOkayama: `${C}/f/f2/%E5%BE%A9%E5%85%83%E3%81%95%E3%82%8C%E3%81%9F%E5%B2%A1%E5%B1%B1%E5%9F%8E.jpg/800px-%E5%BE%A9%E5%85%83%E3%81%95%E3%82%8C%E3%81%9F%E5%B2%A1%E5%B1%B1%E5%9F%8E.jpg`,
+  rkAomori: `${C}/8/88/Aomori_Montage.jpg/800px-Aomori_Montage.jpg`,
+  rkAkita: `${C}/9/92/Bukeyashiki_Street_in_Kakunodate_20060506.jpg/800px-Bukeyashiki_Street_in_Kakunodate_20060506.jpg`,
 };
-function seedHash(s: string) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100000;
-  return h;
-}
-const photos = (seed: string, n = 6) => {
-  const kw = KEYWORDS[seed] ?? 'japan,travel';
-  const base = seedHash(seed);
-  return Array.from(
-    { length: n },
-    (_, i) => `https://loremflickr.com/800/600/${encodeURIComponent(kw)}?lock=${base + i}`
-  );
-};
+const photos = (seed: string, _n = 1) => [IMAGE[seed] ?? IMAGE.gtTokyo];
 
 // ---------------------------------------------------------------- showcase
 const grandTour: Trip = {
@@ -176,20 +175,25 @@ export const gallery: GalleryCard[] = [
   { id: 'c4', author: 'Sana', tripTitle: 'Kumano Kodo', type: 'route', ratio: '1:1', likes: 193, accent: '#8FC93A' },
 ];
 
-export const goshuinList: Goshuin[] = [
-  { id: 'g13', prefectureId: 13, prefectureName: 'Tokyo', name: 'Asakusa', rarity: 'normal', acquired: true, acquiredAt: '2026-03-20', kanji: '東' },
-  { id: 'g17', prefectureId: 17, prefectureName: 'Ishikawa', name: 'Kanazawa', rarity: 'limited', acquired: true, acquiredAt: '2026-03-22', kanji: '金' },
-  { id: 'g26', prefectureId: 26, prefectureName: 'Kyoto', name: 'Fushimi', rarity: 'seasonal', acquired: true, acquiredAt: '2026-03-24', kanji: '京' },
-  { id: 'g27', prefectureId: 27, prefectureName: 'Osaka', name: 'Namba', rarity: 'normal', acquired: true, acquiredAt: '2026-03-26', kanji: '浪' },
-  { id: 'g34', prefectureId: 34, prefectureName: 'Hiroshima', name: 'Miyajima', rarity: 'seasonal', acquired: true, acquiredAt: '2026-03-28', kanji: '厳' },
-  { id: 'g40', prefectureId: 40, prefectureName: 'Fukuoka', name: 'Hakata', rarity: 'normal', acquired: true, acquiredAt: '2026-03-30', kanji: '博' },
-  { id: 'g47', prefectureId: 47, prefectureName: 'Okinawa', name: 'Shuri', rarity: 'collab', acquired: true, acquiredAt: '2026-04-01', kanji: '琉' },
-  { id: 'g01', prefectureId: 1, prefectureName: 'Hokkaido', name: 'Hakodate', rarity: 'normal', acquired: true, acquiredAt: '2026-04-03', kanji: '函' },
-  { id: 'g04', prefectureId: 4, prefectureName: 'Miyagi', name: 'Sendai', rarity: 'normal', acquired: true, acquiredAt: '2026-04-04', kanji: '仙' },
-  { id: 'g20', prefectureId: 20, prefectureName: 'Nagano', name: 'Zenkoji', rarity: 'limited', acquired: false, kanji: '信' },
-  { id: 'g14', prefectureId: 14, prefectureName: 'Kanagawa', name: 'Kamakura', rarity: 'normal', acquired: false, kanji: '鎌' },
-  { id: 'g23', prefectureId: 23, prefectureName: 'Aichi', name: 'Atsuta', rarity: 'normal', acquired: false, kanji: '熱' },
-];
+// One goshuin per prefecture (47). Acquired when that prefecture is visited on my trips.
+const myVisitedPrefIds = new Set<number>();
+grandTour.prefectures.forEach((n) => {
+  const id = PREFECTURE_EN_BY_ID.indexOf(n);
+  if (id > 0) myVisitedPrefIds.add(id);
+});
+
+export const goshuinList: Goshuin[] = PREFECTURE_EN_BY_ID.slice(1).map((name, idx) => {
+  const id = idx + 1;
+  return {
+    id: `g${id}`,
+    prefectureId: id,
+    prefectureName: name as string,
+    name: name as string,
+    rarity: 'normal' as const,
+    acquired: myVisitedPrefIds.has(id),
+    kanji: PREFECTURE_KANJI_BY_ID[id] ?? '御',
+  };
+});
 
 export const acquiredCount = goshuinList.filter((g) => g.acquired).length;
 
