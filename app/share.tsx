@@ -1,6 +1,5 @@
 import { View, Pressable, StyleSheet, Share as RNShare, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { UgcCard } from '@/components/UgcCard';
@@ -10,8 +9,8 @@ import { useTheme } from '@/lib/useTheme';
 import { gallery } from '@/lib/mock';
 
 const targets = [
-  { key: 'instagram', label: 'Instagram\nストーリーズ', icon: 'logo-instagram', color: '#C13584' },
-  { key: 'x', label: 'X\n(旧Twitter)', icon: 'logo-twitter', color: '#111' },
+  { key: 'instagram', label: 'Instagram\nStories', icon: 'logo-instagram', color: '#C13584' },
+  { key: 'x', label: 'X\n(Twitter)', icon: 'logo-twitter', color: '#111' },
   { key: 'line', label: 'LINE', icon: 'chatbubble', color: '#06C755' },
 ] as const;
 
@@ -23,41 +22,29 @@ export default function ShareScreen() {
 
   const nativeShare = async () => {
     try {
-      await RNShare.share({ message: '足跡でこの旅の軌跡カードを作りました！ #足跡 #旅の記録' });
+      await RNShare.share({ message: 'I made a route card of this trip with Ashiato! #ashiato #travel' });
     } catch {}
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header closeIcon title="シェア＆保存" />
+      <Header closeIcon title="Share & Save" />
       <Rule />
       <View style={{ flex: 1, paddingHorizontal: space.lg }}>
-        {/* プレビュー */}
         <View style={{ alignItems: 'center', paddingVertical: space.xl }}>
           <UgcCard card={card} width={previewW} />
           <Gap h={space.md} />
           <Row style={{ gap: 6 }}>
             <Ionicons name="pricetag-outline" size={13} color={palette.inkFaint} />
-            <AppText variant="small" tone="inkFaint">
-              ロゴとQRコードが自動で挿入されます
-            </AppText>
+            <AppText variant="small" tone="inkFaint">A logo and QR code are added automatically</AppText>
           </Row>
         </View>
 
-        {/* SNS投稿先 */}
-        <Eyebrow>投稿先</Eyebrow>
+        <Eyebrow>Share to</Eyebrow>
         <Gap h={space.md} />
         <Row style={{ gap: space.md }}>
           {targets.map((t) => (
-            <Pressable
-              key={t.key}
-              onPress={nativeShare}
-              style={({ pressed }) => [
-                styles.target,
-                { borderColor: palette.rule },
-                pressed && { opacity: 0.6 },
-              ]}
-            >
+            <Pressable key={t.key} onPress={nativeShare} style={({ pressed }) => [styles.target, { borderColor: palette.rule }, pressed && { opacity: 0.6 }]}>
               <Ionicons name={t.icon as any} size={26} color={t.color === '#111' ? palette.ink : t.color} />
               <Gap h={space.sm} />
               <AppText variant="small" tone="inkSoft" center>{t.label}</AppText>
@@ -65,14 +52,13 @@ export default function ShareScreen() {
           ))}
         </Row>
 
-        {/* その他 */}
         <Gap h={space.xl} />
         <Rule />
-        <ActionRow icon="download-outline" label="端末に保存" desc="カメラロールに画像を保存" palette={palette} onPress={() => {}} />
+        <ActionRow icon="download-outline" label="Save to device" desc="Save the image to your camera roll" palette={palette} onPress={() => {}} />
         <Rule />
-        <ActionRow icon="share-outline" label="その他のアプリ" desc="OSの共有シートを開く" palette={palette} onPress={nativeShare} />
+        <ActionRow icon="share-outline" label="More apps" desc="Open the system share sheet" palette={palette} onPress={nativeShare} />
         <Rule />
-        <ActionRow icon="link-outline" label="リンクをコピー" desc="旅の公開ページ（今後対応）" palette={palette} onPress={() => {}} />
+        <ActionRow icon="link-outline" label="Copy link" desc="Public trip page (coming soon)" palette={palette} onPress={() => {}} />
         <Rule />
       </View>
     </SafeAreaView>
@@ -93,17 +79,6 @@ function ActionRow({ icon, label, desc, palette, onPress }: any) {
 }
 
 const styles = StyleSheet.create({
-  target: {
-    flex: 1,
-    borderWidth: hairline,
-    borderRadius: 3,
-    paddingVertical: space.lg,
-    alignItems: 'center',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    paddingVertical: space.md,
-  },
+  target: { flex: 1, borderWidth: hairline, borderRadius: 3, paddingVertical: space.lg, alignItems: 'center' },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
 });

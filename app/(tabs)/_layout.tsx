@@ -31,25 +31,16 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="map"
         options={{
-          title: 'マイマップ',
+          title: 'Trips',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="map-outline" size={size - 2} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="trips"
-        options={{
-          title: '旅',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="albums-outline" size={size - 2} color={color} />
+            <Ionicons name="earth-outline" size={size - 2} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="goshuin"
         options={{
-          title: '御朱印帳',
+          title: 'Goshuin',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="ribbon-outline" size={size - 2} color={color} />
           ),
@@ -58,7 +49,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          title: '発見',
+          title: 'Explore',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="compass-outline" size={size - 2} color={color} />
           ),
@@ -67,7 +58,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'プロフィール',
+          title: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size - 2} color={color} />
           ),

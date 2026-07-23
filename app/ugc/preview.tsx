@@ -16,36 +16,25 @@ export default function UgcPreview() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header title="プレビュー" />
+      <Header title="Preview" />
       <Rule />
       <View style={{ flex: 1, paddingHorizontal: space.lg, alignItems: 'center', justifyContent: 'center' }}>
         <UgcCard card={card} width={width * 0.6} />
         <Gap h={space.lg} />
-        <Row
-          style={[styles.badge, { borderColor: palette.ruleStrong }]}
-        >
+        <Row style={[styles.badge, { borderColor: palette.ruleStrong }]}>
           <Ionicons name="construct-outline" size={14} color={palette.inkFaint} />
-          <AppText variant="small" tone="inkFaint">
-            高画質レンダリングは準備中（プレビューは簡易版）
-          </AppText>
+          <AppText variant="small" tone="inkFaint">High-res rendering in progress (simplified preview)</AppText>
         </Row>
       </View>
       <View style={{ padding: space.lg }}>
-        <Button label="シェアする" tone="shu" onPress={() => router.push('/share')} />
+        <Button label="Share" tone="shu" onPress={() => router.push('/share')} />
         <Gap h={space.sm} />
-        <Button label="調整に戻る" variant="text" tone="ink" onPress={() => router.back()} />
+        <Button label="Back to editing" variant="text" tone="ink" onPress={() => router.back()} />
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  badge: {
-    gap: 6,
-    alignItems: 'center',
-    borderWidth: hairline,
-    borderRadius: 999,
-    paddingHorizontal: space.md,
-    paddingVertical: 8,
-  },
+  badge: { gap: 6, alignItems: 'center', borderWidth: hairline, borderRadius: 999, paddingHorizontal: space.md, paddingVertical: 8 },
 });

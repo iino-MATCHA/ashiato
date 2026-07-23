@@ -1,158 +1,155 @@
 import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AppText, Screen, Row, Rule, Gap, Eyebrow } from '@/components/ui';
-import { ProgressArc } from '@/components/ProgressArc';
-import { Stamp } from '@/components/Stamp';
+import { AppText, Row, Rule, Gap, Eyebrow } from '@/components/ui';
+import { GlobeMap } from '@/components/map/GlobeMap';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import {
-  goshuinList,
-  acquiredCount,
-  PREFECTURE_TOTAL,
-  trips,
-} from '@/lib/mock';
+import { trips, acquiredCount, PREFECTURE_TOTAL, type Trip } from '@/lib/mock';
 
-const regions = [
-  { name: '北海道・東北', total: 7, done: 1 },
-  { name: '関東', total: 7, done: 2 },
-  { name: '中部', total: 9, done: 1 },
-  { name: '近畿', total: 7, done: 2 },
-  { name: '中国・四国', total: 9, done: 0 },
-  { name: '九州・沖縄', total: 8, done: 2 },
-];
+const statusLabel: Record<Trip['status'], string> = {
+  planning: 'Planning',
+  ongoing: 'On the road',
+  completed: 'Completed',
+};
 
-export default function MapHome() {
+export default function Home() {
   const { palette } = useTheme();
-  const totalDistance = trips.reduce((s, t) => s + t.distanceKm, 0);
-  const acquired = goshuinList.filter((g) => g.acquired);
+  const ongoing = trips.filter((t) => t.status === 'ongoing');
+  const past = trips.filter((t) => t.status !== 'ongoing');
+  const pct = Math.round((acquiredCount / PREFECTURE_TOTAL) * 100);
 
   return (
-    <Screen>
-      <Gap h={space.md} />
-      <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <View>
-          <AppText variant="eyebrow" tone="shu">日本 · 全国</AppText>
-          <Gap h={space.xs} />
-          <AppText variant="h2" tone="ink">わたしの足跡</AppText>
-        </View>
-        <Pressable onPress={() => router.push('/(tabs)/profile')}>
-          <View style={[styles.avatar, { backgroundColor: palette.fill }]}>
-            <Ionicons name="person" size={18} color={palette.inkSoft} />
-          </View>
-        </Pressable>
-      </Row>
+    <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top']}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.xxl }}>
+        {/* Rotating globe */}
+        <GlobeMap height={320} />
 
-      {/* 制覇率（主役） */}
-      <Gap h={space.xl} />
-      <View style={{ alignItems: 'center' }}>
-        <ProgressArc value={acquiredCount} total={PREFECTURE_TOTAL} />
-      </View>
-
-      {/* 主要スタッツ — 箱ではなく縦罫で区切る */}
-      <Gap h={space.xl} />
-      <Row style={styles.stats}>
-        <StatCell value={String(acquired.length)} label="御朱印" palette={palette} />
-        <Rule vertical />
-        <StatCell value={String(trips.length)} label="旅" palette={palette} />
-        <Rule vertical />
-        <StatCell
-          value={totalDistance.toLocaleString()}
-          unit="km"
-          label="移動距離"
-          palette={palette}
-        />
-      </Row>
-
-      {/* 最近の御朱印 */}
-      <Gap h={space.xl} />
-      <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <Eyebrow>最近いただいた御朱印</Eyebrow>
-        <Pressable onPress={() => router.push('/(tabs)/goshuin')}>
-          <AppText variant="small" tone="ai">すべて →</AppText>
-        </Pressable>
-      </Row>
-      <Gap h={space.md} />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ marginHorizontal: -space.lg }}
-        contentContainerStyle={{ paddingHorizontal: space.lg, gap: space.lg }}
-      >
-        {acquired.map((g, i) => (
-          <Pressable
-            key={g.id}
-            onPress={() => router.push(`/goshuin/${g.id}`)}
-            style={{ alignItems: 'center', width: 92 }}
-          >
-            <Stamp goshuin={g} size={84} rotate={i % 2 === 0 ? -4 : 3} />
-            <Gap h={space.sm} />
-            <AppText variant="small" tone="inkSoft" center numberOfLines={1}>
-              {g.prefectureName}
-            </AppText>
-          </Pressable>
-        ))}
-      </ScrollView>
-
-      {/* 地方別の制覇 — 極細のバー */}
-      <Gap h={space.xl} />
-      <Eyebrow>地方別の制覇</Eyebrow>
-      <Gap h={space.md} />
-      {regions.map((r) => (
-        <View key={r.name}>
-          <Row style={{ justifyContent: 'space-between', marginBottom: 6 }}>
-            <AppText variant="body" tone="ink">{r.name}</AppText>
-            <AppText variant="small" tone="inkFaint">
-              {r.done} / {r.total}
-            </AppText>
+        <View style={{ paddingHorizontal: space.lg }}>
+          <Gap h={space.lg} />
+          <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <View>
+              <Eyebrow>Your journeys across Japan</Eyebrow>
+              <Gap h={space.xs} />
+              <AppText variant="h1" tone="ink">Your Trips</AppText>
+            </View>
+            <Pressable onPress={() => router.push('/trip/new')} hitSlop={8}>
+              <View style={[styles.add, { borderColor: palette.ink }]}>
+                <Ionicons name="add" size={22} color={palette.ink} />
+              </View>
+            </Pressable>
           </Row>
-          <View style={[styles.track, { backgroundColor: palette.rule }]}>
-            <View
-              style={[
-                styles.fill,
-                {
-                  backgroundColor: r.done > 0 ? palette.shu : 'transparent',
-                  width: `${(r.done / r.total) * 100}%`,
-                },
-              ]}
-            />
-          </View>
-          <Gap h={space.md} />
-        </View>
-      ))}
 
-      <Gap h={space.md} />
-      <Row style={{ gap: space.sm }}>
-        <Ionicons name="information-circle-outline" size={15} color={palette.inkFaint} />
-        <AppText variant="small" tone="inkFaint" style={{ flex: 1 }}>
-          地図上の軌跡表示は、実機の地図（react-native-maps）連携で追加予定です。
-        </AppText>
-      </Row>
-    </Screen>
+          {/* slim stats */}
+          <Gap h={space.lg} />
+          <Row style={{ alignItems: 'stretch' }}>
+            <Stat value={`${pct}%`} label="Prefectures" palette={palette} />
+            <Rule vertical />
+            <Stat value={String(acquiredCount)} label="Goshuin" palette={palette} />
+            <Rule vertical />
+            <Stat value={String(trips.length)} label="Trips" palette={palette} />
+          </Row>
+
+          {/* Ongoing */}
+          <Gap h={space.xl} />
+          {ongoing.length > 0 && (
+            <>
+              <Eyebrow tone="inkFaint">On the road now</Eyebrow>
+              <Gap h={space.md} />
+              {ongoing.map((t) => (
+                <Featured key={t.id} trip={t} palette={palette} />
+              ))}
+              <Gap h={space.xl} />
+              <Eyebrow tone="inkFaint">Past trips</Eyebrow>
+              <Gap h={space.sm} />
+            </>
+          )}
+
+          <Rule />
+          {past.map((t) => (
+            <View key={t.id}>
+              <TripRow trip={t} palette={palette} />
+              <Rule />
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-function StatCell({ value, unit, label, palette }: any) {
+function Featured({ trip, palette }: { trip: Trip; palette: any }) {
+  return (
+    <Pressable onPress={() => router.push(`/trip/${trip.id}`)} style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}>
+      <View style={[styles.hero, { backgroundColor: palette.ai }]}>
+        <Row style={{ gap: 6 }}>
+          <View style={[styles.pulse, { backgroundColor: palette.shuSoft }]} />
+          <AppText variant="eyebrow" style={{ color: palette.paper }}>
+            {statusLabel[trip.status]} · {trip.subtitle}
+          </AppText>
+        </Row>
+        <Gap h={space.md} />
+        <AppText variant="h1" style={{ color: palette.paper }}>{trip.title}</AppText>
+        <Gap h={space.md} />
+        <Row style={{ gap: space.lg }}>
+          <Mini value={String(trip.steps.length)} label="Stops" color={palette.paper} />
+          <Mini value={`${trip.distanceKm}km`} label="Distance" color={palette.paper} />
+          <Mini value={String(trip.members.length)} label="Travellers" color={palette.paper} />
+        </Row>
+      </View>
+    </Pressable>
+  );
+}
+
+function TripRow({ trip, palette }: { trip: Trip; palette: any }) {
+  return (
+    <Pressable onPress={() => router.push(`/trip/${trip.id}`)} style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}>
+      <View style={{ flex: 1 }}>
+        <AppText variant="small" tone="inkFaint">
+          {trip.startDate.replace(/-/g, '.')} — {trip.prefectures.join(' · ')}
+        </AppText>
+        <Gap h={2} />
+        <AppText variant="h3" tone="ink">{trip.title}</AppText>
+        <Gap h={space.xs} />
+        <Row style={{ gap: space.md }}>
+          <Meta icon="footsteps-outline" text={`${trip.steps.length} stops`} palette={palette} />
+          <Meta icon="navigate-outline" text={`${trip.distanceKm} km`} palette={palette} />
+        </Row>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={palette.inkFaint} />
+    </Pressable>
+  );
+}
+
+function Stat({ value, label, palette }: any) {
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
-      <Row style={{ alignItems: 'flex-end', gap: 2 }}>
-        <AppText variant="h1" tone="ink">{value}</AppText>
-        {unit && <AppText variant="small" tone="inkFaint" style={{ marginBottom: 6 }}>{unit}</AppText>}
-      </Row>
+      <AppText variant="h2" tone="ink">{value}</AppText>
       <AppText variant="eyebrow" tone="inkFaint">{label}</AppText>
     </View>
   );
 }
+function Mini({ value, label, color }: any) {
+  return (
+    <View>
+      <AppText variant="h3" style={{ color }}>{value}</AppText>
+      <AppText variant="eyebrow" style={{ color, opacity: 0.7 }}>{label}</AppText>
+    </View>
+  );
+}
+function Meta({ icon, text, palette }: any) {
+  return (
+    <Row style={{ gap: 4 }}>
+      <Ionicons name={icon} size={13} color={palette.inkFaint} />
+      <AppText variant="small" tone="inkFaint">{text}</AppText>
+    </Row>
+  );
+}
 
 const styles = StyleSheet.create({
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stats: { alignItems: 'center', height: 56 },
-  track: { height: hairline * 3, width: '100%', overflow: 'hidden' },
-  fill: { height: '100%' },
+  add: { width: 40, height: 40, borderRadius: 20, borderWidth: hairline * 2, alignItems: 'center', justifyContent: 'center' },
+  hero: { padding: space.lg, borderRadius: 3 },
+  pulse: { width: 7, height: 7, borderRadius: 4 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: space.lg, gap: space.md },
 });

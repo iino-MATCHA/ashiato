@@ -1,195 +1,261 @@
-import { View, Pressable, StyleSheet } from 'react-native';
+import { useRef, useState } from 'react';
+import {
+  View,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  Image,
+  useWindowDimensions,
+  type NativeSyntheticEvent,
+  type NativeScrollEvent,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Header } from '@/components/Header';
-import { AppText, Screen, Row, Rule, Gap, Eyebrow } from '@/components/ui';
-import { space, hairline } from '@/lib/theme';
+import { AppText, Row, Gap } from '@/components/ui';
+import { TripMap } from '@/components/map/TripMap';
+import { space, hairline, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { findTrip, type Step } from '@/lib/mock';
+import { findTrip, transportLabel, type Step, type TransportMode } from '@/lib/mock';
+
+const transportIcon: Record<TransportMode, any> = {
+  car: 'car-outline',
+  train: 'subway-outline',
+  shinkansen: 'train-outline',
+  plane: 'airplane-outline',
+  walk: 'walk-outline',
+  ferry: 'boat-outline',
+};
+
+const CARD_GAP = 12;
 
 export default function TripDetail() {
   const { palette } = useTheme();
+  const { width, height: winH } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const trip = findTrip(id);
+  const steps = trip.steps;
+
+  const CARD_W = Math.min(width * 0.82, 360);
+  const SNAP = CARD_W + CARD_GAP;
+  const sideInset = (width - CARD_W) / 2;
+
+  const [active, setActive] = useState(0);
+  const scrollRef = useRef<ScrollView | null>(null);
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / SNAP);
+    const clamped = Math.max(0, Math.min(steps.length - 1, idx));
+    if (clamped !== active) setActive(clamped);
+  };
+
+  // marker tap -> scroll cards to that index
+  const selectFromMap = (i: number) => {
+    setActive(i);
+    scrollRef.current?.scrollTo({ x: i * SNAP, animated: true });
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top']}>
-      <Header
-        right={
-          <Pressable hitSlop={10}>
-            <Ionicons name="ellipsis-horizontal" size={22} color={palette.ink} />
-          </Pressable>
-        }
-      />
-      <Screen edges={[]}>
-        {/* 見出し */}
-        <AppText variant="eyebrow" tone="shu">
-          {trip.startDate.replace(/-/g, '.')} – {trip.endDate.replace(/-/g, '.')}
-        </AppText>
-        <Gap h={space.sm} />
-        <AppText variant="h1" tone="ink">{trip.title}</AppText>
-        <Gap h={space.sm} />
-        <Row style={{ gap: space.sm, flexWrap: 'wrap' }}>
-          {trip.prefectures.map((p) => (
-            <AppText key={p} variant="small" tone="inkSoft">
-              {p}
-            </AppText>
+      {/* Map fills the screen */}
+      <View style={StyleSheet.absoluteFill}>
+        <TripMap
+          steps={steps}
+          activeIndex={active}
+          onSelect={selectFromMap}
+          height={winH}
+          bottomInset={230}
+        />
+      </View>
+
+      {/* Floating header */}
+      <Row style={styles.header}>
+        <Pressable onPress={() => router.back()} style={[styles.circle, { backgroundColor: palette.washi }]} hitSlop={8}>
+          <Ionicons name="arrow-back" size={20} color={palette.ink} />
+        </Pressable>
+        <View style={[styles.titlePill, { backgroundColor: palette.washi }]}>
+          <AppText variant="small" tone="inkFaint">{trip.subtitle}</AppText>
+          <AppText variant="bodyStrong" tone="ink" numberOfLines={1}>{trip.title}</AppText>
+        </View>
+        <Pressable onPress={() => router.push(`/ugc/create?trip=${trip.id}`)} style={[styles.circle, { backgroundColor: palette.washi }]} hitSlop={8}>
+          <Ionicons name="share-social-outline" size={19} color={palette.ink} />
+        </Pressable>
+      </Row>
+
+      {/* Bottom carousel */}
+      <View style={styles.dock}>
+        {/* progress dots */}
+        <Row style={{ justifyContent: 'center', gap: 6, marginBottom: space.sm }}>
+          {steps.map((_, i) => (
+            <View
+              key={i}
+              style={{
+                width: i === active ? 18 : 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: i === active ? palette.shu : palette.paper,
+                opacity: i === active ? 1 : 0.7,
+              }}
+            />
           ))}
-          <AppText variant="small" tone="inkFaint">·  {trip.members.join('、')}</AppText>
         </Row>
-
-        {/* 統計 */}
-        <Gap h={space.lg} />
-        <Row style={{ alignItems: 'stretch' }}>
-          <Stat value={`${trip.distanceKm}`} unit="km" label="移動距離" palette={palette} />
-          <Rule vertical />
-          <Stat value={`${trip.stepCount}`} label="ステップ" palette={palette} />
-          <Rule vertical />
-          <Stat value={`${trip.goshuinCount}`} label="御朱印" palette={palette} />
-        </Row>
-
-        {/* 導線: UGC / 製本 */}
-        <Gap h={space.lg} />
-        <Row style={{ gap: space.md }}>
-          <ActionTile
-            icon="share-social-outline"
-            label="軌跡カードを作る"
-            sub="SNSでシェア"
-            onPress={() => router.push(`/ugc/create?trip=${trip.id}`)}
-            tone={palette.shu}
-            palette={palette}
-          />
-          <ActionTile
-            icon="book-outline"
-            label="フォトブックにする"
-            sub="製本して残す"
-            onPress={() => router.push(`/book/new?trip=${trip.id}`)}
-            tone={palette.ai}
-            palette={palette}
-          />
-        </Row>
-
-        {/* タイムライン（縦のルート線） */}
-        <Gap h={space.xl} />
-        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <Eyebrow>ルートとタイムライン</Eyebrow>
-          <Pressable onPress={() => router.push(`/trip/${trip.id}/step/new`)}>
-            <Row style={{ gap: 4 }}>
-              <Ionicons name="add-circle-outline" size={16} color={palette.ai} />
-              <AppText variant="small" tone="ai">Step追加</AppText>
-            </Row>
-          </Pressable>
-        </Row>
-        <Gap h={space.lg} />
-        {trip.steps.map((s, i) => (
-          <TimelineItem
-            key={s.id}
-            step={s}
-            index={i}
-            last={i === trip.steps.length - 1}
-            palette={palette}
-            onPress={() => router.push(`/trip/${trip.id}/step/${s.id}`)}
-          />
-        ))}
-      </Screen>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={SNAP}
+          decelerationRate="fast"
+          disableIntervalMomentum
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingHorizontal: sideInset }}
+        >
+          {steps.map((s, i) => (
+            <LocationCard
+              key={s.id}
+              step={s}
+              index={i}
+              total={steps.length}
+              width={CARD_W}
+              gap={CARD_GAP}
+              active={i === active}
+              palette={palette}
+              onOpen={() => router.push(`/trip/${trip.id}/step/${s.id}`)}
+            />
+          ))}
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
-function TimelineItem({
+function LocationCard({
   step,
   index,
-  last,
+  total,
+  width,
+  gap,
+  active,
   palette,
-  onPress,
+  onOpen,
 }: {
   step: Step;
   index: number;
-  last: boolean;
+  total: number;
+  width: number;
+  gap: number;
+  active: boolean;
   palette: any;
-  onPress: () => void;
+  onOpen: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}>
-      <Row style={{ alignItems: 'stretch', gap: space.md }}>
-        {/* 左：ルート線とノード */}
-        <View style={{ width: 20, alignItems: 'center' }}>
-          <View style={[styles.node, { borderColor: palette.shu }]}>
-            <View style={[styles.nodeDot, { backgroundColor: palette.shu }]} />
-          </View>
-          {!last && <View style={[styles.line, { backgroundColor: palette.rule }]} />}
-        </View>
-        {/* 右：内容 */}
-        <View style={{ flex: 1, paddingBottom: space.xl }}>
-          <AppText variant="small" tone="inkFaint">
-            {step.prefectureName} · {step.placeName}
-          </AppText>
-          <Gap h={2} />
-          <AppText variant="h3" tone="ink">{step.title}</AppText>
-          <Gap h={4} />
-          <AppText variant="body" tone="inkSoft" numberOfLines={2}>{step.note}</AppText>
-          {step.photoCount > 0 && (
-            <>
-              <Gap h={space.sm} />
-              <Row style={{ gap: 4 }}>
-                <Ionicons name="images-outline" size={13} color={palette.aiSoft} />
-                <AppText variant="small" tone="aiSoft">{step.photoCount}枚</AppText>
-              </Row>
-            </>
-          )}
-        </View>
-      </Row>
-    </Pressable>
-  );
-}
-
-function Stat({ value, unit, label, palette }: any) {
-  return (
-    <View style={{ flex: 1, alignItems: 'center', paddingVertical: space.sm }}>
-      <Row style={{ alignItems: 'flex-end', gap: 2 }}>
-        <AppText variant="h2" tone="ink">{value}</AppText>
-        {unit && <AppText variant="small" tone="inkFaint" style={{ marginBottom: 4 }}>{unit}</AppText>}
-      </Row>
-      <AppText variant="eyebrow" tone="inkFaint">{label}</AppText>
-    </View>
-  );
-}
-
-function ActionTile({ icon, label, sub, onPress, tone, palette }: any) {
-  return (
     <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.tile,
-        { borderColor: palette.rule },
-        pressed && { opacity: 0.6 },
+      onPress={onOpen}
+      style={[
+        styles.card,
+        { width, marginRight: gap, backgroundColor: palette.washi, opacity: active ? 1 : 0.94 },
       ]}
     >
-      <Ionicons name={icon} size={22} color={tone} />
-      <Gap h={space.sm} />
-      <AppText variant="bodyStrong" tone="ink">{label}</AppText>
-      <AppText variant="small" tone="inkFaint">{sub}</AppText>
+      {/* photo strip (first image large + count) */}
+      <View style={{ position: 'relative' }}>
+        <View style={[styles.cardPhoto, { backgroundColor: palette.fill }]}>
+          {/* first image is used as the location's cover */}
+          <Image source={{ uri: step.images[0] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+        </View>
+        <View style={[styles.photoCount, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+          <Ionicons name="images-outline" size={12} color="#fff" />
+          <AppText variant="small" style={{ color: '#fff' }}>{step.images.length}</AppText>
+        </View>
+        <View style={[styles.transport, { backgroundColor: palette.shu }]}>
+          <Ionicons name={transportIcon[step.transport]} size={13} color="#fff" />
+          <AppText variant="small" style={{ color: '#fff' }}>{transportLabel[step.transport]}</AppText>
+        </View>
+      </View>
+
+      <View style={{ padding: space.md }}>
+        <AppText variant="eyebrow" tone="inkFaint">
+          Stop {index + 1} / {total} · {step.prefectureName}
+        </AppText>
+        <Gap h={4} />
+        <AppText variant="h3" tone="ink" numberOfLines={1}>{step.title}</AppText>
+        <AppText variant="small" tone="inkSoft" numberOfLines={1}>{step.placeName}</AppText>
+        <Gap h={space.xs} />
+        <AppText variant="small" tone="inkSoft" numberOfLines={2}>{step.note}</AppText>
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  node: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 1.5,
+  header: {
+    position: 'absolute',
+    top: space.xl,
+    left: space.lg,
+    right: space.lg,
+    gap: space.sm,
+    zIndex: 20,
+  },
+  circle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  nodeDot: { width: 6, height: 6, borderRadius: 3 },
-  line: { width: hairline * 2, flex: 1, marginTop: 4 },
-  tile: {
+  titlePill: {
     flex: 1,
-    borderWidth: hairline,
-    borderRadius: 3,
-    padding: space.md,
+    height: 44,
+    borderRadius: 22,
+    paddingHorizontal: space.md,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  dock: {
+    position: 'absolute',
+    bottom: space.lg,
+    left: 0,
+    right: 0,
+    zIndex: 20,
+  },
+  card: {
+    borderRadius: 6,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  cardPhoto: { width: '100%', height: 150, overflow: 'hidden' },
+  photoCount: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  transport: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
   },
 });

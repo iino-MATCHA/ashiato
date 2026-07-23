@@ -1,68 +1,78 @@
-# 足跡 (Ashiato)
+# Ashiato (足跡)
 
-旅の記録 × 御朱印コレクション × UGC生成 — 日本版Polarsteps。
+A Polarsteps-style travel journal for Japan: a rotating 3D globe, trips plotted
+on a Mapbox map of Japan, photo pins per location, transport-aware routes, and a
+47-prefecture digital goshuin (shrine stamp) collection.
 
-Expo (React Native) + Supabase。iOS / Android / Web で動作します。
+Expo (React Native) + Supabase. Runs on iOS / Android / Web. The UI is in English.
 
-## デザイン言語「墨と朱」
+## Design language — "Sumi & Shu"
 
-和紙(washi)を地に、藍(indigo)を構造色、朱(vermilion)を差し色に。
-カード・箱を多用せず、余白・極細罫線・明朝体で構成する編集的スタイル。
-ライト／ダーク両対応（`lib/theme.ts`, `lib/useTheme.ts`）。
+Washi paper ground, indigo (ai) as the structural colour, vermilion (shu) as the
+accent. No heavy boxes — space, hairline rules and a Mincho display face.
+Light / dark aware (`lib/theme.ts`, `lib/useTheme.ts`).
 
-## セットアップ
+## The map experience
+
+- **Home (`app/(tabs)/map.tsx`)** — a rotating Mapbox globe at the top with a pin
+  on each trip, and the trip list below.
+- **Trip (`app/trip/[id]/index.tsx`)** — a Mapbox map of Japan. Each saved
+  location becomes a photo pin (the first of up to 10 photos). A horizontal card
+  carousel sits over the map; sliding the cards flies the map to the active
+  location (`easeTo`), and tapping a pin scrolls to its card. Legs between
+  locations are drawn per transport mode: car/walk use the Mapbox Directions API;
+  flight/shinkansen/train/ferry are drawn as arcs.
+
+Web uses `mapbox-gl` (loaded from CDN in `lib/mapbox.ts`). Native uses a
+placeholder for now — swap in `@rnmapbox/maps` for a native build.
+`components/map/*.web.tsx` and `*.native.tsx` are resolved per platform by Metro.
+
+## Setup
 
 ```bash
 npm install
-npm run web      # ブラウザで確認
-npm run ios      # iOS シミュレータ（要 Mac / EAS）
-npm run android  # Android エミュレータ
+npm run web      # browser
+npm start        # Expo Go on a device
 ```
 
-Supabase を接続する場合は `.env.example` を `.env` にコピーして値を設定します。
-未設定の場合は `lib/mock.ts` のモックデータで全画面が動作します。
-
-## 画面構成（実装済み）
-
-| # | 画面 | ルート |
-|---|------|--------|
-| 1 | ログイン / 会員登録 | `app/(auth)/login.tsx` |
-| 2 | 初期設定（通知・プロフィール） | `app/(auth)/onboarding.tsx` |
-| 3 | マイマップ（ホーム） | `app/(tabs)/map.tsx` |
-| 4 | 旅一覧（タイムライン） | `app/(tabs)/trips.tsx` |
-| 5 | 御朱印帳 | `app/(tabs)/goshuin.tsx` |
-| 6 | 発見（Explore） | `app/(tabs)/explore.tsx` |
-| 7 | 旅の新規作成 | `app/trip/new.tsx` |
-| 8 | 旅の詳細（ルート＆タイムライン） | `app/trip/[id]/index.tsx` |
-| 9 | Step作成・編集 | `app/trip/[id]/step/*` |
-| 10 | 御朱印詳細 | `app/goshuin/[id].tsx` |
-| 13 | シェア＆保存 | `app/share.tsx` |
-| 14 | UGCギャラリー | `app/gallery.tsx` |
-| 16 | プロフィール＆設定 | `app/(tabs)/profile.tsx` |
-
-### ガワのみ（エンジン未実装）
-
-| # | 画面 | 備考 |
-|---|------|------|
-| 11 | 軌跡カード作成 | 設定UIあり。高画質レンダリング(Skia)は未実装 |
-| 12 | UGC生成プレビュー | 簡易プレビューのみ |
-| 15 | 製本注文 | フロー提示のみ。PDF生成・決済は未実装 |
-
-### 今回対象外
-
-管理画面（#17-19、Web / Next.js）は別途。
-
-## 方針メモ
-
-- 位置情報は常時取得しない。訪問地は Step 作成時の**手動チェックイン**で記録し、
-  都道府県の選択に応じて御朱印を記帳する。
-- DBスキーマは `supabase/migrations/` を参照。
-
-## ディレクトリ
+Environment (`.env`, all optional — the app runs on mock data without them):
 
 ```
-app/           expo-router の画面
-components/     共通UI（ui.tsx / Header / Stamp / ProgressArc / UgcCard / StepEditor）
-lib/           theme / useTheme / supabase / mock
-supabase/      マイグレーション
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_ANON_KEY=
+EXPO_PUBLIC_MAPBOX_TOKEN=      # public pk. token; restrict it by URL in Mapbox
 ```
+
+## Screens
+
+| Area | Route |
+|------|-------|
+| Login | `app/(auth)/login.tsx` |
+| Onboarding | `app/(auth)/onboarding.tsx` |
+| Home (globe + trips) | `app/(tabs)/map.tsx` |
+| Goshuin collection | `app/(tabs)/goshuin.tsx` |
+| Explore | `app/(tabs)/explore.tsx` |
+| Profile | `app/(tabs)/profile.tsx` |
+| Trip (map + cards) | `app/trip/[id]/index.tsx` |
+| New trip | `app/trip/new.tsx` |
+| Add / edit stop | `app/trip/[id]/step/*` |
+| Goshuin detail | `app/goshuin/[id].tsx` |
+| Share | `app/share.tsx` |
+| Gallery | `app/gallery.tsx` |
+
+### Shells only (engines not built yet)
+
+Route card create/preview (`app/ugc/*`) and photo book (`app/book/new.tsx`):
+UI is present; Skia rendering, PDF export and checkout are planned.
+
+Admin (web) screens are out of scope for now.
+
+## Deploy (Vercel)
+
+`vercel.json` sets `buildCommand: npx expo export -p web`, `outputDirectory: dist`,
+and an SPA rewrite so deep links resolve.
+
+## Data model
+
+See `supabase/migrations/`. Location tracking is manual check-in (no background
+GPS); choosing a prefecture on a stop stamps its goshuin.

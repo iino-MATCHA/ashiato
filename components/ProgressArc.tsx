@@ -48,7 +48,7 @@ export function ProgressArc({
       </AppText>
       <View style={{ height: space.xs }} />
       <AppText variant="eyebrow" tone="inkFaint">
-        {value} / {total} 都道府県
+        {value} / {total} PREFECTURES
       </AppText>
     </View>
   );

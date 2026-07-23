@@ -11,8 +11,6 @@ export default function Explore() {
   const { palette } = useTheme();
   const { width } = useWindowDimensions();
   const colW = (width - space.lg * 2 - space.md) / 2;
-
-  // 2カラムのざっくりmasonry（左右に振り分け）
   const left = gallery.filter((_, i) => i % 2 === 0);
   const right = gallery.filter((_, i) => i % 2 === 1);
 
@@ -21,30 +19,22 @@ export default function Explore() {
       <Gap h={space.md} />
       <AppText variant="eyebrow" tone="shu">EXPLORE</AppText>
       <Gap h={space.sm} />
-      <AppText variant="h2" tone="ink">みんなの足跡を、旅の参考に</AppText>
+      <AppText variant="h2" tone="ink">Get inspired by other travellers</AppText>
 
-      {/* 検索（下線のみ） */}
       <Gap h={space.lg} />
       <Row style={[styles.search, { borderColor: palette.ruleStrong }]}>
         <Ionicons name="search" size={18} color={palette.inkFaint} />
-        <TextInput
-          placeholder="地名・スポット・ユーザーを検索"
-          placeholderTextColor={palette.inkFaint}
-          style={[styles.searchInput, { color: palette.ink }]}
-        />
+        <TextInput placeholder="Search places, spots, people" placeholderTextColor={palette.inkFaint} style={[styles.searchInput, { color: palette.ink }]} />
       </Row>
 
-      {/* トレンドスポット */}
       <Gap h={space.xl} />
-      <Eyebrow>いま人気のスポット</Eyebrow>
+      <Eyebrow>Trending spots</Eyebrow>
       <Gap h={space.md} />
       <Rule />
       {trendingSpots.map((s, i) => (
         <View key={s.name}>
           <Row style={styles.spot}>
-            <AppText variant="h3" tone="inkFaint" style={{ width: 30 }}>
-              {String(i + 1).padStart(2, '0')}
-            </AppText>
+            <AppText variant="h3" tone="inkFaint" style={{ width: 30 }}>{String(i + 1).padStart(2, '0')}</AppText>
             <View style={{ flex: 1 }}>
               <AppText variant="bodyStrong" tone="ink">{s.name}</AppText>
               <AppText variant="small" tone="inkFaint">{s.prefecture}</AppText>
@@ -58,12 +48,11 @@ export default function Explore() {
         </View>
       ))}
 
-      {/* 人気UGC */}
       <Gap h={space.xl} />
       <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <Eyebrow>人気のカード</Eyebrow>
+        <Eyebrow>Popular cards</Eyebrow>
         <Pressable onPress={() => router.push('/gallery')}>
-          <AppText variant="small" tone="ai">ギャラリー →</AppText>
+          <AppText variant="small" tone="ai">Gallery →</AppText>
         </Pressable>
       </Row>
       <Gap h={space.md} />
@@ -88,17 +77,7 @@ export default function Explore() {
 }
 
 const styles = StyleSheet.create({
-  search: {
-    alignItems: 'center',
-    gap: space.sm,
-    borderBottomWidth: hairline * 2,
-    paddingBottom: space.sm,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: fonts.gothicRegular,
-    fontSize: type.body,
-    paddingVertical: 4,
-  },
+  search: { alignItems: 'center', gap: space.sm, borderBottomWidth: hairline * 2, paddingBottom: space.sm },
+  searchInput: { flex: 1, fontFamily: fonts.gothicRegular, fontSize: type.body, paddingVertical: 4 },
   spot: { alignItems: 'center', gap: space.md, paddingVertical: space.md },
 });

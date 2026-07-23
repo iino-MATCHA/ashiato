@@ -16,6 +16,7 @@
     "@expo/vector-icons": "^14.0.4",
     "@react-navigation/native": "^7.0.0",
     "@supabase/supabase-js": "^2.47.10",
+    "@turf/turf": "^7.3.5",
     "expo": "~52.0.0",
     "expo-asset": "~11.0.5",
     "expo-constants": "~17.0.3",
@@ -24,6 +25,7 @@
     "expo-router": "~4.0.11",
     "expo-splash-screen": "~0.29.13",
     "expo-status-bar": "~2.0.0",
+    "mapbox-gl": "^3.26.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-native": "0.76.5",
@@ -36,6 +38,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@types/mapbox-gl": "^3.4.1",
     "@types/react": "~18.3.12",
     "typescript": "~5.3.3"
   },
