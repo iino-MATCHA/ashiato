@@ -2,11 +2,11 @@ import { View, ScrollView, Pressable, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AppText, Row, Gap } from '@/components/ui';
+import { AppText, Row, Gap, Rule } from '@/components/ui';
 import { GlobeMap } from '@/components/map/GlobeMap';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { acquiredCount, PREFECTURE_TOTAL, type Trip } from '@/lib/mock';
+import { acquiredCount, PREFECTURE_TOTAL, me, friends, type Trip } from '@/lib/mock';
 import { useTrips } from '@/lib/useData';
 
 const statusLabel: Record<Trip['status'], string> = {
@@ -51,6 +51,53 @@ export default function Home() {
           {ordered.map((t) => (
             <TripCard key={t.id} trip={t} palette={palette} />
           ))}
+
+          {/* You & Friends */}
+          <Gap h={space.md} />
+          <View style={[styles.section, { borderColor: palette.rule }]}>
+            <Pressable onPress={() => router.push('/(tabs)/profile')} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
+              <Row style={{ gap: space.md, alignItems: 'center' }}>
+                <View style={[styles.avatar, { backgroundColor: palette.matcha }]}>
+                  <AppText variant="bodyStrong" style={{ color: '#fff' }}>{me.name.slice(0, 1)}</AppText>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText variant="bodyStrong" tone="ink">{me.name}</AppText>
+                  <AppText variant="small" tone="inkFaint">@{me.username}</AppText>
+                </View>
+                <Ionicons name="create-outline" size={18} color={palette.inkFaint} />
+              </Row>
+            </Pressable>
+
+            <Gap h={space.md} />
+            <Rule />
+            <Gap h={space.md} />
+
+            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <AppText variant="eyebrow" tone="inkFaint">Friends · {friends.length}</AppText>
+              <Pressable onPress={() => router.push('/friends')}>
+                <AppText variant="small" tone="matcha">See all →</AppText>
+              </Pressable>
+            </Row>
+            <Gap h={space.md} />
+            <Row style={{ gap: space.md, alignItems: 'center' }}>
+              {friends.map((f) => (
+                <Pressable key={f.id} onPress={() => router.push(`/friends/${f.id}`)} style={{ alignItems: 'center', width: 56 }}>
+                  <View style={[styles.friendAvatar, { backgroundColor: f.color }]}>
+                    <AppText variant="bodyStrong" style={{ color: '#fff' }}>{f.name.slice(0, 1)}</AppText>
+                  </View>
+                  <Gap h={4} />
+                  <AppText variant="small" tone="inkSoft" numberOfLines={1}>{f.name}</AppText>
+                </Pressable>
+              ))}
+              <Pressable onPress={() => router.push('/friends/add')} style={{ alignItems: 'center', width: 56 }}>
+                <View style={[styles.friendAdd, { borderColor: palette.ruleStrong }]}>
+                  <Ionicons name="person-add-outline" size={18} color={palette.inkSoft} />
+                </View>
+                <Gap h={4} />
+                <AppText variant="small" tone="inkFaint">Add</AppText>
+              </Pressable>
+            </Row>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -113,4 +160,8 @@ const styles = StyleSheet.create({
   coverText: { padding: space.md, gap: 2 },
   pill: { position: 'absolute', top: space.md, left: space.md, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   pulse: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  section: { borderWidth: hairline, borderRadius: 12, padding: space.lg },
+  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  friendAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  friendAdd: { width: 44, height: 44, borderRadius: 22, borderWidth: hairline * 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
 });

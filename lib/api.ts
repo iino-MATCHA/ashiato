@@ -138,6 +138,18 @@ export async function fetchTrips(): Promise<Trip[]> {
   return trips.filter(Boolean) as Trip[];
 }
 
+/** Public trips for the Explore feed. */
+export async function fetchPublicTrips(): Promise<Trip[]> {
+  const { data, error } = await supabase
+    .from('trips')
+    .select('id')
+    .eq('visibility', 'public')
+    .order('start_date', { ascending: false });
+  if (error || !data) return [];
+  const trips = await Promise.all(data.map((t: any) => fetchTrip(t.id)));
+  return trips.filter(Boolean) as Trip[];
+}
+
 export async function fetchGoshuin(): Promise<Goshuin[]> {
   const [{ data: masters }, { data: mine }, prefNames] = await Promise.all([
     supabase.from('goshuin_masters').select('id, name, rarity, prefecture_code').eq('is_active', true),

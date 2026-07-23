@@ -4,8 +4,8 @@
  */
 import { useEffect, useState } from 'react';
 import { isSupabaseConfigured } from './supabase';
-import { fetchTrips, fetchTrip, fetchVisitedPrefectureCodes } from './api';
-import { trips as mockTrips, findTrip as mockFindTrip, goshuinList, type Trip } from './mock';
+import { fetchTrips, fetchTrip, fetchVisitedPrefectureCodes, fetchPublicTrips } from './api';
+import { trips as mockTrips, findTrip as mockFindTrip, goshuinList, publicTrips as mockPublicTrips, type Trip } from './mock';
 import { PREFECTURE_ID_BY_SLUG, slugForName } from './prefectures';
 
 export function useTrips(): { trips: Trip[]; loading: boolean } {
@@ -57,6 +57,21 @@ export function useVisitedPrefectures(): { codes: number[]; loading: boolean } {
   }, []);
 
   return { codes, loading };
+}
+
+export function usePublicTrips(): { trips: Trip[]; loading: boolean } {
+  const [trips, setTrips] = useState<Trip[]>(isSupabaseConfigured ? [] : mockPublicTrips);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let alive = true;
+    fetchPublicTrips()
+      .then((t) => alive && setTrips(t.length ? t : mockPublicTrips))
+      .catch(() => alive && setTrips(mockPublicTrips))
+      .finally(() => alive && setLoading(false));
+    return () => { alive = false; };
+  }, []);
+  return { trips, loading };
 }
 
 export function useTrip(id?: string): { trip: Trip | null; loading: boolean } {
