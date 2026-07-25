@@ -4,7 +4,7 @@ import { Stamp } from '@/components/Stamp';
 import { JapanSvgMap } from '@/components/JapanSvgMap';
 import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { goshuinList, acquiredCount, PREFECTURE_TOTAL } from '@/lib/mock';
+import { goshuinList, PREFECTURE_TOTAL } from '@/lib/mock';
 import { useVisitedPrefectures } from '@/lib/useData';
 
 function rank(count: number) {
@@ -19,6 +19,8 @@ export default function GoshuinBook() {
   const { palette } = useTheme();
   const { width } = useWindowDimensions();
   const { codes: visited } = useVisitedPrefectures();
+  const visitedSet = new Set(visited);
+  const count = visited.length;
 
   return (
     <Screen contentContainerStyle={{ paddingBottom: space.xxl }}>
@@ -28,7 +30,7 @@ export default function GoshuinBook() {
       <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <AppText variant="h1" tone="ink">Stamps of the{'\n'}47 Prefectures</AppText>
         <View style={{ alignItems: 'flex-end' }}>
-          <AppText variant="display" tone="shu" style={{ lineHeight: 44 }}>{acquiredCount}</AppText>
+          <AppText variant="display" tone="shu" style={{ lineHeight: 44 }}>{count}</AppText>
           <AppText variant="small" tone="inkFaint">/ {PREFECTURE_TOTAL}</AppText>
         </View>
       </Row>
@@ -47,18 +49,21 @@ export default function GoshuinBook() {
       <Gap h={space.lg} />
       <Row style={[styles.rankBand, { borderColor: palette.ruleStrong }]}>
         <AppText variant="eyebrow" tone="inkFaint">Current rank</AppText>
-        <AppText variant="h3" tone="ai">{rank(acquiredCount)}</AppText>
+        <AppText variant="h3" tone="ai">{rank(count)}</AppText>
       </Row>
 
       <Gap h={space.xl} />
       <View style={styles.grid}>
-        {goshuinList.map((g, i) => (
-          <View key={g.id} style={styles.cell}>
-            <Stamp goshuin={g} size={80} rotate={((i * 7) % 9) - 4} />
-            <Gap h={space.sm} />
-            <AppText variant="small" tone={g.acquired ? 'inkSoft' : 'inkFaint'} center numberOfLines={1}>{g.prefectureName}</AppText>
-          </View>
-        ))}
+        {goshuinList.map((g, i) => {
+          const acquired = visitedSet.has(g.prefectureId);
+          return (
+            <View key={g.id} style={styles.cell}>
+              <Stamp goshuin={{ ...g, acquired }} size={80} rotate={((i * 7) % 9) - 4} />
+              <Gap h={space.sm} />
+              <AppText variant="small" tone={acquired ? 'inkSoft' : 'inkFaint'} center numberOfLines={1}>{g.prefectureName}</AppText>
+            </View>
+          );
+        })}
       </View>
 
       <Gap h={space.xl} />

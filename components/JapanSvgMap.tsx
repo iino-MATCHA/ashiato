@@ -59,9 +59,10 @@ export function JapanSvgMap({
               key={slug}
               d={d}
               fill={on ? fillVisited : palette.fill}
-              stroke={on ? fillVisited : palette.ruleStrong}
-              strokeWidth={on ? 0.6 : 0.5}
-              opacity={on ? 1 : 0.9}
+              stroke={on ? fillVisited : palette.inkFaint}
+              strokeWidth={on ? 1.1 : 0.8}
+              strokeLinejoin="round"
+              opacity={1}
               onPress={onToggle ? () => onToggle(PREFECTURE_ID_BY_SLUG[slug]) : undefined}
             />
           );

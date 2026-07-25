@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Image, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,11 +8,28 @@ import { useTheme } from '@/lib/useTheme';
 import { usePublicTrips } from '@/lib/useData';
 import { trendingSpots, type Trip } from '@/lib/mock';
 
+/**
+ * Featured ranking + weekly rotation.
+ * score favours big, well-documented journeys (distance + stops + prefectures).
+ * The list is then rotated by the ISO-ish week number so the top pick changes
+ * roughly once a week, keeping Explore fresh without manual curation.
+ */
+function weeklyFeatured(trips: Trip[]): Trip[] {
+  const score = (t: Trip) => t.distanceKm * 0.01 + t.steps.length * 3 + t.prefectures.length * 2;
+  const ranked = [...trips].sort((a, b) => score(b) - score(a));
+  if (ranked.length < 2) return ranked;
+  const week = Math.floor(Date.now() / (1000 * 60 * 60 * 24 * 7));
+  const offset = week % ranked.length;
+  return [...ranked.slice(offset), ...ranked.slice(0, offset)];
+}
+
 export default function Explore() {
   const { palette } = useTheme();
   const { width } = useWindowDimensions();
   const { trips } = usePublicTrips();
-  const colW = (width - space.lg * 2 - space.md) / 2;
+
+  const featured = useMemo(() => weeklyFeatured(trips), [trips]);
+  const friendTrips = trips.filter((t) => t.authorId && t.authorId !== 'me');
 
   return (
     <Screen>
@@ -27,13 +44,30 @@ export default function Explore() {
         <TextInput placeholder="Search places, spots, people" placeholderTextColor={palette.inkFaint} style={[styles.searchInput, { color: palette.ink }]} />
       </Row>
 
-      {/* Auto-scrolling featured journeys */}
-      {trips.length > 0 && (
+      {/* Featured — weekly */}
+      {featured.length > 0 && (
         <>
           <Gap h={space.xl} />
-          <Eyebrow>Featured journeys</Eyebrow>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <Eyebrow>Featured journeys</Eyebrow>
+            <AppText variant="small" tone="inkFaint">Updated weekly</AppText>
+          </Row>
           <Gap h={space.md} />
-          <FeaturedCarousel trips={trips} palette={palette} screenW={width} />
+          <FeaturedCarousel trips={featured} palette={palette} screenW={width} />
+        </>
+      )}
+
+      {/* From friends */}
+      {friendTrips.length > 0 && (
+        <>
+          <Gap h={space.xl} />
+          <Eyebrow>From your friends</Eyebrow>
+          <Gap h={space.md} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -space.lg }} contentContainerStyle={{ paddingHorizontal: space.lg, gap: space.md }}>
+            {friendTrips.map((t) => (
+              <FriendCard key={t.id} trip={t} palette={palette} />
+            ))}
+          </ScrollView>
         </>
       )}
 
@@ -58,19 +92,6 @@ export default function Explore() {
           <Rule />
         </View>
       ))}
-
-      {/* Grid of all public trips */}
-      <Gap h={space.xl} />
-      <Eyebrow>All journeys</Eyebrow>
-      <Gap h={space.md} />
-      <Row style={{ alignItems: 'flex-start', gap: space.md }}>
-        <View style={{ gap: space.md, flex: 1 }}>
-          {trips.filter((_, i) => i % 2 === 0).map((t) => <MiniCard key={t.id} trip={t} width={colW} />)}
-        </View>
-        <View style={{ gap: space.md, flex: 1 }}>
-          {trips.filter((_, i) => i % 2 === 1).map((t) => <MiniCard key={t.id} trip={t} width={colW} />)}
-        </View>
-      </Row>
     </Screen>
   );
 }
@@ -81,7 +102,6 @@ function FeaturedCarousel({ trips, palette, screenW }: { trips: Trip[]; palette:
   const cardW = screenW - space.lg * 2;
   const SNAP = cardW + space.md;
 
-  // auto-advance
   useEffect(() => {
     if (trips.length < 2) return;
     const t = setInterval(() => {
@@ -137,16 +157,16 @@ function FeaturedCarousel({ trips, palette, screenW }: { trips: Trip[]; palette:
   );
 }
 
-function MiniCard({ trip, width }: { trip: Trip; width: number }) {
+function FriendCard({ trip, palette }: { trip: Trip; palette: any }) {
   const cover = trip.steps[0]?.images[0];
   return (
-    <Pressable onPress={() => router.push(`/trip/${trip.id}?readonly=1`)}>
-      <View style={[styles.miniCover, { width, height: width * 1.15 }]}>
+    <Pressable onPress={() => router.push(`/trip/${trip.id}?readonly=1`)} style={{ width: 200 }}>
+      <View style={styles.friendCover}>
         {cover && <Image source={{ uri: cover }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />}
         <View style={styles.shade} />
         <View style={{ padding: space.sm }}>
-          <AppText variant="bodyStrong" style={{ color: '#fff' }} numberOfLines={2}>{trip.title}</AppText>
-          <AppText variant="small" style={{ color: 'rgba(255,255,255,0.8)' }}>@{(trip.members[0] ?? 'traveller').toLowerCase()}</AppText>
+          <AppText variant="bodyStrong" style={{ color: '#fff' }} numberOfLines={1}>{trip.title}</AppText>
+          <AppText variant="small" style={{ color: 'rgba(255,255,255,0.85)' }}>@{(trip.members[0] ?? 'traveller').toLowerCase()}</AppText>
         </View>
       </View>
     </Pressable>
@@ -168,6 +188,6 @@ const styles = StyleSheet.create({
   spot: { alignItems: 'center', gap: space.md, paddingVertical: space.md },
   featureCover: { height: 240, borderRadius: 12, overflow: 'hidden', backgroundColor: '#ccc', justifyContent: 'flex-end' },
   featureText: { padding: space.lg },
-  miniCover: { borderRadius: 10, overflow: 'hidden', backgroundColor: '#ccc', justifyContent: 'flex-end' },
+  friendCover: { height: 150, borderRadius: 10, overflow: 'hidden', backgroundColor: '#ccc', justifyContent: 'flex-end' },
   shade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)' },
 });

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, TextInput, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Button } from '@/components/ui';
 import { space, fonts, type, hairline } from '@/lib/theme';
@@ -27,21 +28,23 @@ export default function EditProfile() {
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
       <Header title="Edit profile" />
       <Rule />
-      <View style={{ flex: 1, paddingHorizontal: space.lg }}>
-        <Gap h={space.lg} />
-        <Row style={{ justifyContent: 'center' }}>
-          <View style={[styles.avatar, { backgroundColor: palette.matcha }]}>
-            <AppText variant="h1" style={{ color: '#fff' }}>{(name || 'T').slice(0, 1)}</AppText>
-          </View>
-        </Row>
+      <View style={{ flex: 1, paddingHorizontal: space.lg, alignItems: 'center' }}>
+        <View style={styles.form}>
+          <Gap h={space.lg} />
+          <Row style={{ justifyContent: 'center' }}>
+            <View style={[styles.avatar, { backgroundColor: palette.fill, borderColor: palette.matcha }]}>
+              <Ionicons name="person" size={38} color={palette.matcha} />
+            </View>
+          </Row>
 
-        <Gap h={space.xl} />
-        <Field label="Display name" value={name} onChangeText={setName} placeholder="Your name" palette={palette} />
-        <Field label="Username" value={username} onChangeText={setUsername} placeholder="username" prefix="@" palette={palette} autoCapitalize="none" />
-        <Field label="Bio" value={bio} onChangeText={setBio} placeholder="A line about you" palette={palette} multiline />
+          <Gap h={space.xl} />
+          <Field label="Display name" value={name} onChangeText={setName} placeholder="Your name" palette={palette} />
+          <Field label="Username" value={username} onChangeText={setUsername} placeholder="username" prefix="@" palette={palette} autoCapitalize="none" />
+          <Field label="Bio" value={bio} onChangeText={setBio} placeholder="A line about you" palette={palette} multiline />
 
-        <Gap h={space.xl} />
-        <Button label={saving ? 'Saving…' : 'Save'} tone="matcha" onPress={save} disabled={saving} />
+          <Gap h={space.xl} />
+          <Button label={saving ? 'Saving…' : 'Save'} tone="matcha" onPress={save} disabled={saving} />
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -61,6 +64,7 @@ function Field({ label, prefix, palette, ...rest }: any) {
 }
 
 const styles = StyleSheet.create({
-  avatar: { width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center' },
+  form: { width: '100%', maxWidth: 360, alignSelf: 'center' },
+  avatar: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   input: { fontFamily: fonts.minchoMedium, fontSize: type.h3, paddingVertical: space.sm },
 });

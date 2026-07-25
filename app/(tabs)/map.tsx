@@ -6,8 +6,8 @@ import { AppText, Row, Gap, Rule } from '@/components/ui';
 import { GlobeMap } from '@/components/map/GlobeMap';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { acquiredCount, PREFECTURE_TOTAL, friends, type Trip } from '@/lib/mock';
-import { useTrips } from '@/lib/useData';
+import { PREFECTURE_TOTAL, friends, type Trip } from '@/lib/mock';
+import { useTrips, useVisitedPrefectures } from '@/lib/useData';
 import { useProfile } from '@/lib/useProfile';
 
 const statusLabel: Record<Trip['status'], string> = {
@@ -20,7 +20,8 @@ export default function Home() {
   const { palette } = useTheme();
   const { trips } = useTrips();
   const { profile } = useProfile();
-  const pct = Math.round((acquiredCount / PREFECTURE_TOTAL) * 100);
+  const { codes: visited } = useVisitedPrefectures();
+  const pct = Math.round((visited.length / PREFECTURE_TOTAL) * 100);
   const ordered = [...trips].sort((a, b) => (a.status === 'ongoing' ? -1 : b.status === 'ongoing' ? 1 : 0));
 
   return (
@@ -34,8 +35,8 @@ export default function Home() {
           <Gap h={space.md} />
           <Pressable onPress={() => router.push('/profile')} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
             <Row style={{ gap: space.md, alignItems: 'center' }}>
-              <View style={[styles.avatar, { backgroundColor: palette.matcha }]}>
-                <AppText variant="bodyStrong" style={{ color: '#fff' }}>{profile.name.slice(0, 1)}</AppText>
+              <View style={[styles.avatar, { backgroundColor: palette.fill, borderColor: palette.matcha, borderWidth: 2 }]}>
+                <Ionicons name="person" size={22} color={palette.matcha} />
               </View>
               <View style={{ flex: 1 }}>
                 <AppText variant="bodyStrong" tone="ink">{profile.name}</AppText>
@@ -62,8 +63,8 @@ export default function Home() {
           <Gap h={space.sm} />
           <Row style={{ gap: space.lg }}>
             <InlineStat value={`${pct}%`} label="of Japan" palette={palette} />
-            <InlineStat value={String(acquiredCount)} label="goshuin" palette={palette} />
-            <InlineStat value={String(trips.length)} label="trips" palette={palette} />
+            <InlineStat value={String(visited.length)} label="goshuin" palette={palette} />
+            <InlineStat value={String(trips.filter((t) => !t.sample).length)} label="trips" palette={palette} />
           </Row>
 
           <Gap h={space.lg} />

@@ -7,7 +7,8 @@ import { AppText, Screen, Row, Rule, Gap, Eyebrow, Button } from '@/components/u
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useProfile } from '@/lib/useProfile';
-import { trips, acquiredCount, friends } from '@/lib/mock';
+import { useTrips, useVisitedPrefectures } from '@/lib/useData';
+import { friends } from '@/lib/mock';
 
 const settings = [
   { icon: 'battery-half-outline', label: 'Battery & power saving' },
@@ -20,8 +21,12 @@ const settings = [
 export default function ProfilePage() {
   const { palette } = useTheme();
   const { profile, signOut } = useProfile();
-  const totalStops = trips.reduce((s, t) => s + t.steps.length, 0);
-  const totalKm = trips.reduce((s, t) => s + t.distanceKm, 0);
+  const { trips } = useTrips();
+  const { codes: visited } = useVisitedPrefectures();
+  // real data only — exclude the sample/showcase trip from stats
+  const myTrips = trips.filter((t) => !t.sample);
+  const totalStops = myTrips.reduce((s, t) => s + t.steps.length, 0);
+  const totalKm = myTrips.reduce((s, t) => s + t.distanceKm, 0);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top']}>
@@ -36,8 +41,8 @@ export default function ProfilePage() {
       <Screen edges={[]}>
         <Gap h={space.sm} />
         <Row style={{ gap: space.md, alignItems: 'center' }}>
-          <View style={[styles.avatar, { backgroundColor: palette.matcha }]}>
-            <AppText variant="h1" style={{ color: '#fff' }}>{profile.name.slice(0, 1)}</AppText>
+          <View style={[styles.avatar, { backgroundColor: palette.fill, borderColor: palette.matcha }]}>
+            <Ionicons name="person" size={30} color={palette.matcha} />
           </View>
           <View style={{ flex: 1 }}>
             <AppText variant="h2" tone="ink">{profile.name}</AppText>
@@ -48,11 +53,11 @@ export default function ProfilePage() {
 
         <Gap h={space.xl} />
         <Row style={{ alignItems: 'stretch' }}>
-          <Stat value={String(trips.length)} label="Trips" palette={palette} />
+          <Stat value={String(myTrips.length)} label="Trips" palette={palette} />
           <Rule vertical />
           <Stat value={String(totalStops)} label="Stops" palette={palette} />
           <Rule vertical />
-          <Stat value={String(acquiredCount)} label="Goshuin" palette={palette} />
+          <Stat value={String(visited.length)} label="Goshuin" palette={palette} />
         </Row>
         <Gap h={space.lg} />
         <Row style={[styles.distance, { borderColor: palette.rule }]}>
@@ -130,7 +135,7 @@ function Stat({ value, label, palette }: any) {
 }
 
 const styles = StyleSheet.create({
-  avatar: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 68, height: 68, borderRadius: 34, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   distance: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: hairline, borderRadius: 3, padding: space.lg },
   friendAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   friendAdd: { width: 44, height: 44, borderRadius: 22, borderWidth: hairline * 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
