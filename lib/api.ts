@@ -240,6 +240,39 @@ async function currentUserId(): Promise<string | null> {
   return data?.user?.id ?? null;
 }
 
+/** サインイン後、profiles 行が無ければ作る（email から username を生成）。 */
+export async function ensureProfile(): Promise<void> {
+  const { data } = await supabase.auth.getUser();
+  const user = data?.user;
+  if (!user) return;
+  const { data: existing } = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle();
+  if (existing) return;
+  const base = (user.email ?? 'traveller').split('@')[0].replace(/[^a-z0-9_]/gi, '').slice(0, 20) || 'traveller';
+  await supabase.from('profiles').upsert({ id: user.id, username: base, display_name: base });
+}
+
+/** ログイン中ユーザーが手動登録した訪問都道府県コード。 */
+export async function fetchUserPrefectures(): Promise<number[]> {
+  const uid = await currentUserId();
+  if (!uid) return [];
+  const { data } = await supabase.from('user_prefectures').select('prefecture_code').eq('user_id', uid);
+  return (data ?? []).map((r: any) => r.prefecture_code);
+}
+
+/** 初回オンボ：選んだ都道府県で置き換え保存。 */
+export async function saveVisitedPrefectures(codes: number[]): Promise<boolean> {
+  const uid = await currentUserId();
+  if (!uid) return false;
+  await ensureProfile();
+  await supabase.from('user_prefectures').delete().eq('user_id', uid);
+  if (codes.length) {
+    const rows = codes.map((c) => ({ user_id: uid, prefecture_code: c }));
+    const { error } = await supabase.from('user_prefectures').insert(rows);
+    if (error) return false;
+  }
+  return true;
+}
+
 /** 画像を画質を保ったまま縮小圧縮（Web）。ネイティブは非対応でそのまま返す。 */
 async function compressImage(blob: Blob, maxDim = 1600, quality = 0.82): Promise<Blob> {
   if (typeof document === 'undefined' || typeof createImageBitmap === 'undefined') return blob;

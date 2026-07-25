@@ -25,6 +25,9 @@ export const supabase = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
+      // parse tokens from the URL after email-confirmation / Google OAuth redirects (web)
+      detectSessionInUrl: typeof window !== 'undefined',
+      flowType: 'implicit',
     },
   }
 );

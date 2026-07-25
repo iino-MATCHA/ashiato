@@ -8,7 +8,7 @@ import React from 'react';
 import { View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { PREFECTURE_PATHS } from '@/lib/mappath';
-import { PREFECTURE_SLUG_BY_ID, slugForName } from '@/lib/prefectures';
+import { PREFECTURE_SLUG_BY_ID, PREFECTURE_ID_BY_SLUG, slugForName } from '@/lib/prefectures';
 import { useTheme } from '@/lib/useTheme';
 
 const VB_W = 860;
@@ -35,11 +35,14 @@ export function JapanSvgMap({
   visited,
   width = 320,
   tint,
+  onToggle,
 }: {
   /** 都道府県ID(1..47) / 名前 / slug の配列またはSet */
   visited: Set<string | number> | Array<string | number>;
   width?: number;
   tint?: string;
+  /** 指定すると各県がタップ可能になり、prefecture_code を返す */
+  onToggle?: (prefectureCode: number) => void;
 }) {
   const { palette } = useTheme();
   const set = toSlugSet(visited);
@@ -59,6 +62,7 @@ export function JapanSvgMap({
               stroke={on ? fillVisited : palette.ruleStrong}
               strokeWidth={on ? 0.6 : 0.5}
               opacity={on ? 1 : 0.9}
+              onPress={onToggle ? () => onToggle(PREFECTURE_ID_BY_SLUG[slug]) : undefined}
             />
           );
         })}

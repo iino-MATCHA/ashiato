@@ -3,10 +3,12 @@ import { View, Pressable, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AppText, Row, Rule, Gap, Button } from '@/components/ui';
+import { AppText, Row, Rule, Gap } from '@/components/ui';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+
+const redirectTo = typeof window !== 'undefined' ? window.location.origin : undefined;
 
 export default function Login() {
   const { palette } = useTheme();
@@ -14,26 +16,37 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const goMock = () => router.replace('/(auth)/onboarding');
+  const goMock = () => router.replace('/(auth)/prefectures');
+
+  const google = async () => {
+    if (!isSupabaseConfigured) return goMock();
+    setError(null);
+    try {
+      await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
+      // browser redirects to Google, then back to '/', where the auth gate takes over
+    } catch (e: any) {
+      setError(e?.message ?? 'Google sign-in failed');
+    }
+  };
 
   const submit = async () => {
     if (!isSupabaseConfigured) return goMock();
     setError(null);
+    setNotice(null);
     setBusy(true);
     try {
       if (mode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { emailRedirectTo: redirectTo },
+        });
         if (error) throw error;
-        // ensure a profile row exists
-        const uid = data.user?.id;
-        if (uid) {
-          const uname = email.trim().split('@')[0].slice(0, 20) || 'traveller';
-          await supabase.from('profiles').upsert({ id: uid, username: uname, display_name: uname });
-        }
         if (!data.session) {
-          setError('Account created. If email confirmation is on, confirm then sign in.');
+          setNotice('Check your inbox and tap the confirmation link — it opens the app automatically.');
           setMode('signin');
           setBusy(false);
           return;
@@ -42,7 +55,7 @@ export default function Login() {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
       }
-      router.replace('/(tabs)/map');
+      router.replace('/'); // auth gate → prefecture onboarding (first time) or map
     } catch (e: any) {
       setError(e?.message ?? 'Something went wrong');
     } finally {
@@ -52,20 +65,30 @@ export default function Login() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: palette.washi }]}>
-      <View style={styles.top}>
-        <AppText variant="eyebrow" tone="matcha">ASHIATO — TRACE YOUR JOURNEY ACROSS JAPAN</AppText>
-        <Gap h={space.md} />
+      {/* Brand */}
+      <View style={styles.hero}>
         <AppText style={styles.brand} tone="ink">足跡</AppText>
+        <Gap h={space.xs} />
+        <AppText variant="eyebrow" tone="matcha">A S H I A T O</AppText>
         <Gap h={space.md} />
-        <AppText variant="h3" tone="inkSoft" style={{ maxWidth: 280 }}>
+        <AppText variant="body" tone="inkSoft" center style={{ maxWidth: 280 }}>
           Where you walk becomes a map.{'\n'}Where you visit, a stamp is earned.
         </AppText>
       </View>
 
-      <View>
-        {/* email auth */}
-        <Rule />
-        <Gap h={space.md} />
+      {/* Centered auth card */}
+      <View style={styles.card}>
+        <Pressable onPress={google} style={({ pressed }) => [styles.google, { borderColor: palette.ruleStrong }, pressed && { opacity: 0.6 }]}>
+          <Ionicons name="logo-google" size={18} color={palette.ink} />
+          <AppText variant="bodyStrong" tone="ink">Continue with Google</AppText>
+        </Pressable>
+
+        <Row style={{ alignItems: 'center', gap: space.sm, marginVertical: space.md }}>
+          <Rule style={{ flex: 1 }} />
+          <AppText variant="small" tone="inkFaint">or</AppText>
+          <Rule style={{ flex: 1 }} />
+        </Row>
+
         <TextInput
           value={email} onChangeText={setEmail}
           placeholder="Email" placeholderTextColor={palette.inkFaint}
@@ -79,42 +102,34 @@ export default function Login() {
           secureTextEntry
           style={[styles.input, { color: palette.ink, borderColor: palette.ruleStrong }]}
         />
-        {error && (
-          <>
-            <Gap h={space.sm} />
-            <AppText variant="small" tone="shu">{error}</AppText>
-          </>
-        )}
+
+        {!!notice && (<><Gap h={space.sm} /><AppText variant="small" tone="matcha" center>{notice}</AppText></>)}
+        {!!error && (<><Gap h={space.sm} /><AppText variant="small" tone="shu" center>{error}</AppText></>)}
+
         <Gap h={space.md} />
-        <Button
-          label={busy ? '…' : mode === 'signin' ? 'Sign in' : 'Create account'}
-          tone="matcha"
-          onPress={submit}
-          disabled={busy}
-        />
-        <Gap h={space.sm} />
-        <Pressable onPress={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null); }}>
+        <Pressable onPress={submit} disabled={busy} style={({ pressed }) => [styles.primary, { backgroundColor: palette.matcha }, pressed && { opacity: 0.85 }]}>
+          <AppText variant="bodyStrong" style={{ color: '#fff' }}>{busy ? '…' : mode === 'signin' ? 'Sign in' : 'Create account'}</AppText>
+        </Pressable>
+
+        <Gap h={space.md} />
+        <Pressable onPress={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null); setNotice(null); }}>
           <AppText variant="small" tone="ai" center>
             {mode === 'signin' ? 'New here? Create an account' : 'Have an account? Sign in'}
           </AppText>
         </Pressable>
-
-        {!isSupabaseConfigured && (
-          <>
-            <Gap h={space.md} />
-            <Pressable onPress={goMock}>
-              <AppText variant="small" tone="inkFaint" center>Continue in demo mode →</AppText>
-            </Pressable>
-          </>
-        )}
       </View>
+
+      <View style={{ height: space.xl }} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: space.lg, paddingTop: space.xxl, paddingBottom: space.xl, justifyContent: 'space-between' },
-  top: { flex: 1, justifyContent: 'center' },
-  brand: { fontFamily: fonts.minchoBold, fontSize: 88, lineHeight: 96, letterSpacing: 4 },
-  input: { borderWidth: hairline * 2, borderRadius: 8, paddingHorizontal: space.md, paddingVertical: 12, fontFamily: fonts.gothicRegular, fontSize: type.body },
+  root: { flex: 1, paddingHorizontal: space.lg, justifyContent: 'center', alignItems: 'center' },
+  hero: { alignItems: 'center', marginBottom: space.xl },
+  brand: { fontFamily: fonts.minchoBold, fontSize: 72, lineHeight: 80, letterSpacing: 4 },
+  card: { width: '100%', maxWidth: 340, alignSelf: 'center' },
+  google: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, borderWidth: hairline * 2, borderRadius: 10, paddingVertical: 13 },
+  input: { borderWidth: hairline * 2, borderRadius: 10, paddingHorizontal: space.md, paddingVertical: 12, fontFamily: fonts.gothicRegular, fontSize: type.body },
+  primary: { height: 50, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 });
