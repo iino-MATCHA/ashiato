@@ -12,6 +12,7 @@ import { useTrips, useVisitedPrefectures } from '@/lib/useData';
 import { useProfile } from '@/lib/useProfile';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { deleteTrip } from '@/lib/api';
+import { useRippleNav } from '@/lib/transition';
 
 const statusLabel: Record<Trip['status'], string> = {
   planning: 'Planning',
@@ -112,11 +113,12 @@ export default function Home() {
 }
 
 function TripCard({ trip, palette, onEdit }: { trip: Trip; palette: any; onEdit: () => void }) {
+  const { navigate } = useRippleNav();
   const cover = trip.steps[0]?.images[0];
   const ongoing = trip.status === 'ongoing';
   const editable = !trip.sample; // the showcase sample can't be edited/deleted
   return (
-    <Pressable onPress={() => router.push(`/trip/${trip.id}`)} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
+    <Pressable onPress={(e) => navigate(`/trip/${trip.id}`, e)} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
       <View style={styles.cover}>
         {cover && <Image source={{ uri: cover }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />}
         <View style={styles.coverShade} />

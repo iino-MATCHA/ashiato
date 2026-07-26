@@ -11,6 +11,7 @@ import { TripMap } from '@/components/map/TripMap';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
+import { useRippleNav } from '@/lib/transition';
 import { transportLabel, type Step, type TransportMode } from '@/lib/mock';
 
 const transportIcon: Record<TransportMode, any> = {
@@ -25,6 +26,7 @@ export default function TripDetail() {
   const { width, height: winH } = useWindowDimensions();
   const { id, readonly } = useLocalSearchParams<{ id: string; readonly?: string }>();
   const { trip, loading } = useTrip(id);
+  const { navigate } = useRippleNav();
 
   const CARD_W = Math.min(width * 0.8, 340);
   const SNAP = CARD_W + CARD_GAP;
@@ -131,7 +133,7 @@ export default function TripDetail() {
               {i > 0 && (
                 <Connector mode={effModes[i]} gap={CARD_GAP} editable={canEdit} palette={palette} onPress={() => canEdit && setPicker(i)} />
               )}
-              <LocationCard step={s} index={i} total={n} palette={palette} onOpen={() => router.push(`/trip/${trip.id}/step/${s.id}${canEdit ? '' : '?readonly=1'}`)} />
+              <LocationCard step={s} index={i} total={n} palette={palette} onOpen={(e: any) => navigate(`/trip/${trip.id}/step/${s.id}${canEdit ? '' : '?readonly=1'}`, e)} />
             </View>
           ))}
 
@@ -196,9 +198,9 @@ function Connector({ mode, gap, editable, palette, onPress, plus }: { mode: Tran
   );
 }
 
-function LocationCard({ step, index, total, palette, onOpen }: { step: Step; index: number; total: number; palette: any; onOpen: () => void }) {
+function LocationCard({ step, index, total, palette, onOpen }: { step: Step; index: number; total: number; palette: any; onOpen: (e?: any) => void }) {
   return (
-    <Pressable onPress={onOpen} style={[styles.card, { backgroundColor: palette.washi }]}>
+    <Pressable onPress={(e) => onOpen(e)} style={[styles.card, { backgroundColor: palette.washi }]}>
       <View style={{ position: 'relative' }}>
         <View style={[styles.cardPhoto, { backgroundColor: palette.fill }]}>
           <Image source={{ uri: step.images[0] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />

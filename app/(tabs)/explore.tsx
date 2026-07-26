@@ -6,6 +6,7 @@ import { AppText, Screen, Row, Rule, Gap, Eyebrow } from '@/components/ui';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { usePublicTrips } from '@/lib/useData';
+import { useRippleNav } from '@/lib/transition';
 import { trendingSpots, type Trip } from '@/lib/mock';
 
 /**
@@ -94,6 +95,7 @@ export default function Explore() {
 }
 
 function FeaturedCarousel({ trips, palette, screenW }: { trips: Trip[]; palette: any; screenW: number }) {
+  const { navigate } = useRippleNav();
   const ref = useRef<ScrollView | null>(null);
   const [idx, setIdx] = useState(0);
   const cardW = screenW - space.lg * 2;
@@ -125,7 +127,7 @@ function FeaturedCarousel({ trips, palette, screenW }: { trips: Trip[]; palette:
         {trips.map((t) => {
           const cover = t.steps[0]?.images[0];
           return (
-            <Pressable key={t.id} onPress={() => router.push(`/trip/${t.id}?readonly=1`)} style={{ width: cardW }}>
+            <Pressable key={t.id} onPress={(e) => navigate(`/trip/${t.id}?readonly=1`, e)} style={{ width: cardW }}>
               <View style={[styles.featureCover, { width: cardW }]}>
                 {cover && <Image source={{ uri: cover }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />}
                 <View style={styles.shade} />
@@ -155,9 +157,10 @@ function FeaturedCarousel({ trips, palette, screenW }: { trips: Trip[]; palette:
 }
 
 function FriendCard({ trip, palette }: { trip: Trip; palette: any }) {
+  const { navigate } = useRippleNav();
   const cover = trip.steps[0]?.images[0];
   return (
-    <Pressable onPress={() => router.push(`/trip/${trip.id}?readonly=1`)} style={{ width: 200 }}>
+    <Pressable onPress={(e) => navigate(`/trip/${trip.id}?readonly=1`, e)} style={{ width: 200 }}>
       <View style={styles.friendCover}>
         {cover && <Image source={{ uri: cover }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />}
         <View style={styles.shade} />

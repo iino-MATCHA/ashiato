@@ -1,8 +1,11 @@
 /**
  * Data hooks. When Supabase is configured they fetch real data; otherwise they
- * return the mock data synchronously so the app keeps working with no backend.
+ * return mock data. Every hook refetches on screen focus (so any save is
+ * reflected the moment you return to a screen — no reload) and also on an
+ * explicit refresh bump (for same-screen updates).
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { isSupabaseConfigured } from './supabase';
 import { fetchTrips, fetchTrip, fetchVisitedPrefectureCodes, fetchPublicTrips } from './api';
 import { subscribe } from './refresh';
@@ -11,42 +14,38 @@ import { trips as mockTrips, findTrip as mockFindTrip, publicTrips as mockPublic
 export function useTrips(): { trips: Trip[]; loading: boolean } {
   const [trips, setTrips] = useState<Trip[]>(isSupabaseConfigured ? [] : mockTrips);
   const [loading, setLoading] = useState(isSupabaseConfigured);
+  const alive = useRef(true);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!isSupabaseConfigured) return;
-    let alive = true;
-    const load = () => {
-      fetchTrips()
-        .then((t) => alive && setTrips(t.length ? t : mockTrips))
-        .catch(() => alive && setTrips(mockTrips))
-        .finally(() => alive && setLoading(false));
-    };
-    load();
-    const unsub = subscribe('trips', load);
-    return () => { alive = false; unsub(); };
+    fetchTrips()
+      .then((t) => alive.current && setTrips(t.length ? t : mockTrips))
+      .catch(() => alive.current && setTrips(mockTrips))
+      .finally(() => alive.current && setLoading(false));
   }, []);
+
+  useFocusEffect(useCallback(() => { alive.current = true; load(); return () => { alive.current = false; }; }, [load]));
+  useEffect(() => subscribe('trips', load), [load]);
 
   return { trips, loading };
 }
 
-/** 訪問済み都道府県コード(1..47)。実データのみ（初回オンボ＋自分の旅）。モックは含めない。 */
+/** 訪問済み都道府県コード(1..47)。実データのみ（初回オンボ＋自分の旅）。 */
 export function useVisitedPrefectures(): { codes: number[]; loading: boolean } {
   const [codes, setCodes] = useState<number[]>([]);
   const [loading, setLoading] = useState(isSupabaseConfigured);
+  const alive = useRef(true);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!isSupabaseConfigured) return;
-    let alive = true;
-    const load = () => {
-      fetchVisitedPrefectureCodes()
-        .then((c) => alive && setCodes(c))
-        .catch(() => alive && setCodes([]))
-        .finally(() => alive && setLoading(false));
-    };
-    load();
-    const unsub = subscribe('visited', load);
-    return () => { alive = false; unsub(); };
+    fetchVisitedPrefectureCodes()
+      .then((c) => alive.current && setCodes(c))
+      .catch(() => alive.current && setCodes([]))
+      .finally(() => alive.current && setLoading(false));
   }, []);
+
+  useFocusEffect(useCallback(() => { alive.current = true; load(); return () => { alive.current = false; }; }, [load]));
+  useEffect(() => subscribe('visited', load), [load]);
 
   return { codes, loading };
 }
@@ -54,36 +53,37 @@ export function useVisitedPrefectures(): { codes: number[]; loading: boolean } {
 export function usePublicTrips(): { trips: Trip[]; loading: boolean } {
   const [trips, setTrips] = useState<Trip[]>(isSupabaseConfigured ? [] : mockPublicTrips);
   const [loading, setLoading] = useState(isSupabaseConfigured);
-  useEffect(() => {
+  const alive = useRef(true);
+
+  const load = useCallback(() => {
     if (!isSupabaseConfigured) return;
-    let alive = true;
     fetchPublicTrips()
-      .then((t) => alive && setTrips(t.length ? t : mockPublicTrips))
-      .catch(() => alive && setTrips(mockPublicTrips))
-      .finally(() => alive && setLoading(false));
-    return () => { alive = false; };
+      .then((t) => alive.current && setTrips(t.length ? t : mockPublicTrips))
+      .catch(() => alive.current && setTrips(mockPublicTrips))
+      .finally(() => alive.current && setLoading(false));
   }, []);
+
+  useFocusEffect(useCallback(() => { alive.current = true; load(); return () => { alive.current = false; }; }, [load]));
+  useEffect(() => subscribe('trips', load), [load]);
+
   return { trips, loading };
 }
 
 export function useTrip(id?: string): { trip: Trip | null; loading: boolean } {
   const [trip, setTrip] = useState<Trip | null>(isSupabaseConfigured ? null : mockFindTrip(id));
   const [loading, setLoading] = useState(isSupabaseConfigured);
+  const alive = useRef(true);
 
-  useEffect(() => {
-    if (!isSupabaseConfigured) {
-      setTrip(mockFindTrip(id));
-      return;
-    }
-    let alive = true;
+  const load = useCallback(() => {
+    if (!isSupabaseConfigured) { setTrip(mockFindTrip(id)); return; }
     fetchTrip(id ?? '')
-      .then((t) => alive && setTrip(t ?? mockFindTrip(id)))
-      .catch(() => alive && setTrip(mockFindTrip(id)))
-      .finally(() => alive && setLoading(false));
-    return () => {
-      alive = false;
-    };
+      .then((t) => alive.current && setTrip(t ?? mockFindTrip(id)))
+      .catch(() => alive.current && setTrip(mockFindTrip(id)))
+      .finally(() => alive.current && setLoading(false));
   }, [id]);
+
+  useFocusEffect(useCallback(() => { alive.current = true; load(); return () => { alive.current = false; }; }, [load]));
+  useEffect(() => subscribe('trips', load), [load]);
 
   return { trip, loading };
 }

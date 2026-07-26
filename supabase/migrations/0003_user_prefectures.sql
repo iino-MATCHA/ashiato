@@ -18,12 +18,14 @@ drop policy if exists user_prefectures_own on user_prefectures;
 create policy user_prefectures_own on user_prefectures for all
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 
--- 訪問済み都道府県（旅由来 ∪ 手動登録）
+-- 訪問済み都道府県（自分の旅由来 ∪ 手動登録）
+-- logs 側は「自分がメンバーの旅」に限定（公開サンプル等を数えない）。
 create or replace function my_visited_prefectures()
 returns setof integer language sql security invoker stable as $$
   select distinct prefecture_code from (
     select coalesce(l.prefecture_code, m.prefecture_code) as prefecture_code
     from logs l
+    join trip_members tm on tm.trip_id = l.trip_id and tm.user_id = auth.uid()
     left join municipalities_master m on m.municipality_code = l.municipality_code
     union
     select up.prefecture_code
