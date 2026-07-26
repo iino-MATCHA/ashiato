@@ -34,7 +34,10 @@ export function ShareMap({ steps, height }: { steps: Step[]; height: number }) {
           if (steps.length > 1) {
             let w = 180, e = -180, so = 90, n = -90;
             steps.forEach((st) => { w = Math.min(w, st.lng); e = Math.max(e, st.lng); so = Math.min(so, st.lat); n = Math.max(n, st.lat); });
-            map.fitBounds([[w, so], [e, n]], { padding: 70, duration: 0, maxZoom: 6 });
+            // tighter framing so Japan fills more of the card
+            map.fitBounds([[w, so], [e, n]], { padding: 28, duration: 0, maxZoom: 7 });
+          } else if (steps[0]) {
+            map.jumpTo({ center: [steps[0].lng, steps[0].lat], zoom: 6 });
           }
         });
       })

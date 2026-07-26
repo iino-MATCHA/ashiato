@@ -75,9 +75,9 @@ export default function TripShare() {
 
           {/* title top-left */}
           <View style={styles.tl}>
-            <AppText variant="eyebrow" style={{ color: 'rgba(255,255,255,0.85)' }}>ASHIATO</AppText>
-            <Gap h={4} />
-            <AppText style={styles.title} numberOfLines={3}>{trip.title}</AppText>
+            <AppText style={styles.eyebrow}>ASHIATO</AppText>
+            <Gap h={2} />
+            <AppText style={styles.title} numberOfLines={2}>{trip.title}</AppText>
           </View>
 
           {/* stats bottom-left */}
@@ -125,12 +125,13 @@ function ExportBtn({ icon, label, onPress, palette, color }: any) {
 
 const styles = StyleSheet.create({
   card: { borderRadius: 16, overflow: 'hidden', backgroundColor: '#0b1a2b' },
-  topScrim: { position: 'absolute', top: 0, left: 0, right: 0, height: 140, backgroundColor: 'rgba(0,0,0,0.35)' },
-  bottomScrim: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 200, backgroundColor: 'rgba(0,0,0,0.45)' },
+  topScrim: { position: 'absolute', top: 0, left: 0, right: 0, height: 100, backgroundColor: 'rgba(0,0,0,0.32)' },
+  bottomScrim: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 150, backgroundColor: 'rgba(0,0,0,0.42)' },
   tl: { position: 'absolute', top: space.md, left: space.md, right: space.md },
-  title: { fontFamily: fonts.minchoBold, fontSize: 26, lineHeight: 32, color: '#fff' },
+  eyebrow: { fontFamily: fonts.gothicMedium, fontSize: 9, letterSpacing: 2, color: 'rgba(255,255,255,0.8)' },
+  title: { fontFamily: fonts.minchoBold, fontSize: 17, lineHeight: 22, color: '#fff' },
   bl: { position: 'absolute', bottom: space.md, left: space.md, right: space.md },
-  statValue: { fontFamily: fonts.minchoBold, fontSize: 22, color: '#fff' },
-  statLabel: { fontFamily: fonts.gothicRegular, fontSize: 12, color: 'rgba(255,255,255,0.85)' },
+  statValue: { fontFamily: fonts.minchoBold, fontSize: 15, color: '#fff' },
+  statLabel: { fontFamily: fonts.gothicRegular, fontSize: 10, color: 'rgba(255,255,255,0.85)' },
   exportCircle: { width: 54, height: 54, borderRadius: 27, borderWidth: StyleSheet.hairlineWidth * 2, alignItems: 'center', justifyContent: 'center' },
 });

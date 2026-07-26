@@ -76,24 +76,22 @@ export default function TripDetail() {
         <TripMap steps={steps} activeIndex={mapStop} overview={isOverview} onSelect={selectFromMap} height={winH} bottomInset={240} modes={effModes} />
       </View>
 
-      {/* Header */}
+      {/* Header — back + title stay top-left; action icons float top-right */}
       <View style={styles.headerZone} pointerEvents="box-none">
-        <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Glass onPress={() => router.back()} icon="arrow-back" palette={palette} />
-          {canEdit && (
-            <View style={{ gap: space.sm }}>
-              <Glass onPress={() => router.push(`/trip/${trip.id}/share`)} icon="share-outline" palette={palette} />
-              {/* Photo book — page not built yet, so no navigation for now */}
-              <Glass onPress={() => {}} icon="book-outline" palette={palette} />
-              <Glass onPress={() => router.push(`/trip/${trip.id}/edit`)} icon="settings-outline" palette={palette} />
-            </View>
-          )}
-        </Row>
+        <Glass onPress={() => router.back()} icon="arrow-back" palette={palette} />
         <Gap h={space.sm} />
         <View style={styles.titleGlass}>
           <AppText variant="small" tone="inkFaint">{trip.subtitle}</AppText>
           <AppText variant="h3" tone="ink" numberOfLines={1}>{trip.title}</AppText>
         </View>
+        {canEdit && (
+          <View style={styles.actionCol} pointerEvents="box-none">
+            <Glass onPress={() => router.push(`/trip/${trip.id}/share`)} icon="share-outline" palette={palette} />
+            {/* Photo book — page not built yet, so no navigation for now */}
+            <Glass onPress={() => {}} icon="book-outline" palette={palette} />
+            <Glass onPress={() => router.push(`/trip/${trip.id}/edit`)} icon="settings-outline" palette={palette} />
+          </View>
+        )}
       </View>
 
       {/* Bottom carousel */}
@@ -228,7 +226,8 @@ function LocationCard({ step, index, total, palette, onOpen }: { step: Step; ind
 const shadow = { shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 5 };
 
 const styles = StyleSheet.create({
-  headerZone: { position: 'absolute', top: space.xl, left: space.lg, right: space.lg, zIndex: 20 },
+  headerZone: { position: 'absolute', top: space.xl, left: space.lg, right: space.lg, zIndex: 20, alignItems: 'flex-start' },
+  actionCol: { position: 'absolute', top: 0, right: 0, gap: space.sm },
   glassCircle: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.85)', ...shadow },
   titleGlass: { alignSelf: 'flex-start', maxWidth: '85%', backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: 14, paddingHorizontal: space.md, paddingVertical: space.sm, ...shadow },
   dock: { position: 'absolute', bottom: space.lg, left: 0, right: 0, zIndex: 20 },

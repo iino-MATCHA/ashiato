@@ -43,10 +43,8 @@ export function prefectureColor(id: number): string {
   return `hsl(${hue}, 52%, 42%)`;
 }
 
-// その都道府県を象徴するオブジェクト（絵文字）。まずは一部のみ。
-export const PREFECTURE_SYMBOL_BY_ID: Record<number, string> = {
-  1: '🐻', // 北海道（ヒグマ）
-};
+// その都道府県を象徴するオブジェクト（現在は未使用）。
+export const PREFECTURE_SYMBOL_BY_ID: Record<number, string> = {};
 
 // slug -> id 逆引き
 export const PREFECTURE_ID_BY_SLUG: Record<string, number> = PREFECTURE_SLUG_BY_ID.reduce(

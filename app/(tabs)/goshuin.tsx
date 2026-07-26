@@ -35,7 +35,7 @@ export default function GoshuinBook() {
       {/* Coverage map — which prefectures you've reached */}
       <Gap h={space.lg} />
       <View style={{ alignItems: 'center' }}>
-        <JapanSvgMap visited={visited} width={Math.min(width - space.lg * 2, 380)} />
+        <JapanSvgMap visited={visited} width={Math.min(width - space.lg * 2, 380)} hideOkinawa />
       </View>
       <Gap h={space.xs} />
       <Row style={{ justifyContent: 'center', gap: space.lg }}>

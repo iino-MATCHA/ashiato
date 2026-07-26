@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { isSupabaseConfigured } from './supabase';
 import { fetchTrips, fetchTrip, fetchVisitedPrefectureCodes, fetchPublicTrips } from './api';
+import { subscribe } from './refresh';
 import { trips as mockTrips, findTrip as mockFindTrip, publicTrips as mockPublicTrips, type Trip } from './mock';
 
 export function useTrips(): { trips: Trip[]; loading: boolean } {
@@ -14,13 +15,15 @@ export function useTrips(): { trips: Trip[]; loading: boolean } {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     let alive = true;
-    fetchTrips()
-      .then((t) => alive && setTrips(t.length ? t : mockTrips))
-      .catch(() => alive && setTrips(mockTrips))
-      .finally(() => alive && setLoading(false));
-    return () => {
-      alive = false;
+    const load = () => {
+      fetchTrips()
+        .then((t) => alive && setTrips(t.length ? t : mockTrips))
+        .catch(() => alive && setTrips(mockTrips))
+        .finally(() => alive && setLoading(false));
     };
+    load();
+    const unsub = subscribe('trips', load);
+    return () => { alive = false; unsub(); };
   }, []);
 
   return { trips, loading };
@@ -34,13 +37,15 @@ export function useVisitedPrefectures(): { codes: number[]; loading: boolean } {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     let alive = true;
-    fetchVisitedPrefectureCodes()
-      .then((c) => alive && setCodes(c))
-      .catch(() => alive && setCodes([]))
-      .finally(() => alive && setLoading(false));
-    return () => {
-      alive = false;
+    const load = () => {
+      fetchVisitedPrefectureCodes()
+        .then((c) => alive && setCodes(c))
+        .catch(() => alive && setCodes([]))
+        .finally(() => alive && setLoading(false));
     };
+    load();
+    const unsub = subscribe('visited', load);
+    return () => { alive = false; unsub(); };
   }, []);
 
   return { codes, loading };

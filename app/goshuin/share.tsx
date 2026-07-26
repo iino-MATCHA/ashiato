@@ -43,7 +43,7 @@ export default function GoshuinShare() {
           </Row>
 
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <JapanSvgMap visited={visited} width={cardW - space.lg * 2} />
+            <JapanSvgMap visited={visited} width={cardW - space.lg * 2} hideOkinawa />
           </View>
 
           <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>

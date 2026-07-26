@@ -36,6 +36,7 @@ export function JapanSvgMap({
   width = 320,
   tint,
   onToggle,
+  hideOkinawa = false,
 }: {
   /** 都道府県ID(1..47) / 名前 / slug の配列またはSet */
   visited: Set<string | number> | Array<string | number>;
@@ -43,6 +44,8 @@ export function JapanSvgMap({
   tint?: string;
   /** 指定すると各県がタップ可能になり、prefecture_code を返す */
   onToggle?: (prefectureCode: number) => void;
+  /** 表示地図から沖縄を除外する */
+  hideOkinawa?: boolean;
 }) {
   const { palette } = useTheme();
   const set = toSlugSet(visited);
@@ -53,14 +56,16 @@ export function JapanSvgMap({
     <View style={{ width, height }}>
       <Svg width={width} height={height} viewBox={`0 0 ${VB_W} ${VB_H}`}>
         {Object.entries(PREFECTURE_PATHS).map(([slug, d]) => {
+          if (hideOkinawa && slug === 'okinawa') return null;
           const on = set.has(slug);
           return (
             <Path
               key={slug}
               d={d}
               fill={on ? fillVisited : palette.fill}
-              stroke={on ? fillVisited : palette.inkFaint}
-              strokeWidth={on ? 1.1 : 0.8}
+              // 県境は塗りに関わらず同じ太さ・色で常に見えるようにする
+              stroke={palette.inkFaint}
+              strokeWidth={0.8}
               strokeLinejoin="round"
               opacity={1}
               onPress={onToggle ? () => onToggle(PREFECTURE_ID_BY_SLUG[slug]) : undefined}

@@ -9,6 +9,7 @@
  * コードで in() 取得して突き合わせる。
  */
 import { supabase } from './supabase';
+import { bump } from './refresh';
 import type { Trip, Step, Goshuin, TransportMode } from './mock';
 
 const PHOTO_BUCKET = 'photos';
@@ -270,6 +271,7 @@ export async function saveVisitedPrefectures(codes: number[]): Promise<boolean> 
     const { error } = await supabase.from('user_prefectures').insert(rows);
     if (error) return false;
   }
+  bump('visited'); // notify goshuin/profile to refetch without a reload
   return true;
 }
 
@@ -378,7 +380,58 @@ export async function createStep(input: {
     const path = await uploadPhoto(uid, input.tripId, blobs[i]);
     if (path) await supabase.from('photos').insert({ log_id: log.id, trip_id: input.tripId, uploader_id: uid, storage_path: path, sort_order: i });
   }
+  bump('visited');
+  bump('trips');
   return log.id;
+}
+
+// ---------------------------------------------------------------- step social (likes / comments)
+export interface StepComment {
+  id: string;
+  author: string;
+  body: string;
+  createdAt: string;
+}
+export interface StepSocial {
+  likes: number;
+  likedByMe: boolean;
+  comments: StepComment[];
+}
+
+export async function fetchStepSocial(logId: string): Promise<StepSocial> {
+  const uid = await currentUserId();
+  const [{ data: reactions }, { data: comments }] = await Promise.all([
+    supabase.from('reactions').select('user_id').eq('target_type', 'log').eq('target_id', logId),
+    supabase.from('comments').select('id, body, created_at, author_id, profiles(display_name)').eq('log_id', logId).order('created_at', { ascending: true }),
+  ]);
+  return {
+    likes: (reactions ?? []).length,
+    likedByMe: !!uid && (reactions ?? []).some((r: any) => r.user_id === uid),
+    comments: (comments ?? []).map((c: any) => ({
+      id: c.id,
+      author: c.profiles?.display_name ?? 'Traveller',
+      body: c.body,
+      createdAt: (c.created_at ?? '').slice(0, 10),
+    })),
+  };
+}
+
+export async function toggleLike(logId: string, tripId: string, liked: boolean): Promise<boolean> {
+  const uid = await currentUserId();
+  if (!uid) return false;
+  if (liked) {
+    await supabase.from('reactions').delete().eq('target_type', 'log').eq('target_id', logId).eq('user_id', uid).eq('emoji', '❤️');
+  } else {
+    await supabase.from('reactions').insert({ trip_id: tripId, target_type: 'log', target_id: logId, user_id: uid, emoji: '❤️' });
+  }
+  return true;
+}
+
+export async function addComment(logId: string, tripId: string, body: string): Promise<boolean> {
+  const uid = await currentUserId();
+  if (!uid || !body.trim()) return false;
+  const { error } = await supabase.from('comments').insert({ trip_id: tripId, log_id: logId, author_id: uid, body: body.trim() });
+  return !error;
 }
 
 /** 記録→カウント→ユーザー：訪問済み都道府県コード(1..47)。RPC my_visited_prefectures を使用。 */
