@@ -3,6 +3,7 @@ import { View, ScrollView, StyleSheet, useWindowDimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppText, Row, Rule, Gap, Eyebrow, Button } from '@/components/ui';
+import { Header } from '@/components/Header';
 import { JapanSvgMap } from '@/components/JapanSvgMap';
 import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
@@ -52,7 +53,8 @@ export default function PrefectureOnboarding() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={isEdit ? ['top', 'bottom'] : ['top', 'bottom']}>
+      {isEdit && <><Header title="Visited prefectures" /><Rule /></>}
       <ScrollView contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxl }} showsVerticalScrollIndicator={false}>
         <Gap h={space.lg} />
         <Eyebrow tone="matcha">{isEdit ? 'EDIT' : 'WELCOME'}</Eyebrow>

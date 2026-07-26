@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { View, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AppText, Screen, Row, Rule, Gap, Eyebrow } from '@/components/ui';
+import { AppText, Screen, Row, Rule, Gap, Eyebrow, Button } from '@/components/ui';
 import { Stamp } from '@/components/Stamp';
 import { JapanSvgMap } from '@/components/JapanSvgMap';
 import { RankModal, rankFor } from '@/components/RankModal';
@@ -69,6 +70,9 @@ export default function GoshuinBook() {
       </View>
 
       <Gap h={space.xl} />
+      <Button label="Create a shareable card" tone="matcha" onPress={() => router.push('/goshuin/share')} />
+
+      <Gap h={space.lg} />
       <Rule />
       <Gap h={space.md} />
       <AppText variant="small" tone="inkFaint">

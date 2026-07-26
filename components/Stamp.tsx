@@ -1,11 +1,13 @@
 /**
- * 御朱印スタンプ（丸印）。獲得済みは朱、未獲得は和紙に空押しのような淡い輪郭。
+ * 御朱印スタンプ（丸印）。獲得済みは都道府県ごとの色＋象徴オブジェクト、
+ * 未獲得は空押しのような淡い輪郭。
  */
 import React from 'react';
 import { View } from 'react-native';
 import Svg, { Circle, Text as SvgText } from 'react-native-svg';
 import { fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
+import { prefectureColor, PREFECTURE_SYMBOL_BY_ID } from '@/lib/prefectures';
 import type { Goshuin } from '@/lib/mock';
 
 export function Stamp({
@@ -19,11 +21,8 @@ export function Stamp({
 }) {
   const { palette } = useTheme();
   const acquired = goshuin.acquired;
-  const rarityColor =
-    goshuin.rarity === 'limited' || goshuin.rarity === 'collab'
-      ? palette.gold
-      : palette.shu;
-  const ink = acquired ? rarityColor : palette.rule;
+  const ink = acquired ? prefectureColor(goshuin.prefectureId) : palette.rule;
+  const symbol = PREFECTURE_SYMBOL_BY_ID[goshuin.prefectureId];
   const c = size / 2;
   const outer = c - 3;
   const inner = c - 9;
@@ -33,10 +32,16 @@ export function Stamp({
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <Circle cx={c} cy={c} r={outer} stroke={ink} strokeWidth={acquired ? 2.4 : 1} fill="none" />
         <Circle cx={c} cy={c} r={inner} stroke={ink} strokeWidth={acquired ? 1.2 : 0.6} fill="none" />
+        {/* 象徴オブジェクト（あれば上部に小さく） */}
+        {acquired && symbol ? (
+          <SvgText x={c} y={c - size * 0.12} fontSize={size * 0.24} textAnchor="middle">
+            {symbol}
+          </SvgText>
+        ) : null}
         <SvgText
           x={c}
-          y={c + size * 0.14}
-          fontSize={size * 0.42}
+          y={c + (acquired && symbol ? size * 0.24 : size * 0.14)}
+          fontSize={acquired && symbol ? size * 0.34 : size * 0.42}
           fontFamily={fonts.minchoBold}
           fill={acquired ? ink : palette.inkFaint}
           textAnchor="middle"

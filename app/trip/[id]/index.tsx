@@ -78,9 +78,16 @@ export default function TripDetail() {
 
       {/* Header */}
       <View style={styles.headerZone} pointerEvents="box-none">
-        <Row style={{ justifyContent: 'space-between' }}>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Glass onPress={() => router.back()} icon="arrow-back" palette={palette} />
-          <Glass onPress={() => router.push(`/ugc/create?trip=${trip.id}`)} icon="share-social-outline" palette={palette} />
+          {canEdit && (
+            <View style={{ gap: space.sm }}>
+              <Glass onPress={() => router.push(`/trip/${trip.id}/share`)} icon="share-outline" palette={palette} />
+              {/* Photo book — page not built yet, so no navigation for now */}
+              <Glass onPress={() => {}} icon="book-outline" palette={palette} />
+              <Glass onPress={() => router.push(`/trip/${trip.id}/edit`)} icon="settings-outline" palette={palette} />
+            </View>
+          )}
         </Row>
         <Gap h={space.sm} />
         <View style={styles.titleGlass}>

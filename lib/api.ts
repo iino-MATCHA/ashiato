@@ -318,14 +318,23 @@ export async function createTrip(input: { title: string; visibility?: string; st
   return data.id;
 }
 
-export async function updateTrip(id: string, input: { title?: string; visibility?: string; startDate?: string | null; endDate?: string | null }): Promise<boolean> {
+export async function updateTrip(id: string, input: { title?: string; visibility?: string; startDate?: string | null; endDate?: string | null; coverPhotoUrl?: string }): Promise<boolean> {
   const patch: any = {};
   if (input.title !== undefined) patch.title = input.title;
   if (input.visibility !== undefined) patch.visibility = input.visibility;
   if (input.startDate !== undefined) patch.start_date = input.startDate || null;
   if (input.endDate !== undefined) patch.end_date = input.endDate || null;
+  if (input.coverPhotoUrl !== undefined) patch.cover_photo_url = input.coverPhotoUrl;
   const { error } = await supabase.from('trips').update(patch).eq('id', id);
   return !error;
+}
+
+/** 旅のカバー写真をアップロードして公開URLを返す。 */
+export async function uploadTripCover(tripId: string, blob: Blob): Promise<string | null> {
+  const uid = await currentUserId();
+  if (!uid) return null;
+  const path = await uploadPhoto(uid, tripId, blob);
+  return path ? publicUrl(path) : null;
 }
 
 export async function deleteTrip(id: string): Promise<boolean> {

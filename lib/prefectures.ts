@@ -28,14 +28,25 @@ export const PREFECTURE_EN_BY_ID: (string | null)[] = [
   'Kumamoto', 'Oita', 'Miyazaki', 'Kagoshima', 'Okinawa',
 ];
 
-// 御朱印スタンプに押す漢字1文字（都道府県ごと）
+// 御朱印スタンプに押す漢字1文字（都道府県ごと・重複しないように選定）
 export const PREFECTURE_KANJI_BY_ID: (string | null)[] = [
   null,
-  '北', '青', '岩', '宮', '秋', '形', '福', '茨', '栃', '群', '埼', '千', '東', '奈',
-  '新', '富', '石', '井', '梨', '信', '岐', '静', '愛', '三', '滋', '京', '浪', '兵',
-  '奈', '和', '鳥', '雲', '岡', '厳', '口', '徳', '讃', '媛', '土', '博', '佐', '崎',
-  '熊', '豊', '崎', '薩', '琉',
+  '北', '青', '岩', '宮', '秋', '形', '福', '茨', '栃', '群', '埼', '千', '東', '神',
+  '潟', '富', '加', '越', '梨', '信', '岐', '駿', '尾', '勢', '近', '京', '浪', '摂',
+  '奈', '紀', '因', '雲', '備', '芸', '防', '阿', '讃', '媛', '土', '筑', '佐', '崎',
+  '熊', '豊', '日', '薩', '琉',
 ];
+
+// 都道府県ごとの色（御朱印を彩る。id からHSLで決定的に生成）
+export function prefectureColor(id: number): string {
+  const hue = (id * 47) % 360;
+  return `hsl(${hue}, 52%, 42%)`;
+}
+
+// その都道府県を象徴するオブジェクト（絵文字）。まずは一部のみ。
+export const PREFECTURE_SYMBOL_BY_ID: Record<number, string> = {
+  1: '🐻', // 北海道（ヒグマ）
+};
 
 // slug -> id 逆引き
 export const PREFECTURE_ID_BY_SLUG: Record<string, number> = PREFECTURE_SLUG_BY_ID.reduce(
