@@ -8,7 +8,7 @@
  * マスタへの外部キーは張っていないため PostgREST の自動結合は使わず、
  * コードで in() 取得して突き合わせる。
  */
-import { supabase } from './supabase';
+import { supabase, isSupabaseConfigured } from './supabase';
 import { bump } from './refresh';
 import type { Trip, Step, Goshuin, TransportMode } from './mock';
 
