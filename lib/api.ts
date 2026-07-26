@@ -318,6 +318,21 @@ export async function createTrip(input: { title: string; visibility?: string; st
   return data.id;
 }
 
+export async function updateTrip(id: string, input: { title?: string; visibility?: string; startDate?: string | null; endDate?: string | null }): Promise<boolean> {
+  const patch: any = {};
+  if (input.title !== undefined) patch.title = input.title;
+  if (input.visibility !== undefined) patch.visibility = input.visibility;
+  if (input.startDate !== undefined) patch.start_date = input.startDate || null;
+  if (input.endDate !== undefined) patch.end_date = input.endDate || null;
+  const { error } = await supabase.from('trips').update(patch).eq('id', id);
+  return !error;
+}
+
+export async function deleteTrip(id: string): Promise<boolean> {
+  const { error } = await supabase.from('trips').delete().eq('id', id);
+  return !error;
+}
+
 export async function createStep(input: {
   tripId: string;
   title: string;

@@ -6,15 +6,22 @@ import { Header } from '@/components/Header';
 import { AppText, Screen, Row, Rule, Gap, Eyebrow } from '@/components/ui';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { findFriend, allTrips, type Trip } from '@/lib/mock';
+import { findFriend, allTrips, PREFECTURE_TOTAL, type Trip } from '@/lib/mock';
+import { PREFECTURE_EN_BY_ID } from '@/lib/prefectures';
+import { RankModal, rankFor } from '@/components/RankModal';
+import { useState } from 'react';
 
 export default function FriendProfile() {
   const { palette } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const friend = findFriend(id);
   const trips = allTrips.filter((t) => t.authorId === friend.id);
-  const totalStops = trips.reduce((s, t) => s + t.steps.length, 0);
-  const totalKm = trips.reduce((s, t) => s + t.distanceKm, 0);
+  const [rankOpen, setRankOpen] = useState(false);
+  // visited prefectures derived from their trips
+  const visitedSet = new Set<number>();
+  trips.forEach((t) => t.prefectures.forEach((n) => { const i = PREFECTURE_EN_BY_ID.indexOf(n); if (i > 0) visitedSet.add(i); }));
+  const goshuin = visitedSet.size;
+  const pct = Math.round((goshuin / PREFECTURE_TOTAL) * 100);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top']}>
@@ -28,20 +35,26 @@ export default function FriendProfile() {
           <View style={{ flex: 1 }}>
             <AppText variant="h2" tone="ink">{friend.name}</AppText>
             <AppText variant="small" tone="inkFaint">@{friend.username}</AppText>
+            <Gap h={6} />
+            <Pressable onPress={() => setRankOpen(true)} style={[styles.rankPill, { borderColor: palette.matcha }]}>
+              <Ionicons name="ribbon-outline" size={13} color={palette.matcha} />
+              <AppText variant="small" tone="matcha">{rankFor(goshuin)}</AppText>
+            </Pressable>
           </View>
           <View style={[styles.friendBadge, { borderColor: palette.matcha }]}>
             <Ionicons name="checkmark" size={13} color={palette.matcha} />
             <AppText variant="small" tone="matcha">Friends</AppText>
           </View>
         </Row>
+        <RankModal visible={rankOpen} onClose={() => setRankOpen(false)} count={goshuin} />
 
         <Gap h={space.lg} />
         <Row style={{ alignItems: 'stretch' }}>
+          <Stat value={`${pct}%`} label="of Japan" palette={palette} />
+          <Rule vertical />
+          <Stat value={String(goshuin)} label="Goshuin" palette={palette} />
+          <Rule vertical />
           <Stat value={String(trips.length)} label="Trips" palette={palette} />
-          <Rule vertical />
-          <Stat value={String(totalStops)} label="Stops" palette={palette} />
-          <Rule vertical />
-          <Stat value={`${totalKm}`} label="km" palette={palette} />
         </Row>
 
         <Gap h={space.xl} />
@@ -93,6 +106,7 @@ function Stat({ value, label, palette }: any) {
 
 const styles = StyleSheet.create({
   avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
+  rankPill: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, borderWidth: hairline * 2, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
   friendBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: hairline * 2, paddingHorizontal: space.md, paddingVertical: 6, borderRadius: 999 },
   card: { marginBottom: space.md },
   cover: { height: 150, borderRadius: 10, overflow: 'hidden', backgroundColor: '#ccc', justifyContent: 'flex-end' },

@@ -1,19 +1,14 @@
-import { View, StyleSheet, useWindowDimensions } from 'react-native';
+import { useState } from 'react';
+import { View, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { AppText, Screen, Row, Rule, Gap, Eyebrow } from '@/components/ui';
 import { Stamp } from '@/components/Stamp';
 import { JapanSvgMap } from '@/components/JapanSvgMap';
+import { RankModal, rankFor } from '@/components/RankModal';
 import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { goshuinList, PREFECTURE_TOTAL } from '@/lib/mock';
 import { useVisitedPrefectures } from '@/lib/useData';
-
-function rank(count: number) {
-  if (count >= 47) return 'Grand Master';
-  if (count >= 30) return 'Wayfarer';
-  if (count >= 15) return 'Pilgrim';
-  if (count >= 5) return 'On the Path';
-  return 'First Steps';
-}
 
 export default function GoshuinBook() {
   const { palette } = useTheme();
@@ -21,6 +16,7 @@ export default function GoshuinBook() {
   const { codes: visited } = useVisitedPrefectures();
   const visitedSet = new Set(visited);
   const count = visited.length;
+  const [rankOpen, setRankOpen] = useState(false);
 
   return (
     <Screen contentContainerStyle={{ paddingBottom: space.xxl }}>
@@ -47,10 +43,16 @@ export default function GoshuinBook() {
       </Row>
 
       <Gap h={space.lg} />
-      <Row style={[styles.rankBand, { borderColor: palette.ruleStrong }]}>
-        <AppText variant="eyebrow" tone="inkFaint">Current rank</AppText>
-        <AppText variant="h3" tone="ai">{rank(count)}</AppText>
-      </Row>
+      <Pressable onPress={() => setRankOpen(true)} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+        <Row style={[styles.rankBand, { borderColor: palette.ruleStrong }]}>
+          <AppText variant="eyebrow" tone="inkFaint">Current rank</AppText>
+          <Row style={{ gap: 6, alignItems: 'center' }}>
+            <AppText variant="h3" tone="ai">{rankFor(count)}</AppText>
+            <Ionicons name="information-circle-outline" size={16} color={palette.inkFaint} />
+          </Row>
+        </Row>
+      </Pressable>
+      <RankModal visible={rankOpen} onClose={() => setRankOpen(false)} count={count} />
 
       <Gap h={space.xl} />
       <View style={styles.grid}>

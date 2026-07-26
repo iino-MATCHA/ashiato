@@ -4,14 +4,30 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText, Row, Rule, Gap } from '@/components/ui';
+import { Splash } from '@/components/Splash';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 const redirectTo = typeof window !== 'undefined' ? window.location.origin : undefined;
 
+// show the intro only once per install
+let splashShown = false;
+function shouldSplash(): boolean {
+  if (splashShown) return false;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      if (localStorage.getItem('ashiato_splash')) return false;
+      localStorage.setItem('ashiato_splash', '1');
+    }
+  } catch {}
+  splashShown = true;
+  return true;
+}
+
 export default function Login() {
   const { palette } = useTheme();
+  const [splash, setSplash] = useState(shouldSplash);
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,6 +78,8 @@ export default function Login() {
       setBusy(false);
     }
   };
+
+  if (splash) return <Splash onDone={() => setSplash(false)} />;
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: palette.washi }]}>

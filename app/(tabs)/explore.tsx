@@ -48,10 +48,7 @@ export default function Explore() {
       {featured.length > 0 && (
         <>
           <Gap h={space.xl} />
-          <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
-            <Eyebrow>Featured journeys</Eyebrow>
-            <AppText variant="small" tone="inkFaint">Updated weekly</AppText>
-          </Row>
+          <Eyebrow>Featured journeys</Eyebrow>
           <Gap h={space.md} />
           <FeaturedCarousel trips={featured} palette={palette} screenW={width} />
         </>

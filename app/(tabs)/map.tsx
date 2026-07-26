@@ -1,4 +1,5 @@
-import { View, ScrollView, Pressable, StyleSheet, Image } from 'react-native';
+import { useState } from 'react';
+import { View, ScrollView, Pressable, StyleSheet, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,9 +7,11 @@ import { AppText, Row, Gap, Rule } from '@/components/ui';
 import { GlobeMap } from '@/components/map/GlobeMap';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { PREFECTURE_TOTAL, friends, type Trip } from '@/lib/mock';
+import { PREFECTURE_TOTAL, type Trip } from '@/lib/mock';
 import { useTrips, useVisitedPrefectures } from '@/lib/useData';
 import { useProfile } from '@/lib/useProfile';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { deleteTrip } from '@/lib/api';
 
 const statusLabel: Record<Trip['status'], string> = {
   planning: 'Planning',
@@ -21,8 +24,20 @@ export default function Home() {
   const { trips } = useTrips();
   const { profile } = useProfile();
   const { codes: visited } = useVisitedPrefectures();
+  const [menuTrip, setMenuTrip] = useState<Trip | null>(null);
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   const pct = Math.round((visited.length / PREFECTURE_TOTAL) * 100);
-  const ordered = [...trips].sort((a, b) => (a.status === 'ongoing' ? -1 : b.status === 'ongoing' ? 1 : 0));
+  const ordered = [...trips]
+    .filter((t) => !deletedIds.has(t.id))
+    .sort((a, b) => (a.status === 'ongoing' ? -1 : b.status === 'ongoing' ? 1 : 0));
+
+  const onDelete = async () => {
+    const t = menuTrip;
+    setMenuTrip(null);
+    if (!t) return;
+    setDeletedIds((cur) => new Set(cur).add(t.id));
+    if (isSupabaseConfigured) await deleteTrip(t.id);
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top']}>
@@ -69,47 +84,37 @@ export default function Home() {
 
           <Gap h={space.lg} />
           {ordered.map((t) => (
-            <TripCard key={t.id} trip={t} palette={palette} />
+            <TripCard key={t.id} trip={t} palette={palette} onEdit={() => setMenuTrip(t)} />
           ))}
-
-          {/* Friends */}
-          <Gap h={space.md} />
-          <View style={[styles.section, { borderColor: palette.rule }]}>
-            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-              <AppText variant="eyebrow" tone="inkFaint">Friends · {friends.length}</AppText>
-              <Pressable onPress={() => router.push('/friends')}>
-                <AppText variant="small" tone="matcha">See all →</AppText>
-              </Pressable>
-            </Row>
-            <Gap h={space.md} />
-            <Row style={{ gap: space.md, alignItems: 'center' }}>
-              {friends.map((f) => (
-                <Pressable key={f.id} onPress={() => router.push(`/friends/${f.id}`)} style={{ alignItems: 'center', width: 56 }}>
-                  <View style={[styles.friendAvatar, { backgroundColor: f.color }]}>
-                    <AppText variant="bodyStrong" style={{ color: '#fff' }}>{f.name.slice(0, 1)}</AppText>
-                  </View>
-                  <Gap h={4} />
-                  <AppText variant="small" tone="inkSoft" numberOfLines={1}>{f.name}</AppText>
-                </Pressable>
-              ))}
-              <Pressable onPress={() => router.push('/friends/add')} style={{ alignItems: 'center', width: 56 }}>
-                <View style={[styles.friendAdd, { borderColor: palette.ruleStrong }]}>
-                  <Ionicons name="person-add-outline" size={18} color={palette.inkSoft} />
-                </View>
-                <Gap h={4} />
-                <AppText variant="small" tone="inkFaint">Add</AppText>
-              </Pressable>
-            </Row>
-          </View>
         </View>
       </ScrollView>
+
+      {/* Trip actions (own, non-sample trips) */}
+      <Modal visible={!!menuTrip} transparent animationType="fade" onRequestClose={() => setMenuTrip(null)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setMenuTrip(null)}>
+          <Pressable style={[styles.sheet, { backgroundColor: palette.washi }]} onPress={() => {}}>
+            <AppText variant="h3" tone="ink" numberOfLines={1}>{menuTrip?.title}</AppText>
+            <Gap h={space.md} />
+            <Pressable onPress={() => { const t = menuTrip; setMenuTrip(null); if (t) router.push(`/trip/${t.id}/edit`); }} style={styles.menuRow}>
+              <Ionicons name="create-outline" size={20} color={palette.ink} />
+              <AppText variant="body" tone="ink">Edit trip details</AppText>
+            </Pressable>
+            <Rule />
+            <Pressable onPress={onDelete} style={styles.menuRow}>
+              <Ionicons name="trash-outline" size={20} color={palette.shu} />
+              <AppText variant="body" tone="shu">Delete trip</AppText>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-function TripCard({ trip, palette }: { trip: Trip; palette: any }) {
+function TripCard({ trip, palette, onEdit }: { trip: Trip; palette: any; onEdit: () => void }) {
   const cover = trip.steps[0]?.images[0];
   const ongoing = trip.status === 'ongoing';
+  const editable = !trip.sample; // the showcase sample can't be edited/deleted
   return (
     <Pressable onPress={() => router.push(`/trip/${trip.id}`)} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
       <View style={styles.cover}>
@@ -120,6 +125,11 @@ function TripCard({ trip, palette }: { trip: Trip; palette: any }) {
             <View style={styles.pulse} />
             <AppText variant="eyebrow" style={{ color: '#fff' }}>{statusLabel[trip.status]}</AppText>
           </View>
+        )}
+        {editable && (
+          <Pressable onPress={onEdit} hitSlop={10} style={styles.cardMenu}>
+            <Ionicons name="ellipsis-horizontal" size={18} color="#fff" />
+          </Pressable>
         )}
         <View style={styles.coverText}>
           <AppText variant="h2" style={{ color: '#fff' }} numberOfLines={2}>{trip.title}</AppText>
@@ -163,8 +173,9 @@ const styles = StyleSheet.create({
   coverText: { padding: space.md, gap: 2 },
   pill: { position: 'absolute', top: space.md, left: space.md, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   pulse: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
-  section: { borderWidth: hairline, borderRadius: 12, padding: space.lg },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  friendAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  friendAdd: { width: 44, height: 44, borderRadius: 22, borderWidth: hairline * 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+  cardMenu: { position: 'absolute', top: space.sm, right: space.sm, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet: { padding: space.lg, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: space.xxl },
+  menuRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
 });

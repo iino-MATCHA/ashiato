@@ -8,21 +8,16 @@ import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useProfile } from '@/lib/useProfile';
 import { useTrips, useVisitedPrefectures } from '@/lib/useData';
+import { RankModal, rankFor } from '@/components/RankModal';
+import { useState } from 'react';
 import { friends } from '@/lib/mock';
-
-const settings = [
-  { icon: 'battery-half-outline', label: 'Battery & power saving' },
-  { icon: 'receipt-outline', label: 'Order history' },
-  { icon: 'notifications-outline', label: 'Notifications' },
-  { icon: 'lock-closed-outline', label: 'Privacy & visibility' },
-  { icon: 'help-circle-outline', label: 'Help & contact' },
-] as const;
 
 export default function ProfilePage() {
   const { palette } = useTheme();
   const { profile, signOut } = useProfile();
   const { trips } = useTrips();
   const { codes: visited } = useVisitedPrefectures();
+  const [rankOpen, setRankOpen] = useState(false);
   // real data only — exclude the sample/showcase trip from stats
   const myTrips = trips.filter((t) => !t.sample);
   const totalStops = myTrips.reduce((s, t) => s + t.steps.length, 0);
@@ -47,9 +42,14 @@ export default function ProfilePage() {
           <View style={{ flex: 1 }}>
             <AppText variant="h2" tone="ink">{profile.name}</AppText>
             <AppText variant="small" tone="inkFaint">@{profile.username}</AppText>
-            {!!profile.bio && <AppText variant="small" tone="inkSoft">{profile.bio}</AppText>}
+            <Gap h={6} />
+            <Pressable onPress={() => setRankOpen(true)} style={[styles.rankPill, { borderColor: palette.matcha }]}>
+              <Ionicons name="ribbon-outline" size={13} color={palette.matcha} />
+              <AppText variant="small" tone="matcha">{rankFor(visited.length)}</AppText>
+            </Pressable>
           </View>
         </Row>
+        <RankModal visible={rankOpen} onClose={() => setRankOpen(false)} count={visited.length} />
 
         <Gap h={space.xl} />
         <Row style={{ alignItems: 'stretch' }}>
@@ -105,9 +105,16 @@ export default function ProfilePage() {
         <Eyebrow tone="ai">Settings</Eyebrow>
         <Gap h={space.md} />
         <Rule />
-        {settings.map((s) => (
+        {[
+          { icon: 'map-outline', label: 'Edit visited prefectures', onPress: () => router.push('/(auth)/prefectures?edit=1') },
+          { icon: 'battery-half-outline', label: 'Battery & power saving' },
+          { icon: 'receipt-outline', label: 'Order history' },
+          { icon: 'notifications-outline', label: 'Notifications' },
+          { icon: 'lock-closed-outline', label: 'Privacy & visibility' },
+          { icon: 'help-circle-outline', label: 'Help & contact' },
+        ].map((s) => (
           <View key={s.label}>
-            <Pressable style={({ pressed }) => [styles.setting, pressed && { opacity: 0.6 }]}>
+            <Pressable onPress={(s as any).onPress} style={({ pressed }) => [styles.setting, pressed && { opacity: 0.6 }]}>
               <Ionicons name={s.icon as any} size={20} color={palette.inkSoft} />
               <AppText variant="body" tone="ink" style={{ flex: 1 }}>{s.label}</AppText>
               <Ionicons name="chevron-forward" size={18} color={palette.inkFaint} />
@@ -136,6 +143,7 @@ function Stat({ value, label, palette }: any) {
 
 const styles = StyleSheet.create({
   avatar: { width: 68, height: 68, borderRadius: 34, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  rankPill: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, borderWidth: StyleSheet.hairlineWidth * 2, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
   distance: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: hairline, borderRadius: 3, padding: space.lg },
   friendAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   friendAdd: { width: 44, height: 44, borderRadius: 22, borderWidth: hairline * 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
