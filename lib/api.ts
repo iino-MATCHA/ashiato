@@ -115,9 +115,17 @@ export async function fetchTrip(id: string): Promise<Trip | null> {
   });
 
   const prefectures = Array.from(new Set(steps.map((s) => s.prefectureName).filter(Boolean)));
-  const distanceKm = Math.round(
-    (transports ?? []).reduce((sum: number, t: any) => sum + (Number(t.distance_km) || 0), 0)
-  );
+
+  // 区間の距離。保存済みの値があればそれを使い、無い（0の）区間は
+  // 前の地点との大円距離で補う。これが無いと総距離がいつまでも 0 km になる。
+  const distanceByTo = new Map<string, number>();
+  (transports ?? []).forEach((t: any) => distanceByTo.set(t.to_log_id, Number(t.distance_km) || 0));
+  let distanceKm = 0;
+  for (let i = 1; i < steps.length; i++) {
+    const stored = distanceByTo.get(steps[i].id) ?? 0;
+    distanceKm += stored > 0 ? stored : haversineKm(steps[i - 1], steps[i]);
+  }
+  distanceKm = Math.round(distanceKm);
 
   return {
     id: trip.id,
@@ -432,7 +440,15 @@ export async function createStep(input: {
   if (error || !log) return { id: null, photoFailed: 0 };
 
   if (sortOrder > 0) {
-    await supabase.from('transports').insert({ trip_id: input.tripId, to_log_id: log.id, mode: input.transport, distance_km: 0 });
+    // 直前の地点からの距離を入れておく（分析の平均距離がここを読む）
+    const prev = await previousStopCoords(input.tripId, sortOrder);
+    const here = (await fetchMunicipalities([input.municipalityCode])).get(input.municipalityCode);
+    const distance = prev && here
+      ? Math.round(haversineKm(prev, { lat: Number(here.latitude), lng: Number(here.longitude) }))
+      : 0;
+    await supabase.from('transports').insert({
+      trip_id: input.tripId, to_log_id: log.id, mode: input.transport, distance_km: distance,
+    });
   }
 
   const blobs = input.photoBlobs ?? [];
@@ -449,6 +465,40 @@ export async function createStep(input: {
   bump('visited');
   bump('trips');
   return { id: log.id, photoFailed };
+}
+
+/** 1つ前の地点の座標（logs 自身に無ければ市区町村マスタから）。 */
+async function previousStopCoords(
+  tripId: string,
+  sortOrder: number
+): Promise<{ lat: number; lng: number } | null> {
+  const { data } = await supabase
+    .from('logs')
+    .select('lat, lng, municipality_code')
+    .eq('trip_id', tripId)
+    .eq('sort_order', sortOrder - 1)
+    .maybeSingle();
+  if (!data) return null;
+  if (data.lat && data.lng) return { lat: Number(data.lat), lng: Number(data.lng) };
+  if (!data.municipality_code) return null;
+  const m = (await fetchMunicipalities([data.municipality_code])).get(data.municipality_code);
+  return m ? { lat: Number(m.latitude), lng: Number(m.longitude) } : null;
+}
+
+/** 2地点間の大円距離(km)。道のりではないので実際よりやや短く出る。 */
+export function haversineKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number }
+): number {
+  if (!a.lat || !a.lng || !b.lat || !b.lng) return 0;
+  const R = 6371;
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
 }
 
 /**

@@ -59,6 +59,8 @@ export const fonts = {
   gothicRegular: 'ZenKakuGothicNew_400Regular',
   gothicMedium: 'ZenKakuGothicNew_500Medium',
   gothicBold: 'ZenKakuGothicNew_700Bold',
+  // 筆 — 御朱印の墨書きだけに使う
+  brush: 'YujiSyuku_400Regular',
 } as const;
 
 // 型スケール

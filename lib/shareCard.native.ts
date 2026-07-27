@@ -1,19 +1,19 @@
 /**
- * ネイティブ側の書き出しは未実装（@rnmapbox/maps 導入時に対応）。
+ * ネイティブは canvas が無いため未実装（将来 react-native-view-shot で対応）。
  * 呼び出し側は null を「保存できなかった」として扱う。
  */
-import type { Step } from './mock';
-
 export interface ShareCardMeta {
   title: string;
+  dateLabel: string;
   prefectures: number;
   days: number;
   km: number;
   authorName: string;
-  authorHandle: string;
   avatarUrl?: string;
+  stops: { lat: number; lng: number; image: string }[];
+  visitedPrefectureCodes: number[];
 }
 
-export async function exportShareCard(_steps: Step[], _meta: ShareCardMeta): Promise<string | null> {
+export async function exportShareCard(_meta: ShareCardMeta): Promise<string | null> {
   return null;
 }

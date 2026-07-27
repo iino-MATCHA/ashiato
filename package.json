@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@expo-google-fonts/shippori-mincho": "^0.2.3",
+    "@expo-google-fonts/yuji-syuku": "^0.4.1",
     "@expo-google-fonts/zen-kaku-gothic-new": "^0.2.3",
     "@expo/metro-runtime": "~4.0.0",
     "@expo/vector-icons": "^14.0.4",

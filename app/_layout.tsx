@@ -15,6 +15,7 @@ import {
   ZenKakuGothicNew_700Bold,
   useFonts,
 } from '@expo-google-fonts/zen-kaku-gothic-new';
+import { YujiSyuku_400Regular } from '@expo-google-fonts/yuji-syuku';
 import { useTheme } from '@/lib/useTheme';
 import { TransitionProvider } from '@/lib/transition';
 
@@ -29,6 +30,7 @@ export default function RootLayout() {
     ZenKakuGothicNew_400Regular,
     ZenKakuGothicNew_500Medium,
     ZenKakuGothicNew_700Bold,
+    YujiSyuku_400Regular,
   });
 
   useEffect(() => {

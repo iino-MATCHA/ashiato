@@ -1,151 +1,168 @@
 /**
  * シェアカードの書き出し（Web）。
- * 画面のプレビューをそのまま保存すると小さくて粗いので、1080×1920 で地図を
- * もう一度描き直し、その上にタイトル・スタッツ・プロフィールアイコンを
- * canvas で合成して1枚のPNGにする。
+ * プレビューと同じ scene を canvas に描いて 1080×1920 の PNG を1枚作る。
+ * 以前は mapbox の canvas をそのまま保存していたので地図しか残らなかった。
  */
-import { loadMapboxGL } from './mapbox';
-import { buildShareMap } from '@/components/map/ShareMap';
-import type { Step } from './mock';
+import { buildScene } from './ugc/scene';
+import { PALETTE } from './ugc/layout';
 
 export interface ShareCardMeta {
   title: string;
+  dateLabel: string;
   prefectures: number;
   days: number;
   km: number;
   authorName: string;
-  authorHandle: string;
   avatarUrl?: string;
+  stops: { lat: number; lng: number; image: string }[];
+  visitedPrefectureCodes: number[];
 }
 
 const W = 1080;
-const H = 1920;
-
-export async function exportShareCard(steps: Step[], meta: ShareCardMeta): Promise<string | null> {
-  if (typeof document === 'undefined') return null;
-
-  // 画面外に実サイズのコンテナを作って地図を描く
-  const holder = document.createElement('div');
-  holder.style.cssText = `position:fixed;left:-99999px;top:0;width:${W}px;height:${H}px;`;
-  document.body.appendChild(holder);
-
-  let map: any = null;
-  try {
-    const mapboxgl = await loadMapboxGL();
-    map = await buildShareMap(mapboxgl, holder, steps);
-
-    const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    // 1. 地図
-    const mapCanvas: HTMLCanvasElement = map.getCanvas();
-    ctx.drawImage(mapCanvas, 0, 0, W, H);
-
-    // 2. 上下の暗幕。3点のグラデーションで端に線が出ないようにする（画面側と同じ配色）
-    paintScrim(ctx, 0, H * 0.34, [
-      [0, 'rgba(4,10,20,0.78)'], [0.55, 'rgba(4,10,20,0.42)'], [1, 'rgba(4,10,20,0)'],
-    ]);
-    paintScrim(ctx, H * (1 - 0.42), H * 0.42, [
-      [0, 'rgba(4,10,20,0)'], [0.45, 'rgba(4,10,20,0.55)'], [1, 'rgba(4,10,20,0.88)'],
-    ]);
-
-    // 3. 左上: ブランド + タイトル + 罫
-    const M = 90;
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    ctx.font = `600 28px ${SANS}`;
-    // letterSpacing は比較的新しいAPI。型に無いのでキャストして、非対応でも落ちないようにする
-    (ctx as any).letterSpacing = '11px';
-    ctx.fillText('ASHIATO', M, 132);
-    (ctx as any).letterSpacing = '0px';
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `700 76px ${SERIF}`;
-    const lines = wrapText(ctx, meta.title, M, 232, W - M * 2, 92, 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillRect(M, 232 + (lines - 1) * 92 + 40, 82, 3);
-
-    // 4. 左下: スタッツ
-    let y = H - 310;
-    const stats: [string, string][] = [
-      [String(meta.prefectures), 'prefectures'],
-      [String(meta.days), 'days'],
-      [meta.km.toLocaleString(), 'km travelled'],
-    ];
-    stats.forEach(([value, label]) => {
-      ctx.fillStyle = '#ffffff';
-      ctx.font = `700 62px ${SERIF}`;
-      ctx.fillText(value, M, y);
-      const vw = ctx.measureText(value).width;
-      ctx.fillStyle = 'rgba(255,255,255,0.72)';
-      ctx.font = `400 28px ${SANS}`;
-      ctx.fillText(label, M + vw + 22, y - 5);
-      y += 92;
-    });
-
-    // 5. 右下: プロフィールアイコンと名前
-    await paintAuthor(ctx, meta);
-
-    return canvas.toDataURL('image/png');
-  } catch {
-    return null;
-  } finally {
-    try { map?.remove(); } catch {}
-    holder.remove();
-  }
-}
 
 const SERIF = `'ShipporiMincho_700Bold', 'Shippori Mincho', serif`;
 const SANS = `'ZenKakuGothicNew_500Medium', 'Zen Kaku Gothic New', system-ui, sans-serif`;
 
-/** 縦方向のグラデーション帯。stops は [位置(0..1), 色] の並び。 */
-function paintScrim(
-  ctx: CanvasRenderingContext2D,
-  y: number, h: number,
-  stops: [number, string][]
-) {
-  const g = ctx.createLinearGradient(0, y, 0, y + h);
-  stops.forEach(([at, color]) => g.addColorStop(at, color));
-  ctx.fillStyle = g;
-  ctx.fillRect(0, y, W, h);
+export async function exportShareCard(meta: ShareCardMeta): Promise<string | null> {
+  if (typeof document === 'undefined') return null;
+  try {
+    const s = buildScene({
+      width: W,
+      stops: meta.stops,
+      visitedPrefectureCodes: meta.visitedPrefectureCodes,
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(s.w);
+    canvas.height = Math.round(s.h);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    // 先に画像をすべて読み込む（1枚失敗しても他は描く）
+    const [pinImgs, avatarImg] = await Promise.all([
+      Promise.all(s.pins.map((p) => loadImage(p.uri))),
+      meta.avatarUrl ? loadImage(meta.avatarUrl) : Promise.resolve(null),
+    ]);
+
+    // 地
+    ctx.fillStyle = PALETTE.paper;
+    ctx.fillRect(0, 0, s.w, s.h);
+
+    // 日本地図
+    ctx.save();
+    ctx.translate(s.map.tx, s.map.ty);
+    ctx.scale(s.map.scale, s.map.scale);
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 1 / s.map.scale;
+    s.paths.forEach((p) => {
+      ctx.save();
+      if (p.okinawa) ctx.translate(s.okinawa.dx, s.okinawa.dy);
+      const path = new Path2D(p.d);
+      ctx.fillStyle = p.visited ? PALETTE.landVisited : PALETTE.land;
+      ctx.fill(path);
+      ctx.strokeStyle = PALETTE.border;
+      ctx.stroke(path);
+      ctx.restore();
+    });
+    ctx.restore();
+
+    // 地点の写真
+    s.pins.forEach((p, i) => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * 1.09, 0, Math.PI * 2);
+      ctx.fillStyle = PALETTE.pinRing;
+      ctx.fill();
+
+      const img = pinImgs[i];
+      if (img) drawCircularImage(ctx, img, p.x, p.y, p.r);
+      else {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = PALETTE.paperEdge;
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.strokeStyle = PALETTE.border;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+
+    // 四隅の文字
+    const t = s.text;
+    ctx.textBaseline = 'alphabetic';
+
+    ctx.fillStyle = PALETTE.inkFaint;
+    ctx.font = `500 ${t.eyebrow.size}px ${SANS}`;
+    (ctx as any).letterSpacing = `${t.eyebrow.size * 0.4}px`;
+    ctx.fillText('ASHIATO', t.eyebrow.x, t.eyebrow.y);
+    (ctx as any).letterSpacing = '0px';
+
+    ctx.font = `400 ${t.dates.size}px ${SANS}`;
+    ctx.textAlign = 'right';
+    ctx.fillText(meta.dateLabel, t.dates.x, t.dates.y);
+    ctx.textAlign = 'left';
+
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `700 ${t.title.size}px ${SERIF}`;
+    fitText(ctx, meta.title, t.title.x, t.title.y, t.title.maxW);
+
+    const stats: [string, string][] = [
+      [String(meta.prefectures), 'pref'],
+      [String(meta.days), 'days'],
+      [meta.km.toLocaleString(), 'km'],
+    ];
+    stats.forEach(([value, label], i) => {
+      const x = t.stats.x + i * t.stats.gap * 2.1;
+      ctx.fillStyle = PALETTE.ink;
+      ctx.font = `700 ${t.stats.size}px ${SERIF}`;
+      ctx.fillText(value, x, t.stats.y);
+      const vw = ctx.measureText(value).width;
+      ctx.fillStyle = PALETTE.inkFaint;
+      ctx.font = `400 ${t.stats.size * 0.72}px ${SANS}`;
+      ctx.fillText(label, x + vw + t.stats.size * 0.3, t.stats.y);
+    });
+
+    // 投稿者
+    ctx.beginPath();
+    ctx.arc(t.author.cx, t.author.cy, t.author.r, 0, Math.PI * 2);
+    ctx.fillStyle = PALETTE.paperEdge;
+    ctx.fill();
+    if (avatarImg) drawCircularImage(ctx, avatarImg, t.author.cx, t.author.cy, t.author.r);
+    ctx.beginPath();
+    ctx.arc(t.author.cx, t.author.cy, t.author.r, 0, Math.PI * 2);
+    ctx.strokeStyle = PALETTE.border;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = PALETTE.inkSoft;
+    ctx.font = `500 ${t.author.size}px ${SANS}`;
+    ctx.textAlign = 'center';
+    ctx.fillText(meta.authorName, t.author.cx, t.author.nameY);
+    ctx.textAlign = 'left';
+
+    return canvas.toDataURL('image/png');
+  } catch {
+    return null;
+  }
 }
 
-/** 右下にアイコン（丸くクリップ）、その下に名前。画面のカードと同じ配置。 */
-async function paintAuthor(ctx: CanvasRenderingContext2D, meta: ShareCardMeta) {
-  const r = 58;
-  const cx = W - 90 - r;
-  const cy = H - 240;
-
-  const img = meta.avatarUrl ? await loadImage(meta.avatarUrl) : null;
+/** 正方形にトリミングして円に収める。 */
+function drawCircularImage(
+  ctx: CanvasRenderingContext2D, img: HTMLImageElement,
+  cx: number, cy: number, r: number
+) {
+  const side = Math.min(img.width, img.height);
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(255,255,255,0.18)';
-  ctx.fill();
   ctx.clip();
-  if (img) {
-    // 正方形にトリミングして丸に収める
-    const side = Math.min(img.width, img.height);
-    ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, cx - r, cy - r, r * 2, r * 2);
-  }
+  ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, cx - r, cy - r, r * 2, r * 2);
   ctx.restore();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.font = `500 26px ${SANS}`;
-  ctx.fillText(meta.authorName, cx, cy + r + 40);
-  ctx.textAlign = 'left';
 }
 
 function loadImage(url: string): Promise<HTMLImageElement | null> {
+  if (!url) return Promise.resolve(null);
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous'; // Supabase Storage は CORS 許可済み
@@ -155,44 +172,16 @@ function loadImage(url: string): Promise<HTMLImageElement | null> {
   });
 }
 
-/**
- * maxLines 行までで折り返して描き、描いた行数を返す。
- * 日本語のタイトルは空白が無く単語分割では折り返せないので、
- * 幅に収まらない語はさらに1文字ずつ送る。
- */
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string, x: number, y: number,
-  maxWidth: number, lineHeight: number, maxLines: number
-): number {
-  const tokens: string[] = [];
-  text.split(/\s+/).forEach((word, i, arr) => {
-    if (ctx.measureText(word).width <= maxWidth) {
-      tokens.push(i < arr.length - 1 ? `${word} ` : word);
-    } else {
-      // 長すぎる語（＝日本語の連なり）は1文字ずつ
-      Array.from(word).forEach((ch) => tokens.push(ch));
-    }
-  });
-
-  const lines: string[] = [];
-  let line = '';
-  for (const tk of tokens) {
-    const next = line + tk;
-    if (ctx.measureText(next.trimEnd()).width > maxWidth && line) {
-      lines.push(line.trimEnd());
-      if (lines.length === maxLines) { line = ''; break; }
-      line = tk;
-    } else {
-      line = next;
-    }
+/** 収まらなければ字を詰め、それでも無理なら省略する（題は1行で通す）。 */
+function fitText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number) {
+  if (ctx.measureText(text).width <= maxW) { ctx.fillText(text, x, y); return; }
+  const base = ctx.font;
+  const size = parseFloat(base);
+  for (let s = size; s > size * 0.6; s -= 2) {
+    ctx.font = base.replace(/[\d.]+px/, `${s}px`);
+    if (ctx.measureText(text).width <= maxW) { ctx.fillText(text, x, y); return; }
   }
-  if (lines.length < maxLines && line.trim()) lines.push(line.trimEnd());
-
-  const truncated = lines.join('').length < text.replace(/\s+/g, '').length;
-  lines.forEach((l, i) => {
-    const last = i === lines.length - 1;
-    ctx.fillText(last && truncated ? `${l}…` : l, x, y + i * lineHeight);
-  });
-  return lines.length || 1;
+  let cut = text;
+  while (cut.length > 1 && ctx.measureText(`${cut}…`).width > maxW) cut = cut.slice(0, -1);
+  ctx.fillText(`${cut}…`, x, y);
 }
