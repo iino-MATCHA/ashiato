@@ -143,6 +143,7 @@ export default function ProfilePage() {
         {[
           { icon: 'notifications-outline', label: 'Notifications', onPress: () => router.push('/notifications'), badge: unread },
           { icon: 'map-outline', label: 'Edit visited prefectures', onPress: () => router.push('/(auth)/prefectures?edit=1') },
+          { icon: 'share-social-outline', label: 'Share my Japan card', onPress: () => router.push('/goshuin/share') },
           { icon: 'receipt-outline', label: 'Order history' },
           { icon: 'lock-closed-outline', label: 'Privacy policy', onPress: () => router.push('/privacy') },
           { icon: 'help-circle-outline', label: 'Help & contact' },
