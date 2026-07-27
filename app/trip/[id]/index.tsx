@@ -230,7 +230,7 @@ const shadow = { shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, sha
 const styles = StyleSheet.create({
   headerZone: { position: 'absolute', top: space.xl, left: space.lg, right: space.lg, zIndex: 20, alignItems: 'flex-start' },
   actionCol: { position: 'absolute', top: 0, right: 0, gap: space.sm },
-  glassCircle: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.85)', ...shadow },
+  glassCircle: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(0,0,0,0.08)', shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6 },
   titleGlass: { alignSelf: 'flex-start', maxWidth: '85%', backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: 14, paddingHorizontal: space.md, paddingVertical: space.sm, ...shadow },
   dock: { position: 'absolute', bottom: space.lg, left: 0, right: 0, zIndex: 20 },
   card: { borderRadius: 12, overflow: 'hidden', ...shadow },

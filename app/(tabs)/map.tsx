@@ -112,10 +112,16 @@ export default function Home() {
   );
 }
 
+function isOnTheRoad(trip: Trip): boolean {
+  if (!trip.startDate || !trip.endDate) return false;
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  return trip.startDate <= today && today <= trip.endDate;
+}
+
 function TripCard({ trip, palette, onEdit }: { trip: Trip; palette: any; onEdit: () => void }) {
   const { navigate } = useRippleNav();
   const cover = trip.steps[0]?.images[0];
-  const ongoing = trip.status === 'ongoing';
+  const ongoing = isOnTheRoad(trip);
   const editable = !trip.sample; // the showcase sample can't be edited/deleted
   return (
     <Pressable onPress={(e) => navigate(`/trip/${trip.id}`, e)} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
@@ -125,7 +131,7 @@ function TripCard({ trip, palette, onEdit }: { trip: Trip; palette: any; onEdit:
         {ongoing && (
           <View style={[styles.pill, { backgroundColor: palette.matcha }]}>
             <View style={styles.pulse} />
-            <AppText variant="eyebrow" style={{ color: '#fff' }}>{statusLabel[trip.status]}</AppText>
+            <AppText variant="eyebrow" style={{ color: '#fff' }}>On the road</AppText>
           </View>
         )}
         {editable && (

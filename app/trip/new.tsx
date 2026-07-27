@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Button, Eyebrow } from '@/components/ui';
+import { DateInput } from '@/components/DateInput';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -13,19 +14,22 @@ import { createTrip } from '@/lib/api';
 export default function NewTrip() {
   const { palette } = useTheme();
   const [title, setTitle] = useState('');
-  const [start, setStart] = useState('');
+  const [start, setStart] = useState(''); // YYYY-MM-DD
   const [end, setEnd] = useState('');
-  const [isPublic, setIsPublic] = useState(false); // private (default) or public
+  const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const canSave = title.trim().length > 0 && start.length > 0;
+
   const create = async () => {
+    if (!canSave) return;
     if (isSupabaseConfigured) {
       setSaving(true);
       const id = await createTrip({
-        title: title.trim() || 'Untitled trip',
+        title: title.trim(),
         visibility: isPublic ? 'public' : 'private',
-        startDate: start ? start.replace(/\./g, '-') : undefined,
-        endDate: end ? end.replace(/\./g, '-') : undefined,
+        startDate: start,
+        endDate: end || undefined,
       });
       setSaving(false);
       if (id) return router.replace(`/trip/${id}`);
@@ -43,67 +47,62 @@ export default function NewTrip() {
         <Rule strong />
 
         <Gap h={space.xl} />
-        <Eyebrow>Dates</Eyebrow>
+        <Row style={{ gap: 6 }}>
+          <Eyebrow>Dates</Eyebrow>
+          <AppText variant="small" tone="shu">*</AppText>
+        </Row>
         <Gap h={space.md} />
-        <Row style={{ gap: space.md, alignItems: 'flex-end' }}>
-          <DateField label="Start" value={start} onChangeText={setStart} palette={palette} />
-          <Ionicons name="arrow-forward" size={16} color={palette.inkFaint} style={{ marginBottom: 14 }} />
-          <DateField label="End" value={end} onChangeText={setEnd} palette={palette} />
+        <Row style={{ gap: space.lg, alignItems: 'flex-end' }}>
+          <View style={{ flex: 1 }}>
+            <AppText variant="eyebrow" tone="inkFaint">Start</AppText>
+            <Gap h={4} />
+            <DateInput value={start} onChange={setStart} />
+            <Gap h={space.xs} />
+            <Rule strong />
+          </View>
+          <Ionicons name="arrow-forward" size={16} color={palette.inkFaint} style={{ marginBottom: 12 }} />
+          <View style={{ flex: 1 }}>
+            <AppText variant="eyebrow" tone="inkFaint">End</AppText>
+            <Gap h={4} />
+            <DateInput value={end} onChange={setEnd} />
+            <Gap h={space.xs} />
+            <Rule strong />
+          </View>
         </Row>
 
         <Gap h={space.xl} />
         <Eyebrow>Visibility</Eyebrow>
         <Gap h={space.md} />
-        <Row style={[styles.toggle, { borderColor: palette.rule }]}>
-          <ToggleOption label="Private" active={!isPublic} onPress={() => setIsPublic(false)} palette={palette} />
-          <ToggleOption label="Public" active={isPublic} onPress={() => setIsPublic(true)} palette={palette} />
+        <Row style={{ gap: space.sm }}>
+          <VisBtn label="Private" active={!isPublic} onPress={() => setIsPublic(false)} palette={palette} />
+          <VisBtn label="Public" active={isPublic} onPress={() => setIsPublic(true)} palette={palette} />
         </Row>
         <Gap h={space.sm} />
         <Row style={{ gap: 6 }}>
           <Ionicons name={isPublic ? 'earth-outline' : 'lock-closed-outline'} size={14} color={palette.inkFaint} />
           <AppText variant="small" tone="inkFaint" style={{ flex: 1 }}>
-            {isPublic
-              ? 'Public — shown in Explore for everyone.'
-              : 'Private — only you. Your friends can still see it on their feed.'}
+            {isPublic ? 'Public — shown in Explore for everyone.' : 'Private — only you. Friends can still see it on their feed.'}
           </AppText>
         </Row>
       </View>
 
       <View style={{ padding: space.lg }}>
-        <Button label={saving ? 'Creating…' : 'Start the trip'} tone="matcha" onPress={create} disabled={saving} />
+        {!canSave && <><AppText variant="small" tone="inkFaint" center>Add a title and a start date to continue.</AppText><Gap h={space.sm} /></>}
+        <Button label={saving ? 'Creating…' : 'Start the trip'} tone="matcha" onPress={create} disabled={!canSave || saving} />
       </View>
     </SafeAreaView>
   );
 }
 
-function ToggleOption({ label, active, onPress, palette }: any) {
+function VisBtn({ label, active, onPress, palette }: any) {
   return (
-    <Pressable onPress={onPress} style={[styles.toggleOpt, active && { backgroundColor: palette.matcha }]}>
+    <Pressable onPress={onPress} style={[styles.visBtn, { borderColor: active ? palette.matcha : palette.ruleStrong }, active && { backgroundColor: palette.matcha }]}>
       <AppText variant="bodyStrong" style={{ color: active ? '#fff' : palette.inkSoft }}>{label}</AppText>
     </Pressable>
   );
 }
 
-function DateField({ label, value, onChangeText, palette }: any) {
-  return (
-    <View style={{ flex: 1 }}>
-      <AppText variant="eyebrow" tone="inkFaint">{label}</AppText>
-      <Gap h={4} />
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder="2026.07.28"
-        placeholderTextColor={palette.inkFaint}
-        style={{ fontFamily: fonts.minchoMedium, fontSize: type.h3, color: palette.ink, paddingVertical: 2 }}
-      />
-      <Gap h={space.xs} />
-      <Rule strong />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   titleInput: { fontFamily: fonts.minchoBold, fontSize: type.h1, lineHeight: type.h1 * 1.3, paddingBottom: space.sm, minHeight: 44 },
-  toggle: { borderWidth: hairline * 2, borderRadius: 10, padding: 3 },
-  toggleOpt: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 8 },
+  visBtn: { paddingHorizontal: space.xl, paddingVertical: 10, borderRadius: 999, borderWidth: hairline * 2 },
 });

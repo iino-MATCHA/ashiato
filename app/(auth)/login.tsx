@@ -73,7 +73,7 @@ export default function Login() {
       }
       router.replace('/'); // auth gate → prefecture onboarding (first time) or map
     } catch (e: any) {
-      setError(e?.message ?? 'Something went wrong');
+      setError(typeof e?.message === 'string' && e.message ? e.message : 'Sign-in failed. Please check your email and password.');
     } finally {
       setBusy(false);
     }
@@ -148,6 +148,6 @@ const styles = StyleSheet.create({
   brand: { fontFamily: fonts.minchoBold, fontSize: 72, lineHeight: 80, letterSpacing: 4 },
   card: { width: '100%', maxWidth: 340, alignSelf: 'center' },
   google: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, borderWidth: hairline * 2, borderRadius: 10, paddingVertical: 13 },
-  input: { borderWidth: hairline * 2, borderRadius: 10, paddingHorizontal: space.md, paddingVertical: 12, fontFamily: fonts.gothicRegular, fontSize: type.body },
+  input: { borderBottomWidth: hairline * 2, paddingVertical: 12, fontFamily: fonts.gothicRegular, fontSize: type.body },
   primary: { height: 50, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 });

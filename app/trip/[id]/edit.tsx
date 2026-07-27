@@ -5,6 +5,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Button, Eyebrow } from '@/components/ui';
+import { DateInput } from '@/components/DateInput';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -16,8 +17,8 @@ export default function EditTrip() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { trip } = useTrip(id);
   const [title, setTitle] = useState(trip?.title ?? '');
-  const [start, setStart] = useState((trip?.startDate ?? '').replace(/-/g, '.'));
-  const [end, setEnd] = useState((trip?.endDate ?? '').replace(/-/g, '.'));
+  const [start, setStart] = useState(trip?.startDate ?? '');
+  const [end, setEnd] = useState(trip?.endDate ?? '');
   const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
@@ -43,8 +44,8 @@ export default function EditTrip() {
       await updateTrip(id, {
         title: title.trim() || 'Untitled trip',
         visibility: isPublic ? 'public' : 'private',
-        startDate: start ? start.replace(/\./g, '-') : null,
-        endDate: end ? end.replace(/\./g, '-') : null,
+        startDate: start || null,
+        endDate: end || null,
         coverPhotoUrl,
       });
       setSaving(false);
@@ -83,16 +84,28 @@ export default function EditTrip() {
         <Gap h={space.xl} />
         <Eyebrow>Dates</Eyebrow>
         <Gap h={space.md} />
-        <Row style={{ gap: space.md, alignItems: 'flex-end' }}>
-          <Field label="Start" value={start} onChangeText={setStart} palette={palette} />
-          <Ionicons name="arrow-forward" size={16} color={palette.inkFaint} style={{ marginBottom: 14 }} />
-          <Field label="End" value={end} onChangeText={setEnd} palette={palette} />
+        <Row style={{ gap: space.lg, alignItems: 'flex-end' }}>
+          <View style={{ flex: 1 }}>
+            <AppText variant="eyebrow" tone="inkFaint">Start</AppText>
+            <Gap h={4} />
+            <DateInput value={start} onChange={setStart} />
+            <Gap h={space.xs} />
+            <Rule strong />
+          </View>
+          <Ionicons name="arrow-forward" size={16} color={palette.inkFaint} style={{ marginBottom: 12 }} />
+          <View style={{ flex: 1 }}>
+            <AppText variant="eyebrow" tone="inkFaint">End</AppText>
+            <Gap h={4} />
+            <DateInput value={end} onChange={setEnd} />
+            <Gap h={space.xs} />
+            <Rule strong />
+          </View>
         </Row>
 
         <Gap h={space.xl} />
         <Eyebrow>Visibility</Eyebrow>
         <Gap h={space.md} />
-        <Row style={[styles.toggle, { borderColor: palette.rule }]}>
+        <Row style={{ gap: space.sm }}>
           <Opt label="Private" active={!isPublic} onPress={() => setIsPublic(false)} palette={palette} />
           <Opt label="Public" active={isPublic} onPress={() => setIsPublic(true)} palette={palette} />
         </Row>
