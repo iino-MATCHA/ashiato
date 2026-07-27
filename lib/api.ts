@@ -136,14 +136,22 @@ export async function fetchTrip(id: string): Promise<Trip | null> {
   };
 }
 
+/**
+ * 自分の旅だけ。RLSは公開旅や友達の旅も許可するため、明示的に
+ * 「自分が所有 or 自分がメンバー」に絞る（/map は自分の記録だけを出す）。
+ */
 export async function fetchTrips(): Promise<Trip[]> {
-  const { data, error } = await supabase
-    .from('trips')
-    .select('id')
-    .order('start_date', { ascending: false });
-  if (error || !data) return [];
-  const trips = await Promise.all(data.map((t: any) => fetchTrip(t.id)));
-  return trips.filter(Boolean) as Trip[];
+  const uid = await currentUserId();
+  if (!uid) return [];
+  const [{ data: owned }, { data: memberOf }] = await Promise.all([
+    supabase.from('trips').select('id, start_date').eq('owner_id', uid),
+    supabase.from('trip_members').select('trip_id').eq('user_id', uid),
+  ]);
+  const ids = new Set<string>((owned ?? []).map((t: any) => t.id));
+  (memberOf ?? []).forEach((m: any) => ids.add(m.trip_id));
+  if (!ids.size) return [];
+  const trips = await Promise.all(Array.from(ids).map((id) => fetchTrip(id)));
+  return (trips.filter(Boolean) as Trip[]).sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? ''));
 }
 
 /** Public trips for the Explore feed. */

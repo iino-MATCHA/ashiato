@@ -24,9 +24,17 @@ body {
   body { height: 100dvh; } /* dynamic viewport = excludes browser chrome */
 }
 #root { display: flex; flex-direction: column; height: 100%; width: 100%; }
-/* no browser focus ring on text fields — the app draws its own underline */
-input:focus, textarea:focus, select:focus { outline: none; }
-input, textarea { -webkit-tap-highlight-color: transparent; }
+/* no browser focus ring anywhere — the app draws its own underline/borders.
+   (covers :focus and :focus-visible, incl. RNW's inner focus outlines) */
+*, *:focus, *:focus-visible { outline: none !important; }
+input, textarea, select, [contenteditable] {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 0;
+}
 `;
 
 export default function Root({ children }: PropsWithChildren) {

@@ -8,6 +8,7 @@ import { AppText, Row, Rule, Gap, Eyebrow, Button } from '@/components/ui';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
+import { useProfile } from '@/lib/useProfile';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { fetchStepSocial, toggleLike, addComment, type StepSocial } from '@/lib/api';
 import { transportLabel, type TransportMode } from '@/lib/mock';
@@ -22,6 +23,7 @@ export default function StepDetail() {
   const { width, height } = useWindowDimensions();
   const { id, stepId, readonly } = useLocalSearchParams<{ id: string; stepId: string; readonly?: string }>();
   const { trip } = useTrip(id);
+  const { profile } = useProfile();
   const step = trip?.steps.find((s) => s.id === stepId);
   const canEdit = (trip?.authorId === 'me' || !trip?.authorId) && readonly !== '1';
 
@@ -56,13 +58,28 @@ export default function StepDetail() {
     loadSocial();
   };
   const post = async () => {
-    if (!draft.trim()) return;
+    const body = draft.trim();
+    if (!body) return;
     setMsg(null);
     setPosting(true);
-    const ok = await addComment(step.id, trip.id, draft);
+    // show the comment instantly, then reconcile with the server
+    const optimistic = {
+      id: `pending-${Date.now()}`,
+      author: profile.name,
+      body,
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+    const prev = social;
+    setSocial((cur) => (cur ? { ...cur, comments: [...cur.comments, optimistic] } : cur));
+    setDraft('');
+    const ok = await addComment(step.id, trip.id, body);
     setPosting(false);
-    if (ok) { setDraft(''); loadSocial(); }
-    else setMsg('Could not post. Please sign in and try again.');
+    if (ok) loadSocial();
+    else {
+      setSocial(prev);
+      setDraft(body);
+      setMsg('Could not post. Please sign in and try again.');
+    }
   };
 
   return (

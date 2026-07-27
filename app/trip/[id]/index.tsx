@@ -73,7 +73,7 @@ export default function TripDetail() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#0d1b2a' }} edges={['top']}>
       <View style={StyleSheet.absoluteFill}>
         <TripMap steps={steps} activeIndex={mapStop} overview={isOverview} onSelect={selectFromMap} height={winH} bottomInset={240} modes={effModes} />
       </View>

@@ -37,10 +37,11 @@ export function TransitionProvider({ children }: { children: React.ReactNode }) 
 
     Animated.timing(scale, { toValue: target, duration: 380, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
       router.push(href as any);
-      // let the new screen mount under the white cover, then let the fog clear
+      // hold the white cover a beat so the destination (map/tiles) can get ready,
+      // then let the fog clear slowly — no half-drawn canvas is ever visible
       setTimeout(() => {
-        Animated.timing(fade, { toValue: 0, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(() => setActive(false));
-      }, 80);
+        Animated.timing(fade, { toValue: 0, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(() => setActive(false));
+      }, 420);
     });
   };
 

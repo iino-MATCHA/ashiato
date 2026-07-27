@@ -34,6 +34,7 @@ export function TripMap({
   overview = false,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const veilRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<{ el: HTMLDivElement; inner: HTMLDivElement; root: HTMLDivElement }[]>([]);
   const readyRef = useRef(false);
@@ -57,8 +58,14 @@ export function TripMap({
           center: [steps[0]?.lng ?? 138, steps[0]?.lat ?? 36],
           zoom: 5,
           attributionControl: false,
+          fadeDuration: 0, // no cross-fade flicker while tiles arrive
         });
         mapRef.current = map;
+
+        // lift the veil only once real tiles are painted (avoids a black flash)
+        const reveal = () => { if (veilRef.current) veilRef.current.style.opacity = '0'; };
+        map.once('idle', reveal);
+        setTimeout(reveal, 2500); // safety net if 'idle' never fires
 
         // Photo pins. mapbox writes transform onto the marker root each frame, so the
         // root carries NO transition; a separate inner element does the scale.
@@ -165,7 +172,23 @@ export function TripMap({
     });
   }
 
-  return <div ref={containerRef} style={{ width: '100%', height }} />;
+  return (
+    <div style={{ position: 'relative', width: '100%', height, background: '#0d1b2a' }}>
+      <div ref={containerRef} style={{ width: '100%', height }} />
+      {/* neutral veil: covers the GL canvas until the first tiles are painted */}
+      <div
+        ref={veilRef}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: '#0d1b2a',
+          opacity: 1,
+          transition: 'opacity 600ms ease',
+          pointerEvents: 'none',
+        }}
+      />
+    </div>
+  );
 }
 
 /** Build one GeoJSON line per leg; land legs via Directions, air/ferry as arcs. */
