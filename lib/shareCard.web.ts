@@ -44,38 +44,45 @@ export async function exportShareCard(steps: Step[], meta: ShareCardMeta): Promi
     const mapCanvas: HTMLCanvasElement = map.getCanvas();
     ctx.drawImage(mapCanvas, 0, 0, W, H);
 
-    // 2. 上下のスクリム（文字を読ませるため）
-    paintScrim(ctx, 0, 0, W, 460, 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0)');
-    paintScrim(ctx, 0, H - 620, W, 620, 'rgba(0,0,0,0)', 'rgba(0,0,0,0.72)');
+    // 2. 上下の暗幕。3点のグラデーションで端に線が出ないようにする（画面側と同じ配色）
+    paintScrim(ctx, 0, H * 0.34, [
+      [0, 'rgba(4,10,20,0.78)'], [0.55, 'rgba(4,10,20,0.42)'], [1, 'rgba(4,10,20,0)'],
+    ]);
+    paintScrim(ctx, H * (1 - 0.42), H * 0.42, [
+      [0, 'rgba(4,10,20,0)'], [0.45, 'rgba(4,10,20,0.55)'], [1, 'rgba(4,10,20,0.88)'],
+    ]);
 
-    // 3. 左上: ブランド + タイトル
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.font = `600 30px ${SANS}`;
+    // 3. 左上: ブランド + タイトル + 罫
+    const M = 90;
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.font = `600 28px ${SANS}`;
     // letterSpacing は比較的新しいAPI。型に無いのでキャストして、非対応でも落ちないようにする
-    (ctx as any).letterSpacing = '8px';
-    ctx.fillText('ASHIATO', 84, 130);
+    (ctx as any).letterSpacing = '11px';
+    ctx.fillText('ASHIATO', M, 132);
     (ctx as any).letterSpacing = '0px';
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = `700 74px ${SERIF}`;
-    wrapText(ctx, meta.title, 84, 226, W - 168, 88, 2);
+    ctx.font = `700 76px ${SERIF}`;
+    const lines = wrapText(ctx, meta.title, M, 232, W - M * 2, 92, 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillRect(M, 232 + (lines - 1) * 92 + 40, 82, 3);
 
     // 4. 左下: スタッツ
-    let y = H - 300;
+    let y = H - 310;
     const stats: [string, string][] = [
-      [String(meta.prefectures), 'prefectures visited'],
+      [String(meta.prefectures), 'prefectures'],
       [String(meta.days), 'days'],
-      [`${meta.km.toLocaleString()} km`, 'distance travelled'],
+      [meta.km.toLocaleString(), 'km travelled'],
     ];
     stats.forEach(([value, label]) => {
       ctx.fillStyle = '#ffffff';
-      ctx.font = `700 58px ${SERIF}`;
-      ctx.fillText(value, 84, y);
+      ctx.font = `700 62px ${SERIF}`;
+      ctx.fillText(value, M, y);
       const vw = ctx.measureText(value).width;
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.font = `400 30px ${SANS}`;
-      ctx.fillText(label, 84 + vw + 18, y - 4);
-      y += 86;
+      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      ctx.font = `400 28px ${SANS}`;
+      ctx.fillText(label, M + vw + 22, y - 5);
+      y += 92;
     });
 
     // 5. 右下: プロフィールアイコンと名前
@@ -93,30 +100,30 @@ export async function exportShareCard(steps: Step[], meta: ShareCardMeta): Promi
 const SERIF = `'ShipporiMincho_700Bold', 'Shippori Mincho', serif`;
 const SANS = `'ZenKakuGothicNew_500Medium', 'Zen Kaku Gothic New', system-ui, sans-serif`;
 
+/** 縦方向のグラデーション帯。stops は [位置(0..1), 色] の並び。 */
 function paintScrim(
   ctx: CanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number,
-  from: string, to: string
+  y: number, h: number,
+  stops: [number, string][]
 ) {
   const g = ctx.createLinearGradient(0, y, 0, y + h);
-  g.addColorStop(0, from);
-  g.addColorStop(1, to);
+  stops.forEach(([at, color]) => g.addColorStop(at, color));
   ctx.fillStyle = g;
-  ctx.fillRect(x, y, w, h);
+  ctx.fillRect(0, y, W, h);
 }
 
-/** アイコン（丸くクリップ）＋表示名＋@ユーザー名を右下に。 */
+/** 右下にアイコン（丸くクリップ）、その下に名前。画面のカードと同じ配置。 */
 async function paintAuthor(ctx: CanvasRenderingContext2D, meta: ShareCardMeta) {
-  const r = 46;
-  const cx = W - 84 - r;
-  const cy = H - 150;
+  const r = 58;
+  const cx = W - 90 - r;
+  const cy = H - 240;
 
   const img = meta.avatarUrl ? await loadImage(meta.avatarUrl) : null;
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
   ctx.fill();
   ctx.clip();
   if (img) {
@@ -127,17 +134,14 @@ async function paintAuthor(ctx: CanvasRenderingContext2D, meta: ShareCardMeta) {
   ctx.restore();
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.lineWidth = 2;
   ctx.stroke();
 
-  ctx.textAlign = 'right';
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `700 34px ${SERIF}`;
-  ctx.fillText(meta.authorName, cx - r - 26, cy - 4);
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.font = `400 26px ${SANS}`;
-  ctx.fillText(`@${meta.authorHandle}`, cx - r - 26, cy + 34);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.font = `500 26px ${SANS}`;
+  ctx.fillText(meta.authorName, cx, cy + r + 40);
   ctx.textAlign = 'left';
 }
 
@@ -151,29 +155,44 @@ function loadImage(url: string): Promise<HTMLImageElement | null> {
   });
 }
 
-/** maxLines 行までで折り返す。溢れたら … を付ける。 */
+/**
+ * maxLines 行までで折り返して描き、描いた行数を返す。
+ * 日本語のタイトルは空白が無く単語分割では折り返せないので、
+ * 幅に収まらない語はさらに1文字ずつ送る。
+ */
 function wrapText(
   ctx: CanvasRenderingContext2D,
   text: string, x: number, y: number,
   maxWidth: number, lineHeight: number, maxLines: number
-) {
-  const words = text.split(/\s+/);
+): number {
+  const tokens: string[] = [];
+  text.split(/\s+/).forEach((word, i, arr) => {
+    if (ctx.measureText(word).width <= maxWidth) {
+      tokens.push(i < arr.length - 1 ? `${word} ` : word);
+    } else {
+      // 長すぎる語（＝日本語の連なり）は1文字ずつ
+      Array.from(word).forEach((ch) => tokens.push(ch));
+    }
+  });
+
   const lines: string[] = [];
   let line = '';
-  for (const word of words) {
-    const next = line ? `${line} ${word}` : word;
-    if (ctx.measureText(next).width > maxWidth && line) {
-      lines.push(line);
-      line = word;
-      if (lines.length === maxLines) break;
+  for (const tk of tokens) {
+    const next = line + tk;
+    if (ctx.measureText(next.trimEnd()).width > maxWidth && line) {
+      lines.push(line.trimEnd());
+      if (lines.length === maxLines) { line = ''; break; }
+      line = tk;
     } else {
       line = next;
     }
   }
-  if (lines.length < maxLines && line) lines.push(line);
+  if (lines.length < maxLines && line.trim()) lines.push(line.trimEnd());
+
+  const truncated = lines.join('').length < text.replace(/\s+/g, '').length;
   lines.forEach((l, i) => {
     const last = i === lines.length - 1;
-    const overflow = last && lines.length === maxLines && ctx.measureText(text).width > maxWidth * maxLines;
-    ctx.fillText(overflow ? `${l}…` : l, x, y + i * lineHeight);
+    ctx.fillText(last && truncated ? `${l}…` : l, x, y + i * lineHeight);
   });
+  return lines.length || 1;
 }

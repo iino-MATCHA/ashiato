@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Image, Pressable, StyleSheet, Share as RNShare, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
@@ -97,26 +98,38 @@ export default function TripShare() {
           <View style={StyleSheet.absoluteFill as any}>
             <ShareMap steps={trip.steps} height={cardH} />
           </View>
-          {/* top + bottom scrims for legibility */}
-          <View style={styles.topScrim} pointerEvents="none" />
-          <View style={styles.bottomScrim} pointerEvents="none" />
+          {/* 上下の暗幕。単色の帯だと境目に線が見えるので、必ずグラデーションで落とす */}
+          <LinearGradient
+            colors={['rgba(4,10,20,0.78)', 'rgba(4,10,20,0.42)', 'rgba(4,10,20,0)']}
+            locations={[0, 0.55, 1]}
+            style={[styles.scrim, { top: 0, height: cardH * 0.34 }]}
+            pointerEvents="none"
+          />
+          <LinearGradient
+            colors={['rgba(4,10,20,0)', 'rgba(4,10,20,0.55)', 'rgba(4,10,20,0.88)']}
+            locations={[0, 0.45, 1]}
+            style={[styles.scrim, { bottom: 0, height: cardH * 0.42 }]}
+            pointerEvents="none"
+          />
 
           {/* title top-left */}
           <View style={styles.tl}>
             <AppText style={styles.eyebrow}>ASHIATO</AppText>
-            <Gap h={2} />
+            <Gap h={6} />
             <AppText style={styles.title} numberOfLines={2}>{trip.title}</AppText>
+            <Gap h={8} />
+            <View style={styles.hairline} />
           </View>
 
           {/* stats bottom-left + author bottom-right */}
           <View style={styles.bl}>
             <Row style={{ alignItems: 'flex-end', justifyContent: 'space-between' }}>
               <View style={{ flex: 1 }}>
-                <StatLine value={String(prefs)} label="prefectures visited" />
+                <StatLine value={String(prefs)} label="prefectures" />
                 <StatLine value={String(days)} label="days" />
-                <StatLine value={`${km.toLocaleString()} km`} label="distance travelled" />
+                <StatLine value={km.toLocaleString()} label="km travelled" />
               </View>
-              <View style={{ alignItems: 'center', marginLeft: space.sm }}>
+              <View style={{ alignItems: 'center', marginLeft: space.md }}>
                 <View style={styles.avatar}>
                   {author.avatarUrl ? (
                     <Image source={{ uri: author.avatarUrl }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
@@ -124,7 +137,7 @@ export default function TripShare() {
                     <Ionicons name="person" size={18} color="rgba(255,255,255,0.9)" />
                   )}
                 </View>
-                <Gap h={4} />
+                <Gap h={6} />
                 <AppText style={styles.authorName} numberOfLines={1}>{author.name || 'Traveller'}</AppText>
               </View>
             </Row>
@@ -145,12 +158,10 @@ export default function TripShare() {
 
 function StatLine({ value, label }: { value: string; label: string }) {
   return (
-    <View style={{ marginBottom: 6 }}>
-      <Row style={{ alignItems: 'baseline', gap: 6 }}>
-        <AppText style={styles.statValue}>{value}</AppText>
-        <AppText style={styles.statLabel}>{label}</AppText>
-      </Row>
-    </View>
+    <Row style={{ alignItems: 'baseline', gap: 7, marginBottom: 5 }}>
+      <AppText style={styles.statValue}>{value}</AppText>
+      <AppText style={styles.statLabel}>{label}</AppText>
+    </Row>
   );
 }
 
@@ -168,15 +179,15 @@ function ExportBtn({ icon, label, onPress, palette, color }: any) {
 
 const styles = StyleSheet.create({
   card: { borderRadius: 16, overflow: 'hidden', backgroundColor: '#0b1a2b' },
-  topScrim: { position: 'absolute', top: 0, left: 0, right: 0, height: 100, backgroundColor: 'rgba(0,0,0,0.32)' },
-  bottomScrim: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 150, backgroundColor: 'rgba(0,0,0,0.42)' },
-  tl: { position: 'absolute', top: space.md, left: space.md, right: space.md },
-  eyebrow: { fontFamily: fonts.gothicMedium, fontSize: 9, letterSpacing: 2, color: 'rgba(255,255,255,0.8)' },
-  title: { fontFamily: fonts.minchoBold, fontSize: 17, lineHeight: 22, color: '#fff' },
-  bl: { position: 'absolute', bottom: space.md, left: space.md, right: space.md },
-  statValue: { fontFamily: fonts.minchoBold, fontSize: 15, color: '#fff' },
-  statLabel: { fontFamily: fonts.gothicRegular, fontSize: 10, color: 'rgba(255,255,255,0.85)' },
-  avatar: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.9)' },
-  authorName: { fontFamily: fonts.minchoBold, fontSize: 10, color: '#fff', maxWidth: 76, textAlign: 'center' },
+  scrim: { position: 'absolute', left: 0, right: 0 },
+  tl: { position: 'absolute', top: space.lg, left: space.lg, right: space.lg },
+  eyebrow: { fontFamily: fonts.gothicMedium, fontSize: 9, letterSpacing: 3.5, color: 'rgba(255,255,255,0.75)' },
+  title: { fontFamily: fonts.minchoBold, fontSize: 19, lineHeight: 26, color: '#fff' },
+  hairline: { width: 26, height: 1, backgroundColor: 'rgba(255,255,255,0.5)' },
+  bl: { position: 'absolute', bottom: space.lg, left: space.lg, right: space.lg },
+  statValue: { fontFamily: fonts.minchoBold, fontSize: 17, color: '#fff' },
+  statLabel: { fontFamily: fonts.gothicRegular, fontSize: 9.5, letterSpacing: 0.6, color: 'rgba(255,255,255,0.72)' },
+  avatar: { width: 42, height: 42, borderRadius: 21, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.75)' },
+  authorName: { fontFamily: fonts.gothicMedium, fontSize: 9.5, color: 'rgba(255,255,255,0.9)', maxWidth: 80, textAlign: 'center' },
   exportCircle: { width: 54, height: 54, borderRadius: 27, borderWidth: StyleSheet.hairlineWidth * 2, alignItems: 'center', justifyContent: 'center' },
 });

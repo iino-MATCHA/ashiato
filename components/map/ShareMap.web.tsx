@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { loadMapboxGL, arcBetween, directionsProfile, fetchRoute } from '@/lib/mapbox';
+import { loadMapboxGL } from '@/lib/mapbox';
 import type { Step } from '@/lib/mock';
 
 /**
@@ -104,34 +104,14 @@ export async function buildShareMap(mapboxgl: any, container: HTMLElement, steps
   } catch {}
   frame(map, steps, w, h);
 
-  // ルート線: 白いグロー → マッチャ色の本線。飛行機・船は弧。
-  const features = await routeFeatures(steps);
-  map.addSource('share-route', { type: 'geojson', data: { type: 'FeatureCollection', features } });
-  map.addLayer({
-    id: 'share-route-glow',
-    type: 'line',
-    source: 'share-route',
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': 'rgba(255,255,255,0.85)', 'line-width': 5.5, 'line-blur': 2 },
-  });
-  map.addLayer({
-    id: 'share-route-line',
-    type: 'line',
-    source: 'share-route',
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': '#8FD13F', 'line-width': 2.2 },
-  });
-
-  // 地点のドット（最初と最後だけ白丸で強調）
-  steps.forEach((s, i) => {
-    const edge = i === 0 || i === steps.length - 1;
-    const size = edge ? 15 : 10;
+  // 訪れた場所は、線でつながずに小さな光の点だけで置く。
+  // ルートを描くと衛星写真の上で線が主役になってしまい、絵として重くなるため。
+  steps.forEach((s) => {
     const el = document.createElement('div');
     el.style.cssText = [
-      `width:${size}px;height:${size}px;border-radius:50%;`,
-      `background:${edge ? '#fff' : '#8FD13F'};`,
-      `border:${edge ? 3 : 2}px solid ${edge ? '#69AF00' : '#fff'};`,
-      'box-shadow:0 1px 6px rgba(0,0,0,0.55);',
+      'width:9px;height:9px;border-radius:50%;',
+      'background:#F2FFE0;',
+      'box-shadow:0 0 0 2px rgba(255,255,255,0.55), 0 0 10px 3px rgba(143,209,63,0.85);',
     ].join('');
     new mapboxgl.Marker({ element: el, anchor: 'center' }).setLngLat([s.lng, s.lat]).addTo(map);
   });
@@ -159,20 +139,6 @@ function frame(map: any, steps: Step[], w: number, h: number) {
     return;
   }
   map.fitBounds([[west, south], [east, north]], { padding, duration: 0, maxZoom: 7.5 });
-}
-
-async function routeFeatures(steps: Step[]) {
-  const features: any[] = [];
-  for (let i = 1; i < steps.length; i++) {
-    const from: [number, number] = [steps[i - 1].lng, steps[i - 1].lat];
-    const to: [number, number] = [steps[i].lng, steps[i].lat];
-    const profile = directionsProfile(steps[i].transport);
-    let coords: [number, number][] | null = null;
-    if (profile) coords = await fetchRoute(from, to, profile);
-    if (!coords) coords = arcBetween(from, to);
-    features.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } });
-  }
-  return features;
 }
 
 function once(map: any, event: string): Promise<void> {
