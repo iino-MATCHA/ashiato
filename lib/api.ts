@@ -295,17 +295,14 @@ async function compressImage(blob: Blob, maxDim = 1280, quality = 0.72): Promise
   }
 }
 
-/** Storage にアップロードして storage_path を返す。 */
-export async function uploadPhoto(uid: string, tripId: string, fileOrBlob: Blob): Promise<string | null> {
-  try {
-    const compressed = await compressImage(fileOrBlob);
-    const path = `${uid}/${tripId}/${Math.round(compressed.size)}-${compressed.type.includes('png') ? 'p' : 'j'}.jpg`;
-    const { error } = await supabase.storage.from('photos').upload(path, compressed, { upsert: true, contentType: 'image/jpeg' });
-    if (error) return null;
-    return path;
-  } catch {
-    return null;
-  }
+/** Storage にアップロードして storage_path を返す。key は衝突回避用の識別子。 */
+export async function uploadPhoto(uid: string, tripId: string, fileOrBlob: Blob, key = 'p'): Promise<string | null> {
+  const compressed = await compressImage(fileOrBlob);
+  const rand = Math.random().toString(36).slice(2, 9);
+  const path = `${uid}/${tripId}/${key}-${rand}.jpg`;
+  const { error } = await supabase.storage.from('photos').upload(path, compressed, { upsert: true, contentType: 'image/jpeg' });
+  if (error) throw new Error(error.message);
+  return path;
 }
 
 export async function createTrip(input: { title: string; visibility?: string; startDate?: string; endDate?: string }): Promise<string | null> {
@@ -335,16 +332,24 @@ export async function updateTrip(id: string, input: { title?: string; visibility
 export async function uploadTripCover(tripId: string, blob: Blob): Promise<string | null> {
   const uid = await currentUserId();
   if (!uid) return null;
-  const path = await uploadPhoto(uid, tripId, blob);
-  return path ? publicUrl(path) : null;
+  try {
+    const path = await uploadPhoto(uid, tripId, blob, 'cover');
+    return path ? publicUrl(path) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** プロフィール画像をアップロードして公開URLを返す。 */
 export async function uploadAvatar(blob: Blob): Promise<string | null> {
   const uid = await currentUserId();
   if (!uid) return null;
-  const path = await uploadPhoto(uid, 'avatar', blob);
-  return path ? publicUrl(path) : null;
+  try {
+    const path = await uploadPhoto(uid, 'avatar', blob, 'avatar');
+    return path ? publicUrl(path) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function deleteTrip(id: string): Promise<boolean> {
@@ -385,8 +390,12 @@ export async function createStep(input: {
 
   const blobs = input.photoBlobs ?? [];
   for (let i = 0; i < blobs.length; i++) {
-    const path = await uploadPhoto(uid, input.tripId, blobs[i]);
-    if (path) await supabase.from('photos').insert({ log_id: log.id, trip_id: input.tripId, uploader_id: uid, storage_path: path, sort_order: i });
+    try {
+      const path = await uploadPhoto(uid, input.tripId, blobs[i], `${log.id}-${i}`);
+      if (path) await supabase.from('photos').insert({ log_id: log.id, trip_id: input.tripId, uploader_id: uid, storage_path: path, sort_order: i });
+    } catch {
+      // skip a failed photo but keep the stop
+    }
   }
   bump('visited');
   bump('trips');

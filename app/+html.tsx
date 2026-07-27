@@ -13,7 +13,15 @@ html, body { margin: 0; padding: 0; height: 100%; }
 @supports (height: 100dvh) {
   html, body, #root { min-height: 100dvh; }
 }
-body { overflow-x: hidden; overscroll-behavior-y: none; -webkit-text-size-adjust: 100%; }
+/* keep the top (back button etc.) clear of the notch / status bar on mobile */
+body {
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: border-box;
+}
 `;
 
 export default function Root({ children }: PropsWithChildren) {

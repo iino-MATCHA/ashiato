@@ -228,7 +228,7 @@ function LocationCard({ step, index, total, palette, onOpen }: { step: Step; ind
 const shadow = { shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 5 };
 
 const styles = StyleSheet.create({
-  headerZone: { position: 'absolute', top: space.xl, left: space.lg, right: space.lg, zIndex: 20, alignItems: 'flex-start' },
+  headerZone: { position: 'absolute', top: space.md, left: space.lg, right: space.lg, zIndex: 20, alignItems: 'flex-start' },
   actionCol: { position: 'absolute', top: 0, right: 0, gap: space.sm },
   glassCircle: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(0,0,0,0.08)', shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6 },
   titleGlass: { alignSelf: 'flex-start', maxWidth: '85%', backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: 14, paddingHorizontal: space.md, paddingVertical: space.sm, ...shadow },

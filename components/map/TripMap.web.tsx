@@ -59,7 +59,6 @@ export function TripMap({
           attributionControl: false,
         });
         mapRef.current = map;
-        map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
 
         // Photo pins. mapbox writes transform onto the marker root each frame, so the
         // root carries NO transition; a separate inner element does the scale.

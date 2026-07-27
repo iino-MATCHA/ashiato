@@ -29,6 +29,7 @@ export default function StepDetail() {
   const [social, setSocial] = useState<StepSocial | null>(null);
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
 
   const loadSocial = () => {
     if (isSupabaseConfigured && stepId) fetchStepSocial(stepId).then(setSocial).catch(() => {});
@@ -47,17 +48,21 @@ export default function StepDetail() {
 
   const like = async () => {
     if (!social) return;
-    // optimistic
+    const prev = social;
+    setMsg(null);
     setSocial({ ...social, likedByMe: !social.likedByMe, likes: social.likes + (social.likedByMe ? -1 : 1) });
-    await toggleLike(step.id, trip.id, social.likedByMe);
+    const ok = await toggleLike(step.id, trip.id, social.likedByMe);
+    if (!ok) { setSocial(prev); setMsg('Sign in to like this stop.'); return; }
     loadSocial();
   };
   const post = async () => {
     if (!draft.trim()) return;
+    setMsg(null);
     setPosting(true);
     const ok = await addComment(step.id, trip.id, draft);
     setPosting(false);
     if (ok) { setDraft(''); loadSocial(); }
+    else setMsg('Could not post. Please sign in and try again.');
   };
 
   return (
@@ -133,15 +138,18 @@ export default function StepDetail() {
               <AppText variant="small" tone="inkFaint">Be the first to comment.</AppText>
             )}
 
+            {!!msg && (<><Gap h={space.sm} /><AppText variant="small" tone="shu">{msg}</AppText></>)}
+
             <Gap h={space.md} />
             <Row style={[styles.commentBar, { borderColor: palette.ruleStrong }]}>
               <TextInput
                 value={draft} onChangeText={setDraft}
                 placeholder="Add a comment…" placeholderTextColor={palette.inkFaint}
                 style={[styles.commentInput, { color: palette.ink }]}
+                onSubmitEditing={post}
               />
-              <Pressable onPress={post} disabled={posting || !draft.trim()}>
-                <Ionicons name="send" size={20} color={draft.trim() ? palette.matcha : palette.inkFaint} />
+              <Pressable onPress={post} disabled={posting || !draft.trim()} style={[styles.sendBtn, { backgroundColor: draft.trim() ? palette.matcha : palette.fill }]}>
+                <Ionicons name="arrow-up" size={18} color={draft.trim() ? '#fff' : palette.inkFaint} />
               </Pressable>
             </Row>
           </>
@@ -154,6 +162,7 @@ export default function StepDetail() {
 const styles = StyleSheet.create({
   thumb: { width: 44, height: 44, borderRadius: 6, borderWidth: 2, backgroundColor: '#eee' },
   transport: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
-  commentBar: { alignItems: 'center', gap: space.sm, borderWidth: hairline * 2, borderRadius: 999, paddingHorizontal: space.md, paddingVertical: 8 },
-  commentInput: { flex: 1, fontFamily: fonts.gothicRegular, fontSize: type.body, paddingVertical: 2 },
+  commentBar: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderWidth: hairline * 2, borderRadius: 999, paddingLeft: space.md, paddingRight: 5, paddingVertical: 5 },
+  commentInput: { flex: 1, fontFamily: fonts.gothicRegular, fontSize: type.body, paddingVertical: 6 },
+  sendBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
 });
