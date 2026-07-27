@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { View, TextInput, Pressable, StyleSheet } from 'react-native';
+import { View, TextInput, Switch, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Button, Eyebrow } from '@/components/ui';
 import { DateInput } from '@/components/DateInput';
-import { space, fonts, type, hairline } from '@/lib/theme';
+import { space, fonts, type } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { createTrip } from '@/lib/api';
@@ -16,7 +16,7 @@ export default function NewTrip() {
   const [title, setTitle] = useState('');
   const [start, setStart] = useState(''); // YYYY-MM-DD
   const [end, setEnd] = useState('');
-  const [isPublic, setIsPublic] = useState(false);
+  const [isPublic, setIsPublic] = useState(true); // default: public ON
   const [saving, setSaving] = useState(false);
 
   const canSave = title.trim().length > 0 && start.length > 0;
@@ -73,17 +73,22 @@ export default function NewTrip() {
         <Gap h={space.xl} />
         <Eyebrow>Visibility</Eyebrow>
         <Gap h={space.md} />
-        <Row style={{ gap: space.sm }}>
-          <VisBtn label="Private" active={!isPublic} onPress={() => setIsPublic(false)} palette={palette} />
-          <VisBtn label="Public" active={isPublic} onPress={() => setIsPublic(true)} palette={palette} />
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Row style={{ gap: 8, alignItems: 'center' }}>
+            <Ionicons name={isPublic ? 'earth-outline' : 'lock-closed-outline'} size={18} color={isPublic ? palette.matcha : palette.inkSoft} />
+            <AppText variant="bodyStrong" tone="ink">Public</AppText>
+          </Row>
+          <Switch
+            value={isPublic}
+            onValueChange={setIsPublic}
+            trackColor={{ true: palette.matcha, false: palette.rule }}
+            thumbColor="#fff"
+          />
         </Row>
         <Gap h={space.sm} />
-        <Row style={{ gap: 6 }}>
-          <Ionicons name={isPublic ? 'earth-outline' : 'lock-closed-outline'} size={14} color={palette.inkFaint} />
-          <AppText variant="small" tone="inkFaint" style={{ flex: 1 }}>
-            {isPublic ? 'Public — shown in Explore for everyone.' : 'Private — only you. Friends can still see it on their feed.'}
-          </AppText>
-        </Row>
+        <AppText variant="small" tone="inkFaint">
+          {isPublic ? 'Shown in Explore for everyone.' : 'Only you — friends can still see it on their feed.'}
+        </AppText>
       </View>
 
       <View style={{ padding: space.lg }}>
@@ -94,15 +99,6 @@ export default function NewTrip() {
   );
 }
 
-function VisBtn({ label, active, onPress, palette }: any) {
-  return (
-    <Pressable onPress={onPress} style={[styles.visBtn, { borderColor: active ? palette.matcha : palette.ruleStrong }, active && { backgroundColor: palette.matcha }]}>
-      <AppText variant="bodyStrong" style={{ color: active ? '#fff' : palette.inkSoft }}>{label}</AppText>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   titleInput: { fontFamily: fonts.minchoBold, fontSize: type.h1, lineHeight: type.h1 * 1.3, paddingBottom: space.sm, minHeight: 44 },
-  visBtn: { paddingHorizontal: space.xl, paddingVertical: 10, borderRadius: 999, borderWidth: hairline * 2 },
 });

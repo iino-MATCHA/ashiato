@@ -9,7 +9,10 @@ import { useTheme } from '@/lib/useTheme';
 import { useProfile } from '@/lib/useProfile';
 import { useTrips, useVisitedPrefectures } from '@/lib/useData';
 import { RankModal, rankFor } from '@/components/RankModal';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { fetchUnreadCount } from '@/lib/api';
 import { friends } from '@/lib/mock';
 
 export default function ProfilePage() {
@@ -18,6 +21,13 @@ export default function ProfilePage() {
   const { trips } = useTrips();
   const { codes: visited } = useVisitedPrefectures();
   const [rankOpen, setRankOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+  const aliveRef = useRef(true);
+  useFocusEffect(useCallback(() => {
+    aliveRef.current = true;
+    if (isSupabaseConfigured) fetchUnreadCount().then((n) => aliveRef.current && setUnread(n));
+    return () => { aliveRef.current = false; };
+  }, []));
   // real data only — exclude the sample/showcase trip from stats
   const myTrips = trips.filter((t) => !t.sample);
   const totalStops = myTrips.reduce((s, t) => s + t.steps.length, 0);
@@ -110,17 +120,22 @@ export default function ProfilePage() {
         <Gap h={space.md} />
         <Rule />
         {[
+          { icon: 'notifications-outline', label: 'Notifications', onPress: () => router.push('/notifications'), badge: unread },
           { icon: 'map-outline', label: 'Edit visited prefectures', onPress: () => router.push('/(auth)/prefectures?edit=1') },
           { icon: 'battery-half-outline', label: 'Battery & power saving' },
           { icon: 'receipt-outline', label: 'Order history' },
-          { icon: 'notifications-outline', label: 'Notifications' },
           { icon: 'lock-closed-outline', label: 'Privacy & visibility' },
           { icon: 'help-circle-outline', label: 'Help & contact' },
-        ].map((s) => (
+        ].map((s: any) => (
           <View key={s.label}>
-            <Pressable onPress={(s as any).onPress} style={({ pressed }) => [styles.setting, pressed && { opacity: 0.6 }]}>
+            <Pressable onPress={s.onPress} style={({ pressed }) => [styles.setting, pressed && { opacity: 0.6 }]}>
               <Ionicons name={s.icon as any} size={20} color={palette.inkSoft} />
               <AppText variant="body" tone="ink" style={{ flex: 1 }}>{s.label}</AppText>
+              {!!s.badge && (
+                <View style={[styles.badge, { backgroundColor: palette.shu }]}>
+                  <AppText variant="small" style={{ color: '#fff' }}>{s.badge}</AppText>
+                </View>
+              )}
               <Ionicons name="chevron-forward" size={18} color={palette.inkFaint} />
             </Pressable>
             <Rule />
@@ -152,4 +167,5 @@ const styles = StyleSheet.create({
   friendAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   friendAdd: { width: 44, height: 44, borderRadius: 22, borderWidth: hairline * 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   setting: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
+  badge: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },
 });

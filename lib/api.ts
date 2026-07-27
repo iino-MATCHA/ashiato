@@ -59,10 +59,13 @@ async function fetchPrefectureNames(): Promise<Map<number, string>> {
 export async function fetchTrip(id: string): Promise<Trip | null> {
   const { data: trip, error } = await supabase
     .from('trips')
-    .select('id, title, description, status, start_date, end_date')
+    .select('id, owner_id, title, description, status, visibility, start_date, end_date')
     .eq('id', id)
     .single();
   if (error || !trip) return null;
+
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth?.user?.id ?? null;
 
   const [{ data: logs }, { data: transports }, { data: members }] = await Promise.all([
     supabase
@@ -71,7 +74,8 @@ export async function fetchTrip(id: string): Promise<Trip | null> {
       .eq('trip_id', id)
       .order('sort_order', { ascending: true }),
     supabase.from('transports').select('to_log_id, mode, distance_km').eq('trip_id', id),
-    supabase.from('trip_members').select('user_id, profiles(display_name)').eq('trip_id', id),
+    // trip_members has two FKs to profiles (user_id / invited_by) — qualify which one
+    supabase.from('trip_members').select('user_id, profiles!trip_members_user_id_fkey(display_name)').eq('trip_id', id),
   ]);
 
   const logRows = logs ?? [];
@@ -125,6 +129,9 @@ export async function fetchTrip(id: string): Promise<Trip | null> {
     prefectures,
     members: (members ?? []).map((m: any) => m.profiles?.display_name ?? 'Traveller'),
     distanceKm,
+    // 'me' when the signed-in user owns it → controls edit permissions app-wide
+    authorId: uid && trip.owner_id === uid ? 'me' : trip.owner_id,
+    visibility: (trip.visibility as Trip['visibility']) ?? 'private',
     steps,
   };
 }
@@ -275,24 +282,46 @@ export async function saveVisitedPrefectures(codes: number[]): Promise<boolean> 
   return true;
 }
 
-/** 画像を画質を保ったまま縮小圧縮（Web）。ネイティブは非対応でそのまま返す。 */
+/**
+ * 画像を縮小圧縮（Web）。createImageBitmap が使えない形式（HEIC等の一部）でも
+ * <img> デコードにフォールバックして必ずJPEG化を試みる。最終手段は元blob。
+ */
 async function compressImage(blob: Blob, maxDim = 1280, quality = 0.72): Promise<Blob> {
-  if (typeof document === 'undefined' || typeof createImageBitmap === 'undefined') return blob;
-  try {
-    const bmp = await createImageBitmap(blob);
-    const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
-    const w = Math.round(bmp.width * scale);
-    const h = Math.round(bmp.height * scale);
+  if (typeof document === 'undefined') return blob;
+
+  const toJpeg = (w: number, h: number, paint: (ctx: CanvasRenderingContext2D, cw: number, ch: number) => void): Promise<Blob | null> => {
+    const scale = Math.min(1, maxDim / Math.max(w, h));
+    const cw = Math.max(1, Math.round(w * scale));
+    const ch = Math.max(1, Math.round(h * scale));
     const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(bmp, 0, 0, w, h);
-    const out: Blob | null = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', quality));
-    return out ?? blob;
-  } catch {
-    return blob;
+    canvas.width = cw;
+    canvas.height = ch;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return Promise.resolve(null);
+    paint(ctx, cw, ch);
+    return new Promise((res) => canvas.toBlob(res, 'image/jpeg', quality));
+  };
+
+  // 1) createImageBitmap（最速）
+  if (typeof createImageBitmap !== 'undefined') {
+    try {
+      const bmp = await createImageBitmap(blob);
+      const out = await toJpeg(bmp.width, bmp.height, (ctx, cw, ch) => ctx.drawImage(bmp, 0, 0, cw, ch));
+      if (out) return out;
+    } catch {}
   }
+  // 2) <img> decode フォールバック（Safari の HEIC などをカバー）
+  try {
+    const url = URL.createObjectURL(blob);
+    const img = document.createElement('img');
+    img.src = url;
+    if (img.decode) await img.decode();
+    else await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+    const out = await toJpeg(img.naturalWidth, img.naturalHeight, (ctx, cw, ch) => ctx.drawImage(img, 0, 0, cw, ch));
+    URL.revokeObjectURL(url);
+    if (out) return out;
+  } catch {}
+  return blob;
 }
 
 /** Storage にアップロードして storage_path を返す。key は衝突回避用の識別子。 */
@@ -366,9 +395,9 @@ export async function createStep(input: {
   loggedAt: string;
   transport: string;
   photoBlobs?: Blob[];
-}): Promise<string | null> {
+}): Promise<{ id: string | null; photoFailed: number }> {
   const uid = await currentUserId();
-  if (!uid) return null;
+  if (!uid) return { id: null, photoFailed: 0 };
   // 末尾に追加するため sort_order = 現在の件数
   const { count } = await supabase.from('logs').select('id', { count: 'exact', head: true }).eq('trip_id', input.tripId);
   const sortOrder = count ?? 0;
@@ -382,24 +411,26 @@ export async function createStep(input: {
     })
     .select('id')
     .single();
-  if (error || !log) return null;
+  if (error || !log) return { id: null, photoFailed: 0 };
 
   if (sortOrder > 0) {
     await supabase.from('transports').insert({ trip_id: input.tripId, to_log_id: log.id, mode: input.transport, distance_km: 0 });
   }
 
   const blobs = input.photoBlobs ?? [];
+  let photoFailed = 0;
   for (let i = 0; i < blobs.length; i++) {
     try {
       const path = await uploadPhoto(uid, input.tripId, blobs[i], `${log.id}-${i}`);
       if (path) await supabase.from('photos').insert({ log_id: log.id, trip_id: input.tripId, uploader_id: uid, storage_path: path, sort_order: i });
+      else photoFailed++;
     } catch {
-      // skip a failed photo but keep the stop
+      photoFailed++; // keep the stop even if a photo fails
     }
   }
   bump('visited');
   bump('trips');
-  return log.id;
+  return { id: log.id, photoFailed };
 }
 
 // ---------------------------------------------------------------- step social (likes / comments)
@@ -449,6 +480,75 @@ export async function addComment(logId: string, tripId: string, body: string): P
   if (!uid || !body.trim()) return false;
   const { error } = await supabase.from('comments').insert({ trip_id: tripId, log_id: logId, author_id: uid, body: body.trim() });
   return !error;
+}
+
+// ---------------------------------------------------------------- comment notifications
+export interface CommentNotification {
+  commentId: string;
+  body: string;
+  author: string;
+  createdAt: string;
+  logId: string;
+  tripId: string;
+  stepTitle: string;
+  photo: string | null;
+}
+
+/** 未読通知 = 自分のStepへの他人のコメントで、notification_reads に無いもの。 */
+export async function fetchCommentNotifications(): Promise<CommentNotification[]> {
+  const uid = await currentUserId();
+  if (!uid) return [];
+  const { data: myLogs } = await supabase.from('logs').select('id, title, trip_id').eq('author_id', uid);
+  const ids = (myLogs ?? []).map((l: any) => l.id);
+  if (!ids.length) return [];
+
+  const [{ data: comments }, { data: reads }, { data: photos }] = await Promise.all([
+    supabase
+      .from('comments')
+      .select('id, body, created_at, author_id, log_id, trip_id, profiles(display_name)')
+      .in('log_id', ids)
+      .neq('author_id', uid)
+      .order('created_at', { ascending: false })
+      .limit(50),
+    supabase.from('notification_reads').select('comment_id').eq('user_id', uid),
+    supabase.from('photos').select('log_id, storage_path, sort_order').in('log_id', ids).order('sort_order', { ascending: true }),
+  ]);
+
+  const readSet = new Set((reads ?? []).map((r: any) => r.comment_id));
+  const photoByLog = new Map<string, string>();
+  (photos ?? []).forEach((p: any) => {
+    if (!photoByLog.has(p.log_id)) photoByLog.set(p.log_id, publicUrl(p.storage_path));
+  });
+  const logMap = new Map((myLogs ?? []).map((l: any) => [l.id, l]));
+
+  return (comments ?? [])
+    .filter((c: any) => !readSet.has(c.id))
+    .map((c: any) => ({
+      commentId: c.id,
+      body: c.body,
+      author: c.profiles?.display_name ?? 'Traveller',
+      createdAt: (c.created_at ?? '').slice(0, 10),
+      logId: c.log_id,
+      tripId: c.trip_id,
+      stepTitle: (logMap.get(c.log_id) as any)?.title ?? 'Your stop',
+      photo: photoByLog.get(c.log_id) ?? null,
+    }));
+}
+
+/** 右スワイプで既読化。 */
+export async function markNotificationRead(commentId: string): Promise<boolean> {
+  const uid = await currentUserId();
+  if (!uid) return false;
+  const { error } = await supabase.from('notification_reads').upsert({ user_id: uid, comment_id: commentId });
+  return !error;
+}
+
+export async function fetchUnreadCount(): Promise<number> {
+  try {
+    return (await fetchCommentNotifications()).length;
+  } catch {
+    return 0;
+  }
 }
 
 /** 記録→カウント→ユーザー：訪問済み都道府県コード(1..47)。RPC my_visited_prefectures を使用。 */

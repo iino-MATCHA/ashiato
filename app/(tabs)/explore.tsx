@@ -28,9 +28,21 @@ export default function Explore() {
   const { palette } = useTheme();
   const { width } = useWindowDimensions();
   const { trips } = usePublicTrips();
+  const [q, setQ] = useState('');
 
-  const featured = useMemo(() => weeklyFeatured(trips), [trips]);
-  const friendTrips = trips.filter((t) => t.authorId && t.authorId !== 'me');
+  // the search bar actually filters journeys (title / prefectures / author)
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!term) return trips;
+    return trips.filter((t) =>
+      t.title.toLowerCase().includes(term) ||
+      t.prefectures.join(' ').toLowerCase().includes(term) ||
+      (t.members[0] ?? '').toLowerCase().includes(term)
+    );
+  }, [trips, q]);
+
+  const featured = useMemo(() => weeklyFeatured(filtered), [filtered]);
+  const friendTrips = filtered.filter((t) => t.authorId && t.authorId !== 'me');
 
   return (
     <Screen>
@@ -42,8 +54,23 @@ export default function Explore() {
       <Gap h={space.lg} />
       <Row style={[styles.search, { borderColor: palette.ruleStrong }]}>
         <Ionicons name="search" size={18} color={palette.inkFaint} />
-        <TextInput placeholder="Search places, spots, people" placeholderTextColor={palette.inkFaint} style={[styles.searchInput, { color: palette.ink }]} />
+        <TextInput
+          value={q}
+          onChangeText={setQ}
+          placeholder="Search journeys, prefectures, people"
+          placeholderTextColor={palette.inkFaint}
+          style={[styles.searchInput, { color: palette.ink }]}
+          autoCapitalize="none"
+        />
+        {!!q && (
+          <Pressable onPress={() => setQ('')} hitSlop={8}>
+            <Ionicons name="close-circle" size={16} color={palette.inkFaint} />
+          </Pressable>
+        )}
       </Row>
+      {!!q.trim() && featured.length === 0 && friendTrips.length === 0 && (
+        <><Gap h={space.md} /><AppText variant="small" tone="inkFaint">No journeys match “{q.trim()}”.</AppText></>
+      )}
 
       {/* Featured — weekly */}
       {featured.length > 0 && (

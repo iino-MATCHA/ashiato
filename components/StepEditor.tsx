@@ -29,11 +29,13 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
   const [place, setPlace] = useState<SelectedPlace | null>(
     step ? { title: step.placeName, subtitle: step.prefectureName, municipalityCode: 0 } : null
   );
-  const [when, setWhen] = useState(step?.loggedAt ?? '');
+  // default the date to today — most stops are logged the day you're there
+  const [when, setWhen] = useState(step?.loggedAt ?? new Date().toISOString().slice(0, 10));
   const [title, setTitle] = useState(step?.title ?? '');
   const [note, setNote] = useState(step?.note ?? '');
   const [photos, setPhotos] = useState<{ blob: Blob; url: string }[]>([]);
   const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
   // debounced place search
   useEffect(() => {
@@ -79,19 +81,29 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
   };
 
   const save = async () => {
+    setSaveMsg(null);
     if (tripId && place?.municipalityCode && place.prefectureCode && isSupabaseConfigured) {
       setSaving(true);
-      await createStep({
+      const res = await createStep({
         tripId,
         title: title.trim() || place.title,
         note: note.trim(),
         municipalityCode: place.municipalityCode,
         prefectureCode: place.prefectureCode,
-        loggedAt: (when || '2026-01-01').replace(/\./g, '-'),
+        loggedAt: (when || new Date().toISOString().slice(0, 10)).replace(/\./g, '-'),
         transport: 'train',
         photoBlobs: photos.map((p) => p.blob),
       });
       setSaving(false);
+      if (!res.id) {
+        setSaveMsg('Could not save. Please sign in and try again.');
+        return;
+      }
+      if (res.photoFailed > 0) {
+        setSaveMsg(`Saved, but ${res.photoFailed} photo(s) failed to upload.`);
+        setTimeout(() => router.back(), 1500);
+        return;
+      }
     }
     router.back();
   };
@@ -190,6 +202,7 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
         <Gap h={space.md} />
         <TextInput value={note} onChangeText={setNote} placeholder="Write what you felt, what to remember…" placeholderTextColor={palette.inkFaint} multiline style={[styles.noteInput, { color: palette.inkSoft }]} />
 
+        {!!saveMsg && (<><Gap h={space.md} /><AppText variant="small" tone="shu" center>{saveMsg}</AppText></>)}
         <Gap h={space.xl} />
         <Button label={saving ? 'Saving…' : editing ? 'Save changes' : 'Save stop'} tone="matcha" onPress={save} disabled={!canSave || saving} />
         {!editing && !isSupabaseConfigured && (

@@ -8,7 +8,7 @@ import { GlobeMap } from '@/components/map/GlobeMap';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { PREFECTURE_TOTAL, type Trip } from '@/lib/mock';
-import { useTrips, useVisitedPrefectures } from '@/lib/useData';
+import { useTrips, usePublicTrips, useVisitedPrefectures } from '@/lib/useData';
 import { useProfile } from '@/lib/useProfile';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { deleteTrip } from '@/lib/api';
@@ -23,14 +23,22 @@ const statusLabel: Record<Trip['status'], string> = {
 export default function Home() {
   const { palette } = useTheme();
   const { trips } = useTrips();
+  const { trips: publicTrips } = usePublicTrips();
   const { profile } = useProfile();
   const { codes: visited } = useVisitedPrefectures();
   const [menuTrip, setMenuTrip] = useState<Trip | null>(null);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   const pct = Math.round((visited.length / PREFECTURE_TOTAL) * 100);
-  const ordered = [...trips]
+  let ordered = [...trips]
     .filter((t) => !deletedIds.has(t.id))
     .sort((a, b) => (a.status === 'ongoing' ? -1 : b.status === 'ongoing' ? 1 : 0));
+  // keep the official sample pinned at the top (read-only, from the DB demo user)
+  if (isSupabaseConfigured) {
+    const sample = publicTrips.find((t) => t.authorId !== 'me' && t.title === 'Japan Grand Tour');
+    if (sample && !ordered.some((t) => t.id === sample.id)) {
+      ordered = [{ ...sample, sample: true }, ...ordered];
+    }
+  }
 
   const onDelete = async () => {
     const t = menuTrip;
@@ -126,9 +134,11 @@ function TripCard({ trip, palette, onEdit }: { trip: Trip; palette: any; onEdit:
   const { navigate } = useRippleNav();
   const cover = trip.steps[0]?.images[0];
   const ongoing = isOnTheRoad(trip);
-  const editable = !trip.sample; // the showcase sample can't be edited/deleted
+  const mine = trip.authorId === 'me' || !trip.authorId;
+  const editable = !trip.sample && mine; // sample & others' trips can't be edited/deleted
+  const href = `/trip/${trip.id}${editable ? '' : '?readonly=1'}`;
   return (
-    <Pressable onPress={(e) => navigate(`/trip/${trip.id}`, e)} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
+    <Pressable onPress={(e) => navigate(href, e)} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
       <View style={styles.cover}>
         {cover && <Image source={{ uri: cover }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />}
         <View style={styles.coverShade} />
@@ -136,6 +146,12 @@ function TripCard({ trip, palette, onEdit }: { trip: Trip; palette: any; onEdit:
           <View style={[styles.pill, { backgroundColor: palette.matcha }]}>
             <View style={styles.pulse} />
             <AppText variant="eyebrow" style={{ color: '#fff' }}>On the road</AppText>
+          </View>
+        )}
+        {trip.sample && (
+          <View style={[styles.pill, { backgroundColor: 'rgba(43,66,87,0.9)' }]}>
+            <Ionicons name="sparkles-outline" size={11} color="#fff" />
+            <AppText variant="eyebrow" style={{ color: '#fff' }}>Sample</AppText>
           </View>
         )}
         {editable && (

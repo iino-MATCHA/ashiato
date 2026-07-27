@@ -45,6 +45,7 @@ export interface Trip {
   distanceKm: number;
   sample?: boolean; // pinned showcase trip
   authorId?: string;
+  visibility?: 'private' | 'friends' | 'public';
   steps: Step[];
 }
 

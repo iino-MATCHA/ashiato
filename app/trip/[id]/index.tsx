@@ -82,9 +82,10 @@ export default function TripDetail() {
       <View style={styles.headerZone} pointerEvents="box-none">
         <Glass onPress={() => router.back()} icon="arrow-back" palette={palette} />
         <Gap h={space.sm} />
+        {/* fixed dark text — the pill is always white, even in dark mode */}
         <View style={styles.titleGlass}>
-          <AppText variant="small" tone="inkFaint">{trip.subtitle}</AppText>
-          <AppText variant="h3" tone="ink" numberOfLines={1}>{trip.title}</AppText>
+          <AppText variant="small" style={{ color: '#7A7A7A' }}>{trip.subtitle}</AppText>
+          <AppText variant="h3" style={{ color: '#171717' }} numberOfLines={1}>{trip.title}</AppText>
         </View>
         {canEdit && (
           <View style={styles.actionCol} pointerEvents="box-none">
@@ -178,10 +179,11 @@ export default function TripDetail() {
   );
 }
 
-function Glass({ onPress, icon, palette }: any) {
+function Glass({ onPress, icon }: any) {
+  // fixed dark icon on a white circle — readable in light AND dark browser themes
   return (
     <Pressable onPress={onPress} style={styles.glassCircle} hitSlop={8}>
-      <Ionicons name={icon} size={20} color={palette.ink} />
+      <Ionicons name={icon} size={20} color="#1B1815" />
     </Pressable>
   );
 }

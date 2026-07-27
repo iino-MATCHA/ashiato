@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, TextInput, Pressable, StyleSheet, Image, Platform } from 'react-native';
+import { View, TextInput, Pressable, Switch, StyleSheet, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +31,7 @@ export default function EditTrip() {
       setTitle(trip.title ?? '');
       setStart(trip.startDate ?? '');
       setEnd(trip.endDate ?? '');
+      setIsPublic(trip.visibility === 'public');
       if (!coverPreview) setCoverPreview(trip.steps[0]?.images[0] ?? null);
       setReady(true);
     }
@@ -117,9 +118,12 @@ export default function EditTrip() {
         <Gap h={space.xl} />
         <Eyebrow>Visibility</Eyebrow>
         <Gap h={space.md} />
-        <Row style={{ gap: space.sm }}>
-          <Opt label="Private" active={!isPublic} onPress={() => setIsPublic(false)} palette={palette} />
-          <Opt label="Public" active={isPublic} onPress={() => setIsPublic(true)} palette={palette} />
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Row style={{ gap: 8, alignItems: 'center' }}>
+            <Ionicons name={isPublic ? 'earth-outline' : 'lock-closed-outline'} size={18} color={isPublic ? palette.matcha : palette.inkSoft} />
+            <AppText variant="bodyStrong" tone="ink">Public</AppText>
+          </Row>
+          <Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ true: palette.matcha, false: palette.rule }} thumbColor="#fff" />
         </Row>
 
         <View style={{ flex: 1 }} />
@@ -137,14 +141,6 @@ export default function EditTrip() {
   );
 }
 
-function Opt({ label, active, onPress, palette }: any) {
-  return (
-    <Pressable onPress={onPress} style={[styles.opt, active && { backgroundColor: palette.matcha }]}>
-      <AppText variant="bodyStrong" style={{ color: active ? '#fff' : palette.inkSoft }}>{label}</AppText>
-    </Pressable>
-  );
-}
-
 function Field({ label, value, onChangeText, palette }: any) {
   return (
     <View style={{ flex: 1 }}>
@@ -159,8 +155,6 @@ function Field({ label, value, onChangeText, palette }: any) {
 
 const styles = StyleSheet.create({
   titleInput: { fontFamily: fonts.minchoBold, fontSize: type.h1, lineHeight: type.h1 * 1.3, paddingBottom: space.sm, minHeight: 44 },
-  toggle: { borderWidth: hairline * 2, borderRadius: 10, padding: 3 },
-  opt: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 8 },
   cover: { height: 150, borderRadius: 12, overflow: 'hidden', borderWidth: hairline, alignItems: 'center', justifyContent: 'center' },
   coverBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
 });

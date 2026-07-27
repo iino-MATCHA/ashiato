@@ -141,7 +141,8 @@ export default function StepDetail() {
             {!!msg && (<><Gap h={space.sm} /><AppText variant="small" tone="shu">{msg}</AppText></>)}
 
             <Gap h={space.md} />
-            <Row style={[styles.commentBar, { borderColor: palette.ruleStrong }]}>
+            {/* send button is ABSOLUTELY positioned inside the bar — can never overflow */}
+            <View style={[styles.commentBar, { borderColor: palette.ruleStrong }]}>
               <TextInput
                 value={draft} onChangeText={setDraft}
                 placeholder="Add a comment…" placeholderTextColor={palette.inkFaint}
@@ -151,7 +152,7 @@ export default function StepDetail() {
               <Pressable onPress={post} disabled={posting || !draft.trim()} style={[styles.sendBtn, { backgroundColor: draft.trim() ? palette.matcha : palette.fill }]}>
                 <Ionicons name="arrow-up" size={18} color={draft.trim() ? '#fff' : palette.inkFaint} />
               </Pressable>
-            </Row>
+            </View>
           </>
         )}
       </ScrollView>
@@ -162,7 +163,7 @@ export default function StepDetail() {
 const styles = StyleSheet.create({
   thumb: { width: 44, height: 44, borderRadius: 6, borderWidth: 2, backgroundColor: '#eee' },
   transport: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
-  commentBar: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderWidth: hairline * 2, borderRadius: 999, paddingLeft: space.md, paddingRight: 5, paddingVertical: 5 },
-  commentInput: { flex: 1, fontFamily: fonts.gothicRegular, fontSize: type.body, paddingVertical: 6 },
-  sendBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  commentBar: { position: 'relative', width: '100%', height: 46, borderWidth: hairline * 2, borderRadius: 23, justifyContent: 'center' },
+  commentInput: { fontFamily: fonts.gothicRegular, fontSize: type.body, paddingLeft: space.md, paddingRight: 52, paddingVertical: 6, minWidth: 0 },
+  sendBtn: { position: 'absolute', right: 5, top: 5, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
 });
