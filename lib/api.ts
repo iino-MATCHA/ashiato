@@ -687,6 +687,52 @@ export async function fetchVisitedPrefecturesOf(userId: string): Promise<number[
   return (data as any[]).map((r) => (typeof r === 'number' ? r : r.visited_prefectures_of)).filter((n) => n != null);
 }
 
+// ---------------------------------------------------------------- tourism areas (Explore)
+export interface TourismArea {
+  id: string;
+  name: string;
+  nameJa: string;
+  municipality: string;
+  prefectureCode: number | null;
+  areaType: string;
+  matchaUrl: string | null;
+}
+
+function toArea(a: any): TourismArea {
+  return {
+    id: a.tourism_area_id,
+    name: a.name_en || a.name_ja,
+    nameJa: a.name_ja ?? '',
+    municipality: a.municipality_en ?? '',
+    prefectureCode: a.prefecture_code ?? null,
+    areaType: a.area_type ?? '',
+    matchaUrl: a.matcha_url ?? null,
+  };
+}
+
+const AREA_COLS = 'tourism_area_id, name_en, name_ja, municipality_en, prefecture_code, area_type, matcha_url';
+
+/** Explore の検索: 観光エリア（tourism_area_master）を名前・市区町村で検索。 */
+export async function searchTourismAreas(q: string): Promise<TourismArea[]> {
+  if (!isSupabaseConfigured) return [];
+  const term = q.trim();
+  if (!term) return [];
+  const like = `%${term}%`;
+  const { data } = await supabase
+    .from('tourism_area_master')
+    .select(AREA_COLS)
+    .or(`name_en.ilike.${like},name_ja.ilike.${like},municipality_en.ilike.${like}`)
+    .limit(40);
+  return (data ?? []).map(toArea);
+}
+
+/** 検索していないときに見せる一覧（全200件のうち先頭から）。 */
+export async function fetchTourismAreas(limit = 40): Promise<TourismArea[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data } = await supabase.from('tourism_area_master').select(AREA_COLS).limit(limit);
+  return (data ?? []).map(toArea);
+}
+
 // ---------------------------------------------------------------- admin
 export async function fetchMyAdminRole(): Promise<string | null> {
   const uid = await currentUserId();
@@ -716,6 +762,27 @@ export async function fetchAdmins(): Promise<{ username: string; name: string; r
 export async function setAdminRole(username: string, role: string | null): Promise<boolean> {
   const { data, error } = await supabase.rpc('set_admin_role', { p_username: username, p_role: role ?? '' });
   return !error && data === true;
+}
+
+/** 分析データ（都道府県 / 市区町村 / 滞在 / 移動手段）。管理者のみ。 */
+export async function fetchAnalytics(): Promise<{
+  prefecture: any | null;
+  municipality: any | null;
+  stay: any | null;
+  transport: any[] | null;
+}> {
+  const [p, m, s, t] = await Promise.all([
+    supabase.rpc('admin_prefecture_stats'),
+    supabase.rpc('admin_municipality_stats'),
+    supabase.rpc('admin_stay_stats'),
+    supabase.rpc('admin_transport_stats'),
+  ]);
+  return {
+    prefecture: p.error ? null : p.data,
+    municipality: m.error ? null : m.data,
+    stay: s.error ? null : s.data,
+    transport: t.error ? null : (t.data as any[]),
+  };
 }
 
 // ---------------------------------------------------------------- step update

@@ -18,9 +18,10 @@ export function useTrips(): { trips: Trip[]; loading: boolean } {
 
   const load = useCallback(() => {
     if (!isSupabaseConfigured) return;
+    // no mock fallback when connected — an empty list means "you have no trips yet"
     fetchTrips()
-      .then((t) => alive.current && setTrips(t.length ? t : mockTrips))
-      .catch(() => alive.current && setTrips(mockTrips))
+      .then((t) => alive.current && setTrips(t))
+      .catch(() => alive.current && setTrips([]))
       .finally(() => alive.current && setLoading(false));
   }, []);
 
@@ -58,8 +59,8 @@ export function usePublicTrips(): { trips: Trip[]; loading: boolean } {
   const load = useCallback(() => {
     if (!isSupabaseConfigured) return;
     fetchPublicTrips()
-      .then((t) => alive.current && setTrips(t.length ? t : mockPublicTrips))
-      .catch(() => alive.current && setTrips(mockPublicTrips))
+      .then((t) => alive.current && setTrips(t))
+      .catch(() => alive.current && setTrips([]))
       .finally(() => alive.current && setLoading(false));
   }, []);
 
@@ -77,8 +78,8 @@ export function useTrip(id?: string): { trip: Trip | null; loading: boolean } {
   const load = useCallback(() => {
     if (!isSupabaseConfigured) { setTrip(mockFindTrip(id)); return; }
     fetchTrip(id ?? '')
-      .then((t) => alive.current && setTrip(t ?? mockFindTrip(id)))
-      .catch(() => alive.current && setTrip(mockFindTrip(id)))
+      .then((t) => alive.current && setTrip(t))
+      .catch(() => alive.current && setTrip(null))
       .finally(() => alive.current && setLoading(false));
   }, [id]);
 

@@ -1,13 +1,15 @@
-import { useState } from 'react';
-import { View, TextInput, StyleSheet, Pressable, Image, Platform } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, TextInput, StyleSheet, Pressable, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Button } from '@/components/ui';
+import { DateInput } from '@/components/DateInput';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useProfile } from '@/lib/useProfile';
+import { PhotoPicker } from '@/components/PhotoPicker';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { uploadAvatar } from '@/lib/api';
 
@@ -20,25 +22,41 @@ export default function EditProfile() {
   const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl);
   const [avatarBlob, setAvatarBlob] = useState<Blob | null>(null);
   const [avatarPreview, setAvatarPreview] = useState(profile.avatarUrl);
+  const [birthDate, setBirthDate] = useState(profile.birthDate);
+  const [nationality, setNationality] = useState(profile.nationality);
+  const [residence, setResidence] = useState(profile.residence || 'domestic');
   const [saving, setSaving] = useState(false);
+  const [ready, setReady] = useState(false);
 
-  const pickAvatar = () => {
-    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = () => {
-      const f = input.files?.[0];
-      if (f) { setAvatarBlob(f); setAvatarPreview(URL.createObjectURL(f)); }
-    };
-    input.click();
+  // profile loads async — prefill once it arrives
+  useEffect(() => {
+    if (!ready && (profile.name || profile.username)) {
+      setName(profile.name); setUsername(profile.username); setBio(profile.bio);
+      setAvatarUrl(profile.avatarUrl); setAvatarPreview(profile.avatarUrl);
+      setBirthDate(profile.birthDate); setNationality(profile.nationality);
+      setResidence(profile.residence || 'domestic');
+      setReady(true);
+    }
+  }, [profile, ready]);
+
+  const pickAvatar = (files: File[]) => {
+    const f = files[0];
+    if (f) { setAvatarBlob(f); setAvatarPreview(URL.createObjectURL(f)); }
   };
 
   const save = async () => {
     setSaving(true);
     let url = avatarUrl;
     if (avatarBlob && isSupabaseConfigured) url = (await uploadAvatar(avatarBlob)) ?? avatarUrl;
-    await update({ name: name.trim() || profile.name, username: username.trim() || profile.username, bio: bio.trim(), avatarUrl: url });
+    await update({
+      name: name.trim() || profile.name,
+      username: username.trim() || profile.username,
+      bio: bio.trim(),
+      avatarUrl: url,
+      birthDate,
+      nationality: nationality.trim().toUpperCase(),
+      residence,
+    });
     setSaving(false);
     router.back();
   };
@@ -51,7 +69,7 @@ export default function EditProfile() {
         <View style={styles.form}>
           <Gap h={space.lg} />
           <Row style={{ justifyContent: 'center' }}>
-            <Pressable onPress={pickAvatar} style={[styles.avatar, { backgroundColor: palette.fill, borderColor: palette.matcha }]}>
+            <PhotoPicker onPick={pickAvatar} style={[styles.avatar, { backgroundColor: palette.fill, borderColor: palette.matcha }]}>
               {avatarPreview ? (
                 <Image source={{ uri: avatarPreview }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
               ) : (
@@ -60,7 +78,7 @@ export default function EditProfile() {
               <View style={styles.avatarBadge}>
                 <Ionicons name="camera" size={14} color="#fff" />
               </View>
-            </Pressable>
+            </PhotoPicker>
           </Row>
 
           <Gap h={space.xl} />
@@ -68,7 +86,37 @@ export default function EditProfile() {
           <Field label="Username" value={username} onChangeText={setUsername} placeholder="username" prefix="@" palette={palette} autoCapitalize="none" />
           <Field label="Bio" value={bio} onChangeText={setBio} placeholder="A line about you" palette={palette} multiline />
 
-          <Gap h={space.xl} />
+          <View style={{ marginBottom: space.lg }}>
+            <AppText variant="small" tone="inkSoft">Date of birth</AppText>
+            <Gap h={4} />
+            <DateInput value={birthDate} onChange={setBirthDate} />
+            <Gap h={space.xs} />
+            <Rule strong />
+          </View>
+
+          <Field label="Nationality (e.g. JP, TW, US)" value={nationality} onChangeText={setNationality} placeholder="JP" palette={palette} autoCapitalize="characters" maxLength={2} />
+
+          <AppText variant="small" tone="inkSoft">Living in Japan?</AppText>
+          <Gap h={space.sm} />
+          <Row style={{ gap: space.sm, marginBottom: space.lg }}>
+            {[
+              { key: 'domestic', label: 'Resident' },
+              { key: 'inbound', label: 'Visiting' },
+            ].map((o) => {
+              const on = residence === o.key;
+              return (
+                <Pressable
+                  key={o.key}
+                  onPress={() => setResidence(o.key)}
+                  style={[styles.segment, { borderColor: on ? palette.matcha : palette.ruleStrong }, on && { backgroundColor: palette.matcha }]}
+                >
+                  <AppText variant="small" style={{ color: on ? '#fff' : palette.inkSoft }}>{o.label}</AppText>
+                </Pressable>
+              );
+            })}
+          </Row>
+
+          <Gap h={space.md} />
           <Button label={saving ? 'Saving…' : 'Save'} tone="matcha" onPress={save} disabled={saving} />
         </View>
       </View>
@@ -94,4 +142,5 @@ const styles = StyleSheet.create({
   avatar: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
   input: { fontFamily: fonts.minchoMedium, fontSize: type.h3, paddingVertical: space.sm },
+  segment: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 999, borderWidth: hairline * 2 },
 });

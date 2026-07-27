@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Image, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, View, Image, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { AppText, Screen, Row, Rule, Gap, Eyebrow } from '@/components/ui';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { usePublicTrips } from '@/lib/useData';
+import { searchTourismAreas, type TourismArea } from '@/lib/api';
 import { useRippleNav } from '@/lib/transition';
 import { trendingSpots, type Trip } from '@/lib/mock';
 
@@ -29,20 +31,36 @@ export default function Explore() {
   const { width } = useWindowDimensions();
   const { trips } = usePublicTrips();
   const [q, setQ] = useState('');
+  const [areas, setAreas] = useState<TourismArea[]>([]);
+  const [searching, setSearching] = useState(false);
 
-  // the search bar actually filters journeys (title / prefectures / author)
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    if (!term) return trips;
-    return trips.filter((t) =>
-      t.title.toLowerCase().includes(term) ||
-      t.prefectures.join(' ').toLowerCase().includes(term) ||
-      (t.members[0] ?? '').toLowerCase().includes(term)
-    );
-  }, [trips, q]);
+  // the search bar looks up tourism areas (tourism_area_master) and links to MATCHA
+  useEffect(() => {
+    const term = q.trim();
+    if (!term) { setAreas([]); return; }
+    setSearching(true);
+    const t = setTimeout(async () => {
+      const r = await searchTourismAreas(term);
+      setAreas(r);
+      setSearching(false);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q]);
 
-  const featured = useMemo(() => weeklyFeatured(filtered), [filtered]);
-  const friendTrips = filtered.filter((t) => t.authorId && t.authorId !== 'me');
+  const openMatcha = (area: TourismArea) => {
+    if (!area.matchaUrl) return;
+    if (Platform.OS === 'web') {
+      // web app: normal navigation in a new tab
+      if (typeof window !== 'undefined') window.open(area.matchaUrl, '_blank');
+    } else {
+      // native: in-app browser
+      WebBrowser.openBrowserAsync(area.matchaUrl);
+    }
+  };
+
+  const featured = useMemo(() => weeklyFeatured(trips), [trips]);
+  const friendTrips = trips.filter((t) => t.authorId && t.authorId !== 'me');
+  const searchMode = q.trim().length > 0;
 
   return (
     <Screen>
@@ -57,23 +75,52 @@ export default function Explore() {
         <TextInput
           value={q}
           onChangeText={setQ}
-          placeholder="Search journeys, prefectures, people"
+          placeholder="Search areas to explore (e.g. Shibuya, Kyoto)"
           placeholderTextColor={palette.inkFaint}
           style={[styles.searchInput, { color: palette.ink }]}
           autoCapitalize="none"
         />
-        {!!q && (
+        {searching && <ActivityIndicator size="small" color={palette.inkFaint} />}
+        {!!q && !searching && (
           <Pressable onPress={() => setQ('')} hitSlop={8}>
             <Ionicons name="close-circle" size={16} color={palette.inkFaint} />
           </Pressable>
         )}
       </Row>
-      {!!q.trim() && featured.length === 0 && friendTrips.length === 0 && (
-        <><Gap h={space.md} /><AppText variant="small" tone="inkFaint">No journeys match “{q.trim()}”.</AppText></>
+
+      {/* Search results — tourism areas, opening the matching MATCHA guide */}
+      {searchMode && (
+        <>
+          <Gap h={space.lg} />
+          <Eyebrow>Areas</Eyebrow>
+          <Gap h={space.md} />
+          <Rule />
+          {areas.map((a) => (
+            <View key={a.id}>
+              <Pressable onPress={() => openMatcha(a)} style={({ pressed }) => [styles.areaRow, pressed && { opacity: 0.6 }]}>
+                <Ionicons name="location-outline" size={18} color={palette.matcha} />
+                <View style={{ flex: 1 }}>
+                  <AppText variant="bodyStrong" tone="ink">{a.name}</AppText>
+                  <AppText variant="small" tone="inkFaint">
+                    {a.nameJa}{a.municipality ? ` · ${a.municipality}` : ''}
+                  </AppText>
+                </View>
+                <Row style={{ gap: 4, alignItems: 'center' }}>
+                  <AppText variant="small" tone="matcha">MATCHA</AppText>
+                  <Ionicons name="open-outline" size={14} color={palette.matcha} />
+                </Row>
+              </Pressable>
+              <Rule />
+            </View>
+          ))}
+          {!searching && areas.length === 0 && (
+            <><Gap h={space.md} /><AppText variant="small" tone="inkFaint">No areas match “{q.trim()}”.</AppText></>
+          )}
+        </>
       )}
 
       {/* Featured — weekly */}
-      {featured.length > 0 && (
+      {!searchMode && featured.length > 0 && (
         <>
           <Gap h={space.xl} />
           <Eyebrow>Featured journeys</Eyebrow>
@@ -83,7 +130,7 @@ export default function Explore() {
       )}
 
       {/* From friends */}
-      {friendTrips.length > 0 && (
+      {!searchMode && friendTrips.length > 0 && (
         <>
           <Gap h={space.xl} />
           <Eyebrow>From your friends</Eyebrow>
@@ -213,6 +260,7 @@ const styles = StyleSheet.create({
   search: { alignItems: 'center', gap: space.sm, borderBottomWidth: hairline * 2, paddingBottom: space.sm },
   searchInput: { flex: 1, fontFamily: fonts.gothicRegular, fontSize: type.body, paddingVertical: 4 },
   spot: { alignItems: 'center', gap: space.md, paddingVertical: space.md },
+  areaRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
   featureCover: { height: 240, borderRadius: 12, overflow: 'hidden', backgroundColor: '#ccc', justifyContent: 'flex-end' },
   featureText: { padding: space.lg },
   friendCover: { height: 150, borderRadius: 10, overflow: 'hidden', backgroundColor: '#ccc', justifyContent: 'flex-end' },

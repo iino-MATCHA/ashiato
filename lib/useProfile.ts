@@ -7,10 +7,13 @@ export interface Profile {
   username: string;
   bio: string;
   avatarUrl: string;
+  birthDate: string;   // YYYY-MM-DD
+  nationality: string; // ISO 3166-1 alpha-2
+  residence: string;   // 'domestic' | 'inbound'
 }
 
 // tiny shared store so the profile stays in sync across pages
-let current: Profile = { name: me.name, username: me.username, bio: '', avatarUrl: '' };
+let current: Profile = { name: me.name, username: me.username, bio: '', avatarUrl: '', birthDate: '', nationality: '', residence: '' };
 const listeners = new Set<() => void>();
 function emit() {
   listeners.forEach((l) => l());
@@ -21,13 +24,20 @@ async function loadFromDb() {
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth?.user?.id;
   if (!uid) return;
-  const { data } = await supabase.from('profiles').select('display_name, username, bio, avatar_url').eq('id', uid).single();
+  const { data } = await supabase
+    .from('profiles')
+    .select('display_name, username, bio, avatar_url, birth_date, nationality, residence')
+    .eq('id', uid)
+    .single();
   if (data) {
     current = {
       name: data.display_name ?? current.name,
       username: data.username ?? current.username,
       bio: data.bio ?? '',
       avatarUrl: data.avatar_url ?? '',
+      birthDate: data.birth_date ?? '',
+      nationality: data.nationality ?? '',
+      residence: data.residence ?? '',
     };
     emit();
   }
@@ -40,7 +50,16 @@ export async function saveProfile(next: Profile) {
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth?.user?.id;
   if (!uid) return;
-  await supabase.from('profiles').upsert({ id: uid, display_name: next.name, username: next.username, bio: next.bio, avatar_url: next.avatarUrl || null });
+  await supabase.from('profiles').upsert({
+    id: uid,
+    display_name: next.name,
+    username: next.username,
+    bio: next.bio,
+    avatar_url: next.avatarUrl || null,
+    birth_date: next.birthDate || null,
+    nationality: next.nationality || null,
+    residence: next.residence || null,
+  });
 }
 
 export function useProfile() {

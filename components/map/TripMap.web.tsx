@@ -143,7 +143,12 @@ export function TripMap({
       w = Math.min(w, st.lng); e = Math.max(e, st.lng);
       s = Math.min(s, st.lat); n = Math.max(n, st.lat);
     });
-    map.fitBounds([[w, s], [e, n]], { padding: { top: 90, bottom: bottomInset, left: 60, right: 60 }, duration: 1800, essential: true });
+    // single stop (or all stops in one town): stay wide instead of slamming to street level
+    if (e - w < 0.4 && n - s < 0.4) {
+      map.easeTo({ center: [(w + e) / 2, (n + s) / 2], zoom: 8, duration: 1200, offset: [0, -bottomInset / 2], essential: true });
+    } else {
+      map.fitBounds([[w, s], [e, n]], { padding: { top: 90, bottom: bottomInset, left: 60, right: 60 }, duration: 1800, maxZoom: 8.5, essential: true });
+    }
     markersRef.current.forEach((m) => {
       m.inner.style.transform = 'scale(1)';
       m.el.style.borderColor = '#fff';
@@ -155,10 +160,10 @@ export function TripMap({
     const map = mapRef.current;
     const step = steps[i];
     if (!map || !step) return;
-    // slower + more overhead so the movement reads clearly and stays legible
+    // slower + wider so the movement reads clearly and context stays visible
     map.flyTo({
       center: [step.lng, step.lat],
-      zoom: 8.4,
+      zoom: 7.6,
       duration: 2400,
       curve: 1.4,
       offset: [0, -bottomInset / 2],

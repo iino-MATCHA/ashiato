@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Button, Eyebrow } from '@/components/ui';
 import { DateInput } from '@/components/DateInput';
+import { PhotoPicker } from '@/components/PhotoPicker';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -37,16 +38,9 @@ export default function EditTrip() {
     }
   }, [trip, ready]);
 
-  const pickCover = () => {
-    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = () => {
-      const f = input.files?.[0];
-      if (f) { setCoverBlob(f); setCoverPreview(URL.createObjectURL(f)); }
-    };
-    input.click();
+  const pickCover = (files: File[]) => {
+    const f = files[0];
+    if (f) { setCoverBlob(f); setCoverPreview(URL.createObjectURL(f)); }
   };
 
   const save = async () => {
@@ -79,7 +73,7 @@ export default function EditTrip() {
         <Gap h={space.lg} />
         <Eyebrow>Cover photo</Eyebrow>
         <Gap h={space.sm} />
-        <Pressable onPress={pickCover} style={[styles.cover, { backgroundColor: palette.fill, borderColor: palette.ruleStrong }]}>
+        <PhotoPicker onPick={pickCover} style={[styles.cover, { backgroundColor: palette.fill, borderColor: palette.ruleStrong }]}>
           {coverPreview ? (
             <Image source={{ uri: coverPreview }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
           ) : null}
@@ -87,7 +81,7 @@ export default function EditTrip() {
             <Ionicons name="camera-outline" size={18} color="#fff" />
             <AppText variant="small" style={{ color: '#fff' }}>Change cover</AppText>
           </View>
-        </Pressable>
+        </PhotoPicker>
 
         <Gap h={space.xl} />
         <Eyebrow>Title</Eyebrow>

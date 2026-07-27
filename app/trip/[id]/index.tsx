@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View, ScrollView, Pressable, StyleSheet, Image, Modal,
   useWindowDimensions, type NativeSyntheticEvent, type NativeScrollEvent,
@@ -39,6 +39,13 @@ export default function TripDetail() {
 
   const steps = trip?.steps ?? [];
   const n = steps.length;
+
+  // after adding a stop (or on first load) return to the overview instead of
+  // slamming the camera onto the newest pin
+  useEffect(() => {
+    setActive(0);
+    scrollRef.current?.scrollTo({ x: 0, animated: false });
+  }, [n]);
   const canEdit = (trip?.authorId === 'me' || !trip?.authorId) && readonly !== '1';
   const effModes = modes.length === n && n > 0 ? modes : steps.map((s) => s.transport);
   const sideInset = (width - CARD_W) / 2;

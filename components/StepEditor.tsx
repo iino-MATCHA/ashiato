@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Button, Eyebrow } from '@/components/ui';
 import { DateInput } from '@/components/DateInput';
+import { PhotoPicker } from '@/components/PhotoPicker';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -65,19 +66,10 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
     setHits([]);
   };
 
-  // web-only photo picker (compression happens on upload)
-  const addPhotos = () => {
-    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.multiple = true;
-    input.onchange = () => {
-      const files = Array.from(input.files ?? []);
-      const next = files.slice(0, 10).map((f) => ({ blob: f as Blob, url: URL.createObjectURL(f) }));
-      setPhotos((cur) => [...cur, ...next].slice(0, 10));
-    };
-    input.click();
+  // compression happens on upload
+  const addPhotos = (files: File[]) => {
+    const next = files.slice(0, 10).map((f) => ({ blob: f as Blob, url: URL.createObjectURL(f) }));
+    setPhotos((cur) => [...cur, ...next].slice(0, 10));
   };
 
   const save = async () => {
@@ -190,10 +182,10 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
         <Eyebrow tone="matcha">Photos & notes</Eyebrow>
         <Gap h={space.md} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
-          <Pressable onPress={addPhotos} style={[styles.addPhoto, { borderColor: palette.ruleStrong }]}>
+          <PhotoPicker onPick={addPhotos} multiple style={[styles.addPhoto, { borderColor: palette.ruleStrong }]}>
             <Ionicons name="add" size={26} color={palette.inkFaint} />
             <AppText variant="small" tone="inkFaint">Add</AppText>
-          </Pressable>
+          </PhotoPicker>
           {photos.map((p, i) => (
             <View key={i} style={styles.photoWrap}>
               <Image source={{ uri: p.url }} style={styles.photo} resizeMode="cover" />
