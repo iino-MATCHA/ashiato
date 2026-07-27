@@ -11,6 +11,7 @@ import { useTrip } from '@/lib/useData';
 import { useProfile } from '@/lib/useProfile';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { fetchStepSocial, toggleLike, addComment, type StepSocial } from '@/lib/api';
+import { useKeyboardInset, scrollInputIntoView } from '@/lib/useKeyboardInset';
 import { transportLabel, type TransportMode } from '@/lib/mock';
 
 const transportIcon: Record<TransportMode, any> = {
@@ -28,13 +29,24 @@ export default function StepDetail() {
   const canEdit = (trip?.authorId === 'me' || !trip?.authorId) && readonly !== '1';
 
   const [hero, setHero] = useState(0);
-  const [social, setSocial] = useState<StepSocial | null>(null);
+  // null にしない。取得前や取得失敗でも空の状態を持っておくことで、
+  // 投稿した分をその場で足せる（＝必ず即時反映される）。
+  const [social, setSocial] = useState<StepSocial>({ likes: 0, likedByMe: false, comments: [] });
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const keyboardInset = useKeyboardInset();
 
   const loadSocial = () => {
-    if (isSupabaseConfigured && stepId) fetchStepSocial(stepId).then(setSocial).catch(() => {});
+    if (!isSupabaseConfigured || !stepId) return;
+    fetchStepSocial(stepId).then((fresh) => {
+      // 自分が今書いた分がサーバー側の一覧にまだ無ければ残す
+      setSocial((cur) => {
+        const known = new Set(fresh.comments.map((c) => c.id));
+        const mine = cur.comments.filter((c) => !known.has(c.id) && c.id.startsWith('local-'));
+        return { ...fresh, comments: [...fresh.comments, ...mine] };
+      });
+    });
   };
   useEffect(loadSocial, [stepId]);
 
@@ -49,7 +61,6 @@ export default function StepDetail() {
   const coverH = Math.min(height * 0.3, 240);
 
   const like = async () => {
-    if (!social) return;
     const prev = social;
     setMsg(null);
     setSocial({ ...social, likedByMe: !social.likedByMe, likes: social.likes + (social.likedByMe ? -1 : 1) });
@@ -57,36 +68,47 @@ export default function StepDetail() {
     if (!ok) { setSocial(prev); setMsg('Sign in to like this stop.'); return; }
     loadSocial();
   };
+
   const post = async () => {
     const body = draft.trim();
-    if (!body) return;
+    if (!body || posting) return;
     setMsg(null);
     setPosting(true);
-    // show the comment instantly, then reconcile with the server
-    const optimistic = {
-      id: `pending-${Date.now()}`,
-      author: profile.name,
-      body,
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-    const prev = social;
-    setSocial((cur) => (cur ? { ...cur, comments: [...cur.comments, optimistic] } : cur));
+    const tempId = `local-${Date.now()}`;
+    // まず画面に出す
+    setSocial((cur) => ({
+      ...cur,
+      comments: [...cur.comments, { id: tempId, author: profile.name || 'You', body, createdAt: new Date().toISOString().slice(0, 10) }],
+    }));
     setDraft('');
-    const ok = await addComment(step.id, trip.id, body);
+
+    const created = await addComment(step.id, trip.id, body);
     setPosting(false);
-    if (ok) loadSocial();
-    else {
-      setSocial(prev);
+    if (!created) {
+      // 失敗したら足した分を取り消して、書いた内容は入力欄に戻す
+      setSocial((cur) => ({ ...cur, comments: cur.comments.filter((c) => c.id !== tempId) }));
       setDraft(body);
       setMsg('Could not post. Please sign in and try again.');
+      return;
     }
+    // 仮の行をサーバーが返した本物に差し替える（再取得の成否に依存しない）
+    setSocial((cur) => ({
+      ...cur,
+      comments: cur.comments.map((c) =>
+        c.id === tempId ? { ...created, author: profile.name || 'You' } : c
+      ),
+    }));
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
       <Header title={step.placeName} />
       <Rule />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxl }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxl + keyboardInset }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <Image source={{ uri: step.images[hero] }} style={{ width: '100%', height: coverH, borderRadius: 10, backgroundColor: palette.fill }} resizeMode="cover" />
         {step.images.length > 1 && (
           <Row style={{ gap: 6, marginTop: space.sm }}>
@@ -165,6 +187,10 @@ export default function StepDetail() {
                 placeholder="Add a comment…" placeholderTextColor={palette.inkFaint}
                 style={[styles.commentInput, { color: palette.ink }]}
                 onSubmitEditing={post}
+                onFocus={() => scrollInputIntoView()}
+                returnKeyType="send"
+                blurOnSubmit={false}
+                multiline={false}
               />
               <Pressable onPress={post} disabled={posting || !draft.trim()} style={[styles.sendBtn, { backgroundColor: draft.trim() ? palette.matcha : palette.fill }]}>
                 <Ionicons name="arrow-up" size={18} color={draft.trim() ? '#fff' : palette.inkFaint} />
@@ -181,6 +207,8 @@ const styles = StyleSheet.create({
   thumb: { width: 44, height: 44, borderRadius: 6, borderWidth: 2, backgroundColor: '#eee' },
   transport: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
   commentBar: { position: 'relative', width: '100%', height: 46, borderWidth: hairline * 2, borderRadius: 23, justifyContent: 'center' },
-  commentInput: { fontFamily: fonts.gothicRegular, fontSize: type.body, paddingLeft: space.md, paddingRight: 52, paddingVertical: 6, minWidth: 0 },
+  // 高さいっぱいに広げて、バーのどこを触っても入力欄にフォーカスが入るようにする。
+  // フォントは16px以上（iOS Safari が小さいと勝手に拡大してしまう）。
+  commentInput: { flex: 1, height: '100%', fontFamily: fonts.gothicRegular, fontSize: Math.max(16, type.body), paddingLeft: space.md, paddingRight: 52, minWidth: 0 },
   sendBtn: { position: 'absolute', right: 5, top: 5, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
 });

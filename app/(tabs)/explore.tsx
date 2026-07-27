@@ -7,9 +7,10 @@ import { AppText, Screen, Row, Rule, Gap, Eyebrow } from '@/components/ui';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { usePublicTrips } from '@/lib/useData';
-import { searchTourismAreas, type TourismArea } from '@/lib/api';
+import { searchTourismAreas, fetchTrendingAreas, type TourismArea } from '@/lib/api';
 import { useRippleNav } from '@/lib/transition';
-import { trendingSpots, type Trip } from '@/lib/mock';
+import { type Trip } from '@/lib/mock';
+import { PREFECTURE_EN_BY_ID } from '@/lib/prefectures';
 
 /**
  * Featured ranking + weekly rotation.
@@ -32,7 +33,15 @@ export default function Explore() {
   const { trips } = usePublicTrips();
   const [q, setQ] = useState('');
   const [areas, setAreas] = useState<TourismArea[]>([]);
+  const [trending, setTrending] = useState<TourismArea[]>([]);
   const [searching, setSearching] = useState(false);
+
+  // Trending spots も DB（チェックイン数で並べた観光エリア）から引く
+  useEffect(() => {
+    let alive = true;
+    fetchTrendingAreas(12).then((r) => { if (alive) setTrending(r); });
+    return () => { alive = false; };
+  }, []);
 
   // the search bar looks up tourism areas (tourism_area_master) and links to MATCHA
   useEffect(() => {
@@ -143,27 +152,33 @@ export default function Explore() {
         </>
       )}
 
-      {/* Trending spots */}
-      <Gap h={space.xl} />
-      <Eyebrow>Trending spots</Eyebrow>
-      <Gap h={space.md} />
-      <Rule />
-      {trendingSpots.map((s, i) => (
-        <View key={s.name}>
-          <Row style={styles.spot}>
-            <AppText variant="h3" tone="inkFaint" style={{ width: 30 }}>{String(i + 1).padStart(2, '0')}</AppText>
-            <View style={{ flex: 1 }}>
-              <AppText variant="bodyStrong" tone="ink">{s.name}</AppText>
-              <AppText variant="small" tone="inkFaint">{s.prefecture}</AppText>
-            </View>
-            <Row style={{ gap: 4 }}>
-              <Ionicons name="footsteps-outline" size={13} color={palette.matcha} />
-              <AppText variant="small" tone="matcha">{s.visits.toLocaleString()}</AppText>
-            </Row>
-          </Row>
+      {/* Trending spots — 観光エリアをチェックイン数順に。タップでMATCHAへ。 */}
+      {!searchMode && trending.length > 0 && (
+        <>
+          <Gap h={space.xl} />
+          <Eyebrow>Trending spots</Eyebrow>
+          <Gap h={space.md} />
           <Rule />
-        </View>
-      ))}
+          {trending.map((a, i) => (
+            <View key={a.id}>
+              <Pressable onPress={() => openMatcha(a)} style={({ pressed }) => [styles.spot, pressed && { opacity: 0.6 }]}>
+                <AppText variant="h3" tone="inkFaint" style={{ width: 30 }}>{String(i + 1).padStart(2, '0')}</AppText>
+                <View style={{ flex: 1 }}>
+                  <AppText variant="bodyStrong" tone="ink" numberOfLines={1}>{a.name}</AppText>
+                  <AppText variant="small" tone="inkFaint" numberOfLines={1}>
+                    {a.municipality}{a.prefectureCode ? ` · ${PREFECTURE_EN_BY_ID[a.prefectureCode] ?? ''}` : ''}
+                  </AppText>
+                </View>
+                <Row style={{ gap: 4, alignItems: 'center' }}>
+                  <AppText variant="small" tone="matcha">MATCHA</AppText>
+                  <Ionicons name="open-outline" size={14} color={palette.matcha} />
+                </Row>
+              </Pressable>
+              <Rule />
+            </View>
+          ))}
+        </>
+      )}
     </Screen>
   );
 }
@@ -259,7 +274,7 @@ function Meta({ icon, text }: any) {
 const styles = StyleSheet.create({
   search: { alignItems: 'center', gap: space.sm, borderBottomWidth: hairline * 2, paddingBottom: space.sm },
   searchInput: { flex: 1, fontFamily: fonts.gothicRegular, fontSize: type.body, paddingVertical: 4 },
-  spot: { alignItems: 'center', gap: space.md, paddingVertical: space.md },
+  spot: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
   areaRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
   featureCover: { height: 240, borderRadius: 12, overflow: 'hidden', backgroundColor: '#ccc', justifyContent: 'flex-end' },
   featureText: { padding: space.lg },

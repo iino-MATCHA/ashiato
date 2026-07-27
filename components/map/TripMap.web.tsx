@@ -40,6 +40,13 @@ export function TripMap({
   const readyRef = useRef(false);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  // 地図の準備が終わる前にカードが動いていることがあるので、常に最新の選択状態を
+  // ref で持ち、準備完了時にそれを適用する（overview→1つ目のstopでは activeIndex が
+  // 0 のまま変わらないため、load 時に古い値を使うと1つ目が有効化されない）
+  const activeRef = useRef(activeIndex);
+  activeRef.current = activeIndex;
+  const overviewRef = useRef(overview);
+  overviewRef.current = overview;
 
   const effectiveModes = modes ?? steps.map((s) => s.transport);
   const modesKey = effectiveModes.join('|');
@@ -99,10 +106,10 @@ export function TripMap({
         });
 
         map.on('load', async () => {
-          await buildRoutes(map, steps, effectiveModes);
+          // カメラはルート線の取得(ネットワーク)を待たずに動かす
           readyRef.current = true;
-          if (overview || steps.length <= 1) frameAll();
-          else updateActive(activeIndex);
+          applyCamera();
+          await buildRoutes(map, steps, effectiveModes);
         });
       })
       .catch(() => {});
@@ -130,10 +137,15 @@ export function TripMap({
   // fly to active step (or frame the whole route in overview)
   useEffect(() => {
     if (!readyRef.current) return;
-    if (overview) frameAll();
-    else updateActive(activeIndex);
+    applyCamera();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIndex, overview]);
+
+  /** 最新の選択状態（ref）をカメラとピンに反映する。 */
+  function applyCamera() {
+    if (overviewRef.current || steps.length <= 1) frameAll();
+    else updateActive(activeRef.current);
+  }
 
   function frameAll() {
     const map = mapRef.current;
@@ -224,13 +236,31 @@ async function buildRoutes(map: any, steps: Step[], modes: TransportMode[]) {
     return;
   }
   map.addSource('route', { type: 'geojson', data });
+  // 手段ごとに線の描き方を変える。陸路はどれも道路に沿うため、
+  // 線種を分けないと「変えても変わらない」ように見えてしまう。
   map.addLayer({
     id: 'route-road',
     type: 'line',
     source: 'route',
-    filter: ['==', ['get', 'road'], true],
+    filter: ['all', ['==', ['get', 'road'], true], ['in', ['get', 'mode'], ['literal', ['car', 'bus']]]],
     layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: { 'line-color': '#69AF00', 'line-width': 4 },
+  });
+  map.addLayer({
+    id: 'route-rail',
+    type: 'line',
+    source: 'route',
+    filter: ['all', ['==', ['get', 'road'], true], ['in', ['get', 'mode'], ['literal', ['train', 'shinkansen']]]],
+    layout: { 'line-cap': 'butt', 'line-join': 'round' },
+    paint: { 'line-color': '#69AF00', 'line-width': 4, 'line-dasharray': [2, 1] },
+  });
+  map.addLayer({
+    id: 'route-walk',
+    type: 'line',
+    source: 'route',
+    filter: ['all', ['==', ['get', 'road'], true], ['==', ['get', 'mode'], 'walk']],
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#69AF00', 'line-width': 3.5, 'line-dasharray': [0.1, 2] },
   });
   map.addLayer({
     id: 'route-arc',

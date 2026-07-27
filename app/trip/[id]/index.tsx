@@ -12,6 +12,8 @@ import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
 import { useRippleNav } from '@/lib/transition';
+import { setLegTransport } from '@/lib/api';
+import { bump } from '@/lib/refresh';
 import { transportLabel, type Step, type TransportMode } from '@/lib/mock';
 
 const transportIcon: Record<TransportMode, any> = {
@@ -34,6 +36,8 @@ export default function TripDetail() {
   // active = carousel index. 0 = overview, 1..n = stops, n+1 = add card.
   const [active, setActive] = useState(0);
   const [picker, setPicker] = useState<number | null>(null);
+  const [blocked, setBlocked] = useState(false);
+  const [notice, setNotice] = useState<{ title: string; body: string } | null>(null);
   const [modes, setModes] = useState<TransportMode[]>([]);
   const scrollRef = useRef<ScrollView | null>(null);
 
@@ -63,7 +67,7 @@ export default function TripDetail() {
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const idx = Math.round(e.nativeEvent.contentOffset.x / SNAP);
-    const maxIdx = n + (canEdit ? 1 : 0);
+    const maxIdx = n + 1; // overview + stops + add card
     const clamped = Math.max(0, Math.min(maxIdx, idx));
     if (clamped !== active) setActive(clamped);
   };
@@ -72,11 +76,23 @@ export default function TripDetail() {
     setActive(carouselIdx);
     scrollRef.current?.scrollTo({ x: carouselIdx * SNAP, animated: true });
   };
-  const setLegMode = (stopIdx: number, mode: TransportMode) => {
+  const setLegMode = async (stopIdx: number, mode: TransportMode) => {
+    const before = effModes.slice();
     const base = effModes.slice();
     base[stopIdx] = mode;
-    setModes(base);
+    setModes(base); // 先に画面へ反映
     setPicker(null);
+    if (!canEdit) return;
+    const toLog = steps[stopIdx];
+    if (!toLog) return;
+    // 保存して、他の画面（一覧など）にも反映されるようにする
+    const ok = await setLegTransport(trip.id, toLog.id, mode);
+    if (ok) {
+      bump('trips');
+    } else {
+      setModes(before); // 保存できなかったら見た目も戻す（嘘をつかない）
+      setNotice({ title: 'Could not save', body: 'The transport change was not saved. Check your connection and try again.' });
+    }
   };
 
   return (
@@ -94,14 +110,13 @@ export default function TripDetail() {
           <AppText variant="small" style={{ color: '#7A7A7A' }}>{trip.subtitle}</AppText>
           <AppText variant="h3" style={{ color: '#171717' }} numberOfLines={1}>{trip.title}</AppText>
         </View>
-        {canEdit && (
-          <View style={styles.actionCol} pointerEvents="box-none">
-            <Glass onPress={() => router.push(`/trip/${trip.id}/share`)} icon="share-outline" palette={palette} />
-            {/* Photo book — page not built yet, so no navigation for now */}
-            <Glass onPress={() => {}} icon="book-outline" palette={palette} />
-            <Glass onPress={() => router.push(`/trip/${trip.id}/edit`)} icon="settings-outline" palette={palette} />
-          </View>
-        )}
+        {/* サンプルや他人の旅でもボタンは通常どおり出す。編集だけを止める。 */}
+        <View style={styles.actionCol} pointerEvents="box-none">
+          <Glass onPress={() => router.push(`/trip/${trip.id}/share`)} icon="share-outline" palette={palette} />
+          {/* Photo book — page not built yet, so no navigation for now */}
+          <Glass onPress={() => {}} icon="book-outline" palette={palette} />
+          <Glass onPress={() => (canEdit ? router.push(`/trip/${trip.id}/edit`) : setBlocked(true))} icon="settings-outline" palette={palette} />
+        </View>
       </View>
 
       {/* Bottom carousel */}
@@ -139,26 +154,63 @@ export default function TripDetail() {
             <View key={s.id} style={{ width: CARD_W, marginRight: CARD_GAP }}>
               {/* connector to the previous stop (leg i) — not before the first stop */}
               {i > 0 && (
-                <Connector mode={effModes[i]} gap={CARD_GAP} editable={canEdit} palette={palette} onPress={() => canEdit && setPicker(i)} />
+                <Connector mode={effModes[i]} gap={CARD_GAP} editable={canEdit} palette={palette} onPress={() => (canEdit ? setPicker(i) : setBlocked(true))} />
               )}
               <LocationCard step={s} index={i} total={n} palette={palette} onOpen={(e: any) => navigate(`/trip/${trip.id}/step/${s.id}${canEdit ? '' : '?readonly=1'}`, e)} />
             </View>
           ))}
 
-          {/* Add card (editable only) */}
-          {canEdit && (
-            <View style={{ width: CARD_W, marginRight: CARD_GAP }}>
-              <Connector mode={'car'} gap={CARD_GAP} editable={false} palette={palette} onPress={() => {}} plus />
-              <Pressable onPress={() => router.push(`/trip/${trip.id}/step/new`)} style={[styles.addCard, { borderColor: palette.matcha }]}>
-                <Ionicons name="add-circle" size={34} color={palette.matcha} />
-                <Gap h={space.sm} />
-                <AppText variant="bodyStrong" tone="matcha">Add a new stop</AppText>
-                <AppText variant="small" tone="inkFaint">Photos, notes, check-in</AppText>
-              </Pressable>
-            </View>
-          )}
+          {/* Add card — サンプルでも見えるが、押すとサンプルの案内を出す */}
+          <View style={{ width: CARD_W, marginRight: CARD_GAP }}>
+            <Connector mode={'car'} gap={CARD_GAP} editable={false} palette={palette} onPress={() => {}} plus />
+            <Pressable
+              onPress={() => (canEdit ? router.push(`/trip/${trip.id}/step/new`) : setBlocked(true))}
+              style={[styles.addCard, { borderColor: palette.matcha }]}
+            >
+              <Ionicons name="add-circle" size={34} color={palette.matcha} />
+              <Gap h={space.sm} />
+              <AppText variant="bodyStrong" tone="matcha">Add a new stop</AppText>
+              <AppText variant="small" tone="inkFaint">Photos, notes, check-in</AppText>
+            </Pressable>
+          </View>
         </ScrollView>
       </View>
+
+      {/* サンプル／他人の旅を編集しようとしたときの中央ポップアップ */}
+      <Modal visible={blocked} transparent animationType="fade" onRequestClose={() => setBlocked(false)}>
+        <Pressable style={styles.centerBackdrop} onPress={() => setBlocked(false)}>
+          <Pressable style={[styles.centerModal, { backgroundColor: palette.washi }]} onPress={() => {}}>
+            <Ionicons name="eye-outline" size={30} color={palette.matcha} />
+            <Gap h={space.sm} />
+            <AppText variant="h3" tone="ink" center>This is a sample</AppText>
+            <Gap h={space.xs} />
+            <AppText variant="small" tone="inkSoft" center>
+              You can look around and share it, but it cannot be edited. Create your own trip to start recording.
+            </AppText>
+            <Gap h={space.lg} />
+            <Pressable onPress={() => setBlocked(false)} style={[styles.centerBtn, { backgroundColor: palette.matcha }]}>
+              <AppText variant="small" style={{ color: '#fff' }}>Got it</AppText>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* 保存に失敗したときの通知 */}
+      <Modal visible={notice !== null} transparent animationType="fade" onRequestClose={() => setNotice(null)}>
+        <Pressable style={styles.centerBackdrop} onPress={() => setNotice(null)}>
+          <Pressable style={[styles.centerModal, { backgroundColor: palette.washi }]} onPress={() => {}}>
+            <Ionicons name="cloud-offline-outline" size={30} color={palette.shu} />
+            <Gap h={space.sm} />
+            <AppText variant="h3" tone="ink" center>{notice?.title}</AppText>
+            <Gap h={space.xs} />
+            <AppText variant="small" tone="inkSoft" center>{notice?.body}</AppText>
+            <Gap h={space.lg} />
+            <Pressable onPress={() => setNotice(null)} style={[styles.centerBtn, { backgroundColor: palette.matcha }]}>
+              <AppText variant="small" style={{ color: '#fff' }}>Close</AppText>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Transport picker */}
       <Modal visible={picker !== null} transparent animationType="fade" onRequestClose={() => setPicker(null)}>
@@ -238,9 +290,10 @@ const shadow = { shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, sha
 
 const styles = StyleSheet.create({
   headerZone: { position: 'absolute', top: space.md, left: space.lg, right: space.lg, zIndex: 20, alignItems: 'flex-start' },
-  actionCol: { position: 'absolute', top: 0, right: 0, gap: space.sm },
+  actionCol: { position: 'absolute', top: 0, right: 0, gap: space.sm, zIndex: 30 },
   glassCircle: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(0,0,0,0.08)', shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6 },
-  titleGlass: { alignSelf: 'flex-start', maxWidth: '85%', backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: 14, paddingHorizontal: space.md, paddingVertical: space.sm, ...shadow },
+  // 右上のアクション列(46px)にタイトルが被らないよう、幅と右余白を確保する
+  titleGlass: { alignSelf: 'flex-start', maxWidth: '68%', marginRight: 58, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 14, paddingHorizontal: space.md, paddingVertical: space.sm, ...shadow },
   dock: { position: 'absolute', bottom: space.lg, left: 0, right: 0, zIndex: 20 },
   card: { borderRadius: 12, overflow: 'hidden', ...shadow },
   cardPhoto: { width: '100%', height: 140, overflow: 'hidden' },
@@ -252,6 +305,9 @@ const styles = StyleSheet.create({
   connectorChip: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, alignItems: 'center', justifyContent: 'center', ...shadow },
   connectorEditDot: { position: 'absolute', bottom: -2, right: -2, width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: '#fff' },
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  centerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: space.lg },
+  centerModal: { width: '100%', maxWidth: 320, borderRadius: 16, padding: space.lg, alignItems: 'center', ...shadow },
+  centerBtn: { paddingHorizontal: space.xl, paddingVertical: 10, borderRadius: 999 },
   sheet: { padding: space.lg, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: space.xxl },
   modeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: hairline * 2, paddingHorizontal: space.md, paddingVertical: 9, borderRadius: 999 },
 });

@@ -120,7 +120,8 @@ export default function EditTrip() {
           <Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ true: palette.matcha, false: palette.rule }} thumbColor="#fff" />
         </Row>
 
-        <View style={{ flex: 1 }} />
+        {/* 画面が詰まっていても最低限の余白が残るようにする */}
+        <View style={{ flex: 1, minHeight: space.xxl }} />
         <Button label={saving ? 'Saving…' : 'Save changes'} tone="matcha" onPress={save} disabled={saving} />
         <Gap h={space.sm} />
         <Pressable onPress={remove} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, paddingVertical: space.md }]}>

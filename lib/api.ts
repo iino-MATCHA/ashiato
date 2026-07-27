@@ -251,9 +251,19 @@ export async function resolvePlace(municipalityCode: number): Promise<{ lat: num
 }
 
 // ---------------------------------------------------------------- writes
+/**
+ * 現在のユーザーID。
+ * getUser() は毎回 /auth/v1/user へ問い合わせに行くため、電波が不安定な端末では
+ * 失敗して「ログインしているのに未ログイン扱い」になることがある。
+ * セッションはローカルに保持されているので getSession() を使う（通信なし）。
+ */
 async function currentUserId(): Promise<string | null> {
-  const { data } = await supabase.auth.getUser();
-  return data?.user?.id ?? null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.user?.id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** サインイン後、profiles 行が無ければ作る（email から username を生成）。 */
@@ -441,6 +451,26 @@ export async function createStep(input: {
   return { id: log.id, photoFailed };
 }
 
+/**
+ * 区間の移動手段を保存する。transports は「到着地点(to_log_id)」で区間を表すので、
+ * その行を更新し、無ければ作る。distance_km は既存値を壊さないよう触らない。
+ */
+export async function setLegTransport(tripId: string, toLogId: string, mode: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
+  const { data, error } = await supabase
+    .from('transports')
+    .update({ mode })
+    .eq('trip_id', tripId)
+    .eq('to_log_id', toLogId)
+    .select('to_log_id');
+  if (error) return false;
+  if (data && data.length) return true;
+  const { error: insErr } = await supabase
+    .from('transports')
+    .insert({ trip_id: tripId, to_log_id: toLogId, mode, distance_km: 0 });
+  return !insErr;
+}
+
 // ---------------------------------------------------------------- step social (likes / comments)
 export interface StepComment {
   id: string;
@@ -454,16 +484,46 @@ export interface StepSocial {
   comments: StepComment[];
 }
 
+/**
+ * いいねとコメントの取得。
+ * ここは絶対に throw しない。1つでも失敗すると画面側の state が null のままになり、
+ * 「投稿できているのに一生表示されない」状態に陥るため、
+ * 取れたものだけを返して残りは空で埋める。
+ */
 export async function fetchStepSocial(logId: string): Promise<StepSocial> {
   const uid = await currentUserId();
-  const [{ data: reactions }, { data: comments }] = await Promise.all([
-    supabase.from('reactions').select('user_id').eq('target_type', 'log').eq('target_id', logId),
-    supabase.from('comments').select('id, body, created_at, author_id, profiles(display_name)').eq('log_id', logId).order('created_at', { ascending: true }),
-  ]);
+
+  let reactions: any[] = [];
+  try {
+    const r = await supabase
+      .from('reactions').select('user_id').eq('target_type', 'log').eq('target_id', logId);
+    reactions = r.data ?? [];
+  } catch {}
+
+  // FK を明示する。notification_reads 経由で comments↔profiles の経路が2つできてしまい、
+  // 単に profiles(...) と書くと PostgREST が PGRST201 で必ず失敗する。
+  let comments: any[] = [];
+  try {
+    const withAuthor = await supabase
+      .from('comments')
+      .select('id, body, created_at, author_id, profiles!comments_author_id_fkey(display_name)')
+      .eq('log_id', logId).order('created_at', { ascending: true });
+    if (withAuthor.error) {
+      // 埋め込みが何かの理由で通らなくても、本文だけは必ず出す
+      const plain = await supabase
+        .from('comments')
+        .select('id, body, created_at, author_id')
+        .eq('log_id', logId).order('created_at', { ascending: true });
+      comments = plain.data ?? [];
+    } else {
+      comments = withAuthor.data ?? [];
+    }
+  } catch {}
+
   return {
-    likes: (reactions ?? []).length,
-    likedByMe: !!uid && (reactions ?? []).some((r: any) => r.user_id === uid),
-    comments: (comments ?? []).map((c: any) => ({
+    likes: reactions.length,
+    likedByMe: !!uid && reactions.some((r: any) => r.user_id === uid),
+    comments: comments.map((c: any) => ({
       id: c.id,
       author: c.profiles?.display_name ?? 'Traveller',
       body: c.body,
@@ -483,11 +543,26 @@ export async function toggleLike(logId: string, tripId: string, liked: boolean):
   return true;
 }
 
-export async function addComment(logId: string, tripId: string, body: string): Promise<boolean> {
+/**
+ * コメントを投稿し、作られた行をそのまま返す。
+ * 再取得の成否に画面表示を依存させないため、insert の戻り値を使う。
+ * 失敗時は null（呼び出し側でエラー表示）。
+ */
+export async function addComment(logId: string, tripId: string, body: string): Promise<StepComment | null> {
   const uid = await currentUserId();
-  if (!uid || !body.trim()) return false;
-  const { error } = await supabase.from('comments').insert({ trip_id: tripId, log_id: logId, author_id: uid, body: body.trim() });
-  return !error;
+  if (!uid || !body.trim()) return null;
+  const { data, error } = await supabase
+    .from('comments')
+    .insert({ trip_id: tripId, log_id: logId, author_id: uid, body: body.trim() })
+    .select('id, body, created_at')
+    .single();
+  if (error || !data) return null;
+  return {
+    id: data.id,
+    author: '',            // 表示名は呼び出し側が持っている
+    body: data.body,
+    createdAt: (data.created_at ?? '').slice(0, 10),
+  };
 }
 
 // ---------------------------------------------------------------- comment notifications
@@ -513,7 +588,8 @@ export async function fetchCommentNotifications(): Promise<CommentNotification[]
   const [{ data: comments }, { data: reads }, { data: photos }] = await Promise.all([
     supabase
       .from('comments')
-      .select('id, body, created_at, author_id, log_id, trip_id, profiles(display_name)')
+      // ここも FK を明示（notification_reads があるため曖昧になる）
+      .select('id, body, created_at, author_id, log_id, trip_id, profiles!comments_author_id_fkey(display_name)')
       .in('log_id', ids)
       .neq('author_id', uid)
       .order('created_at', { ascending: false })
@@ -724,6 +800,14 @@ export async function searchTourismAreas(q: string): Promise<TourismArea[]> {
     .or(`name_en.ilike.${like},name_ja.ilike.${like},municipality_en.ilike.${like}`)
     .limit(40);
   return (data ?? []).map(toArea);
+}
+
+/** Explore の Trending spots: 実際のチェックイン数で並べた観光エリア。 */
+export async function fetchTrendingAreas(limit = 12): Promise<TourismArea[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase.rpc('trending_tourism_areas', { p_limit: limit });
+  if (error || !data) return [];
+  return (data as any[]).map(toArea);
 }
 
 /** 検索していないときに見せる一覧（全200件のうち先頭から）。 */

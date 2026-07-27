@@ -23,6 +23,7 @@ export function BarList({
   color,
   limit,
   emptyText = 'No data yet.',
+  onPress,
 }: {
   items: BarItem[];
   max?: number;
@@ -30,6 +31,8 @@ export function BarList({
   color?: string;
   limit?: number;
   emptyText?: string;
+  /** 指定すると行がタップ可能になる（都道府県の詳細へ降りる用途） */
+  onPress?: (item: BarItem) => void;
 }) {
   const { palette } = useTheme();
   const shown = limit ? items.slice(0, limit) : items;
@@ -40,22 +43,31 @@ export function BarList({
 
   return (
     <View style={{ gap: 10 }}>
-      {shown.map((it, i) => (
-        <View key={it.key}>
-          <Row style={{ alignItems: 'baseline', gap: space.sm }}>
-            <AppText variant="small" tone="inkFaint" style={{ width: 20 }}>{i + 1}</AppText>
-            <AppText variant="small" tone="ink" numberOfLines={1} style={{ flex: 1 }}>{it.label}</AppText>
-            {!!it.note && <AppText variant="small" tone="inkFaint">{it.note}</AppText>}
-            <AppText variant="small" tone="ink" style={{ minWidth: 44, textAlign: 'right' }}>
-              {formatNumber(it.value)}{unit}
-            </AppText>
-          </Row>
-          <Gap h={4} />
-          <View style={[styles.track, { backgroundColor: palette.fill }]}>
-            <View style={[styles.bar, { width: `${Math.max(2, (it.value / top) * 100)}%`, backgroundColor: tint }]} />
-          </View>
-        </View>
-      ))}
+      {shown.map((it, i) => {
+        const row = (
+          <>
+            <Row style={{ alignItems: 'baseline', gap: space.sm }}>
+              <AppText variant="small" tone="inkFaint" style={{ width: 20 }}>{i + 1}</AppText>
+              <AppText variant="small" tone="ink" numberOfLines={1} style={{ flex: 1 }}>{it.label}</AppText>
+              {!!it.note && <AppText variant="small" tone="inkFaint">{it.note}</AppText>}
+              <AppText variant="small" tone="ink" style={{ minWidth: 44, textAlign: 'right' }}>
+                {formatNumber(it.value)}{unit}
+              </AppText>
+            </Row>
+            <Gap h={4} />
+            <View style={[styles.track, { backgroundColor: palette.fill }]}>
+              <View style={[styles.bar, { width: `${Math.max(2, (it.value / top) * 100)}%`, backgroundColor: tint }]} />
+            </View>
+          </>
+        );
+        return onPress ? (
+          <Pressable key={it.key} onPress={() => onPress(it)} style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}>
+            {row}
+          </Pressable>
+        ) : (
+          <View key={it.key}>{row}</View>
+        );
+      })}
     </View>
   );
 }

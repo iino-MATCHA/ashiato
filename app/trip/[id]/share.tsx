@@ -1,4 +1,5 @@
-import { View, Pressable, StyleSheet, Share as RNShare, Platform, useWindowDimensions } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Image, Pressable, StyleSheet, Share as RNShare, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +9,9 @@ import { ShareMap } from '@/components/map/ShareMap';
 import { space, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
+import { useProfile } from '@/lib/useProfile';
+import { fetchUserProfile } from '@/lib/api';
+import { exportShareCard } from '@/lib/shareCard';
 
 function daysBetween(a?: string, b?: string): number {
   if (!a || !b) return 0;
@@ -22,6 +26,21 @@ export default function TripShare() {
   const { width, height } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { trip } = useTrip(id);
+  const { profile } = useProfile();
+  const [saving, setSaving] = useState(false);
+  // 他の人（サンプル含む）の旅なら、その所有者のアイコンを載せる
+  const [owner, setOwner] = useState<{ name: string; username: string; avatarUrl: string } | null>(null);
+  const ownerId = trip?.authorId && trip.authorId !== 'me' ? trip.authorId : null;
+  useEffect(() => {
+    if (!ownerId) { setOwner(null); return; }
+    let alive = true;
+    fetchUserProfile(ownerId).then((u) => { if (alive && u) setOwner(u); });
+    return () => { alive = false; };
+  }, [ownerId]);
+
+  const base = owner ?? { name: profile.name, username: profile.username, avatarUrl: profile.avatarUrl };
+  // アイコン未設定でもカードの丸が空にならないよう、旅の1枚目の写真で埋める
+  const author = { ...base, avatarUrl: base.avatarUrl || trip?.steps[0]?.images[0] || '' };
 
   if (!trip) {
     return (
@@ -39,16 +58,25 @@ export default function TripShare() {
   const days = daysBetween(trip.startDate, trip.endDate);
   const km = trip.distanceKm;
 
-  const download = () => {
-    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
-    const canvas = document.querySelector('canvas.mapboxgl-canvas') as HTMLCanvasElement | null;
-    if (!canvas) return;
-    try {
-      const link = document.createElement('a');
-      link.download = `ashiato-${trip.id}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    } catch {}
+  // 1080×1920 で描き直したカードを保存する（プレビューのキャプチャではない）
+  const download = async () => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined' || saving) return;
+    setSaving(true);
+    const dataUrl = await exportShareCard(trip.steps, {
+      title: trip.title,
+      prefectures: prefs,
+      days,
+      km,
+      authorName: author.name || 'Traveller',
+      authorHandle: author.username || 'traveller',
+      avatarUrl: author.avatarUrl || undefined,
+    });
+    setSaving(false);
+    if (!dataUrl) return;
+    const link = document.createElement('a');
+    link.download = `ashiato-${trip.id}.png`;
+    link.href = dataUrl;
+    link.click();
   };
   const nativeShare = async (to: string) => {
     const text = `${trip.title} — ${prefs} prefectures, ${km} km with Ashiato #ashiato`;
@@ -80,18 +108,33 @@ export default function TripShare() {
             <AppText style={styles.title} numberOfLines={2}>{trip.title}</AppText>
           </View>
 
-          {/* stats bottom-left */}
+          {/* stats bottom-left + author bottom-right */}
           <View style={styles.bl}>
-            <StatLine value={String(prefs)} label="prefectures visited" />
-            <StatLine value={String(days)} label="days" />
-            <StatLine value={`${km.toLocaleString()} km`} label="distance travelled" />
+            <Row style={{ alignItems: 'flex-end', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1 }}>
+                <StatLine value={String(prefs)} label="prefectures visited" />
+                <StatLine value={String(days)} label="days" />
+                <StatLine value={`${km.toLocaleString()} km`} label="distance travelled" />
+              </View>
+              <View style={{ alignItems: 'center', marginLeft: space.sm }}>
+                <View style={styles.avatar}>
+                  {author.avatarUrl ? (
+                    <Image source={{ uri: author.avatarUrl }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
+                  ) : (
+                    <Ionicons name="person" size={18} color="rgba(255,255,255,0.9)" />
+                  )}
+                </View>
+                <Gap h={4} />
+                <AppText style={styles.authorName} numberOfLines={1}>{author.name || 'Traveller'}</AppText>
+              </View>
+            </Row>
           </View>
         </View>
 
         {/* export buttons */}
         <Gap h={space.lg} />
         <Row style={{ gap: space.xl }}>
-          <ExportBtn icon="download-outline" label="Save" onPress={download} palette={palette} />
+          <ExportBtn icon="download-outline" label={saving ? 'Saving…' : 'Save'} onPress={download} palette={palette} />
           <ExportBtn icon="logo-instagram" label="Stories" onPress={() => nativeShare('stories')} palette={palette} color="#C13584" />
           <ExportBtn icon="logo-twitter" label="X" onPress={() => nativeShare('x')} palette={palette} color={palette.ink} />
         </Row>
@@ -133,5 +176,7 @@ const styles = StyleSheet.create({
   bl: { position: 'absolute', bottom: space.md, left: space.md, right: space.md },
   statValue: { fontFamily: fonts.minchoBold, fontSize: 15, color: '#fff' },
   statLabel: { fontFamily: fonts.gothicRegular, fontSize: 10, color: 'rgba(255,255,255,0.85)' },
+  avatar: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.9)' },
+  authorName: { fontFamily: fonts.minchoBold, fontSize: 10, color: '#fff', maxWidth: 76, textAlign: 'center' },
   exportCircle: { width: 54, height: 54, borderRadius: 27, borderWidth: StyleSheet.hairlineWidth * 2, alignItems: 'center', justifyContent: 'center' },
 });
