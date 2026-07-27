@@ -9,7 +9,7 @@ import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useRippleNav } from '@/lib/transition';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { fetchUserProfile, fetchTripsByOwner, type UserSummary } from '@/lib/api';
+import { fetchUserProfile, fetchTripsByOwner, fetchVisitedPrefecturesOf, type UserSummary } from '@/lib/api';
 import { RankModal, rankFor } from '@/components/RankModal';
 import { findFriend, allTrips, PREFECTURE_TOTAL, type Trip } from '@/lib/mock';
 import { PREFECTURE_EN_BY_ID } from '@/lib/prefectures';
@@ -19,6 +19,7 @@ export default function FriendProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [user, setUser] = useState<UserSummary | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [visitedCodes, setVisitedCodes] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [rankOpen, setRankOpen] = useState(false);
   const alive = useRef(true);
@@ -31,16 +32,19 @@ export default function FriendProfile() {
       setLoading(false);
       return;
     }
-    Promise.all([fetchUserProfile(id), fetchTripsByOwner(id)])
-      .then(([u, t]) => { if (alive.current) { setUser(u); setTrips(t); } })
+    Promise.all([fetchUserProfile(id), fetchTripsByOwner(id), fetchVisitedPrefecturesOf(id)])
+      .then(([u, t, v]) => { if (alive.current) { setUser(u); setTrips(t); setVisitedCodes(v); } })
       .catch(() => {})
       .finally(() => alive.current && setLoading(false));
   }, [id]);
   useFocusEffect(useCallback(() => { alive.current = true; load(); return () => { alive.current = false; }; }, [load]));
 
-  // visited prefectures derived from their visible trips
-  const visitedSet = new Set<number>();
-  trips.forEach((t) => t.prefectures.forEach((n) => { const i = PREFECTURE_EN_BY_ID.indexOf(n); if (i > 0) visitedSet.add(i); }));
+  // the friend's real visited prefectures (RPC: onboarding + their trips);
+  // fall back to what's derivable from their visible trips
+  const visitedSet = new Set<number>(visitedCodes);
+  if (visitedSet.size === 0) {
+    trips.forEach((t) => t.prefectures.forEach((n) => { const i = PREFECTURE_EN_BY_ID.indexOf(n); if (i > 0) visitedSet.add(i); }));
+  }
   const goshuin = visitedSet.size;
   const pct = Math.round((goshuin / PREFECTURE_TOTAL) * 100);
 

@@ -12,7 +12,7 @@ import { RankModal, rankFor } from '@/components/RankModal';
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { fetchUnreadCount, fetchFriends, fetchFriendRequests, type UserSummary } from '@/lib/api';
+import { fetchUnreadCount, fetchFriends, fetchFriendRequests, fetchMyAdminRole, type UserSummary } from '@/lib/api';
 import { friends as mockFriends } from '@/lib/mock';
 
 export default function ProfilePage() {
@@ -26,6 +26,7 @@ export default function ProfilePage() {
     isSupabaseConfigured ? [] : mockFriends.map((f) => ({ id: f.id, name: f.name, username: f.username, avatarUrl: '' }))
   );
   const [pendingReq, setPendingReq] = useState(0);
+  const [adminRole, setAdminRole] = useState<string | null>(null);
   const aliveRef = useRef(true);
   useFocusEffect(useCallback(() => {
     aliveRef.current = true;
@@ -33,6 +34,7 @@ export default function ProfilePage() {
       fetchUnreadCount().then((n) => aliveRef.current && setUnread(n));
       fetchFriends().then((f) => aliveRef.current && setFriends(f)).catch(() => {});
       fetchFriendRequests().then((r) => aliveRef.current && setPendingReq(r.length)).catch(() => {});
+      fetchMyAdminRole().then((r) => aliveRef.current && setAdminRole(r)).catch(() => {});
     }
     return () => { aliveRef.current = false; };
   }, []));
@@ -141,10 +143,10 @@ export default function ProfilePage() {
         {[
           { icon: 'notifications-outline', label: 'Notifications', onPress: () => router.push('/notifications'), badge: unread },
           { icon: 'map-outline', label: 'Edit visited prefectures', onPress: () => router.push('/(auth)/prefectures?edit=1') },
-          { icon: 'battery-half-outline', label: 'Battery & power saving' },
           { icon: 'receipt-outline', label: 'Order history' },
-          { icon: 'lock-closed-outline', label: 'Privacy & visibility' },
+          { icon: 'lock-closed-outline', label: 'Privacy policy', onPress: () => router.push('/privacy') },
           { icon: 'help-circle-outline', label: 'Help & contact' },
+          ...(adminRole ? [{ icon: 'shield-checkmark-outline', label: 'Admin console', onPress: () => router.push('/admin') }] : []),
         ].map((s: any) => (
           <View key={s.label}>
             <Pressable onPress={s.onPress} style={({ pressed }) => [styles.setting, pressed && { opacity: 0.6 }]}>

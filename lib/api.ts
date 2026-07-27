@@ -672,6 +672,44 @@ export async function fetchTripsByOwner(ownerId: string): Promise<Trip[]> {
   return trips.filter(Boolean) as Trip[];
 }
 
+/** 友達（または本人）の訪問都道府県コード。RPCがRLS相当の判定を行う。 */
+export async function fetchVisitedPrefecturesOf(userId: string): Promise<number[]> {
+  const { data, error } = await supabase.rpc('visited_prefectures_of', { p_user: userId });
+  if (error || !data) return [];
+  return (data as any[]).map((r) => (typeof r === 'number' ? r : r.visited_prefectures_of)).filter((n) => n != null);
+}
+
+// ---------------------------------------------------------------- admin
+export async function fetchMyAdminRole(): Promise<string | null> {
+  const uid = await currentUserId();
+  if (!uid) return null;
+  const { data } = await supabase.from('profiles').select('admin_role').eq('id', uid).maybeSingle();
+  return data?.admin_role ?? null;
+}
+
+export async function fetchAdminStats(): Promise<any | null> {
+  const { data, error } = await supabase.rpc('admin_stats');
+  return error ? null : data;
+}
+
+export async function fetchAdminOrders(): Promise<any[] | null> {
+  const { data, error } = await supabase.rpc('admin_orders');
+  return error ? null : (data as any[] | null);
+}
+
+export async function fetchAdmins(): Promise<{ username: string; name: string; role: string }[]> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('username, display_name, admin_role')
+    .not('admin_role', 'is', null);
+  return (data ?? []).map((p: any) => ({ username: p.username, name: p.display_name ?? p.username, role: p.admin_role }));
+}
+
+export async function setAdminRole(username: string, role: string | null): Promise<boolean> {
+  const { data, error } = await supabase.rpc('set_admin_role', { p_username: username, p_role: role ?? '' });
+  return !error && data === true;
+}
+
 // ---------------------------------------------------------------- step update
 /** 既存Stepの更新（場所は変更不可。タイトル・本文・日付のみ）＋写真の追加。 */
 export async function updateStep(logId: string, input: { title?: string; note?: string; loggedAt?: string; tripId?: string; newPhotos?: Blob[] }): Promise<boolean> {
