@@ -551,6 +551,155 @@ export async function fetchUnreadCount(): Promise<number> {
   }
 }
 
+// ---------------------------------------------------------------- friends
+export interface UserSummary {
+  id: string;
+  name: string;
+  username: string;
+  avatarUrl: string;
+}
+
+function toUser(p: any): UserSummary {
+  return {
+    id: p.id,
+    name: p.display_name ?? p.username ?? 'Traveller',
+    username: p.username ?? '',
+    avatarUrl: p.avatar_url ?? '',
+  };
+}
+
+/** ユーザー検索（自分以外・username/表示名の部分一致）。 */
+export async function searchUsers(q: string): Promise<UserSummary[]> {
+  const uid = await currentUserId();
+  const term = q.trim();
+  if (!term) return [];
+  const like = `%${term}%`;
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, username, display_name, avatar_url')
+    .or(`username.ilike.${like},display_name.ilike.${like}`)
+    .limit(12);
+  return (data ?? []).filter((p: any) => p.id !== uid).map(toUser);
+}
+
+/** おすすめ（自分と友達以外の最新ユーザー）。 */
+export async function fetchSuggestedUsers(): Promise<UserSummary[]> {
+  const uid = await currentUserId();
+  const friends = await fetchFriends();
+  const exclude = new Set([uid, ...friends.map((f) => f.id)]);
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, username, display_name, avatar_url')
+    .order('created_at', { ascending: false })
+    .limit(20);
+  return (data ?? []).filter((p: any) => !exclude.has(p.id)).slice(0, 8).map(toUser);
+}
+
+export async function sendFriendRequest(addresseeId: string): Promise<boolean> {
+  const uid = await currentUserId();
+  if (!uid || uid === addresseeId) return false;
+  const { error } = await supabase.from('friend_requests').insert({ requester_id: uid, addressee_id: addresseeId });
+  return !error;
+}
+
+export interface FriendRequest {
+  id: string;
+  from: UserSummary;
+  createdAt: string;
+}
+
+/** 自分宛の保留中申請（友達ページに通知として表示）。 */
+export async function fetchFriendRequests(): Promise<FriendRequest[]> {
+  const uid = await currentUserId();
+  if (!uid) return [];
+  const { data } = await supabase
+    .from('friend_requests')
+    .select('id, created_at, profiles!friend_requests_requester_id_fkey(id, username, display_name, avatar_url)')
+    .eq('addressee_id', uid)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    from: toUser(r.profiles ?? {}),
+    createdAt: (r.created_at ?? '').slice(0, 10),
+  }));
+}
+
+/** 承認/拒否。承認時は 0002 のトリガが friendships を生成する。 */
+export async function respondFriendRequest(requestId: string, accept: boolean): Promise<boolean> {
+  const { error } = await supabase
+    .from('friend_requests')
+    .update({ status: accept ? 'accepted' : 'declined' })
+    .eq('id', requestId);
+  return !error;
+}
+
+export async function fetchFriends(): Promise<UserSummary[]> {
+  const uid = await currentUserId();
+  if (!uid) return [];
+  const { data } = await supabase.from('friendships').select('user_a, user_b');
+  const otherIds = (data ?? []).map((f: any) => (f.user_a === uid ? f.user_b : f.user_a));
+  if (!otherIds.length) return [];
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, username, display_name, avatar_url')
+    .in('id', otherIds);
+  return (profiles ?? []).map(toUser);
+}
+
+export async function removeFriend(otherId: string): Promise<boolean> {
+  const uid = await currentUserId();
+  if (!uid) return false;
+  const a = uid < otherId ? uid : otherId;
+  const b = uid < otherId ? otherId : uid;
+  const { error } = await supabase.from('friendships').delete().eq('user_a', a).eq('user_b', b);
+  // また申請し直せるように、過去の申請行も消しておく
+  await supabase.from('friend_requests').delete()
+    .or(`and(requester_id.eq.${uid},addressee_id.eq.${otherId}),and(requester_id.eq.${otherId},addressee_id.eq.${uid})`);
+  return !error;
+}
+
+export async function fetchUserProfile(id: string): Promise<UserSummary | null> {
+  const { data } = await supabase.from('profiles').select('id, username, display_name, avatar_url').eq('id', id).maybeSingle();
+  return data ? toUser(data) : null;
+}
+
+/** 指定ユーザーの旅（RLSが公開範囲を自動判定：public＋友達ならfriendsも）。 */
+export async function fetchTripsByOwner(ownerId: string): Promise<Trip[]> {
+  const { data } = await supabase.from('trips').select('id').eq('owner_id', ownerId).order('start_date', { ascending: false });
+  if (!data) return [];
+  const trips = await Promise.all(data.map((t: any) => fetchTrip(t.id)));
+  return trips.filter(Boolean) as Trip[];
+}
+
+// ---------------------------------------------------------------- step update
+/** 既存Stepの更新（場所は変更不可。タイトル・本文・日付のみ）＋写真の追加。 */
+export async function updateStep(logId: string, input: { title?: string; note?: string; loggedAt?: string; tripId?: string; newPhotos?: Blob[] }): Promise<boolean> {
+  const uid = await currentUserId();
+  if (!uid) return false;
+  const patch: any = {};
+  if (input.title !== undefined) patch.title = input.title;
+  if (input.note !== undefined) patch.note = input.note;
+  if (input.loggedAt !== undefined) patch.logged_at = input.loggedAt;
+  const { error } = await supabase.from('logs').update(patch).eq('id', logId);
+  if (error) return false;
+
+  const blobs = input.newPhotos ?? [];
+  if (blobs.length && input.tripId) {
+    const { count } = await supabase.from('photos').select('id', { count: 'exact', head: true }).eq('log_id', logId);
+    let order = count ?? 0;
+    for (const b of blobs) {
+      try {
+        const path = await uploadPhoto(uid, input.tripId, b, `${logId}-${order}`);
+        if (path) await supabase.from('photos').insert({ log_id: logId, trip_id: input.tripId, uploader_id: uid, storage_path: path, sort_order: order });
+        order++;
+      } catch {}
+    }
+  }
+  bump('trips');
+  return true;
+}
+
 /** 記録→カウント→ユーザー：訪問済み都道府県コード(1..47)。RPC my_visited_prefectures を使用。 */
 export async function fetchVisitedPrefectureCodes(): Promise<number[]> {
   const { data, error } = await supabase.rpc('my_visited_prefectures');

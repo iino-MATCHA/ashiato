@@ -24,6 +24,9 @@ body {
   body { height: 100dvh; } /* dynamic viewport = excludes browser chrome */
 }
 #root { display: flex; flex-direction: column; height: 100%; width: 100%; }
+/* no browser focus ring on text fields — the app draws its own underline */
+input:focus, textarea:focus, select:focus { outline: none; }
+input, textarea { -webkit-tap-highlight-color: transparent; }
 `;
 
 export default function Root({ children }: PropsWithChildren) {

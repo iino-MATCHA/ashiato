@@ -48,7 +48,7 @@ export default function PrefectureOnboarding() {
       const ok = await saveVisitedPrefectures(Array.from(selected));
       setSaving(false);
       if (!ok) {
-        setError('Could not save. Make sure you are signed in and migration 0003 has been run.');
+        setError('Could not save. Please sign in and try again.');
         return;
       }
     }

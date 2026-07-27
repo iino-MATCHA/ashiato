@@ -9,7 +9,7 @@ import { DateInput } from '@/components/DateInput';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { searchPlaces, resolvePlace, createStep, type PlaceHit } from '@/lib/api';
+import { searchPlaces, resolvePlace, createStep, updateStep, type PlaceHit } from '@/lib/api';
 import type { Step } from '@/lib/mock';
 
 interface SelectedPlace {
@@ -82,6 +82,21 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
 
   const save = async () => {
     setSaveMsg(null);
+    // editing an existing stop: update title / note / date (+append photos); place is locked
+    if (editing && step && isSupabaseConfigured && tripId) {
+      setSaving(true);
+      const ok = await updateStep(step.id, {
+        title: title.trim() || step.title,
+        note: note.trim(),
+        loggedAt: (when || step.loggedAt).replace(/\./g, '-'),
+        tripId,
+        newPhotos: photos.map((p) => p.blob),
+      });
+      setSaving(false);
+      if (!ok) { setSaveMsg('Could not save changes. Please sign in and try again.'); return; }
+      router.back();
+      return;
+    }
     if (tripId && place?.municipalityCode && place.prefectureCode && isSupabaseConfigured) {
       setSaving(true);
       const res = await createStep({
@@ -128,7 +143,10 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
               <AppText variant="bodyStrong" tone="ink">{place.title}</AppText>
               {!!place.subtitle && <AppText variant="small" tone="inkFaint">{place.subtitle}</AppText>}
             </View>
-            <Pressable onPress={() => setPlace(null)} hitSlop={8}><Ionicons name="close-circle" size={20} color={palette.inkFaint} /></Pressable>
+            {/* the place can't be changed once a stop exists */}
+            {!editing && (
+              <Pressable onPress={() => setPlace(null)} hitSlop={8}><Ionicons name="close-circle" size={20} color={palette.inkFaint} /></Pressable>
+            )}
           </Row>
         ) : (
           <>
@@ -137,7 +155,7 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
               <TextInput
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Search a place or area (not a prefecture)"
+                placeholder="Search a place or area"
                 placeholderTextColor={palette.inkFaint}
                 style={[styles.searchInput, { color: palette.ink }]}
                 autoCapitalize="none"
@@ -153,11 +171,6 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
                 </View>
               </Pressable>
             ))}
-            {!isSupabaseConfigured && (
-              <AppText variant="small" tone="inkFaint" style={{ marginTop: space.sm }}>
-                Connect Supabase (env) to search municipalities_master / tourism_area_master.
-              </AppText>
-            )}
           </>
         )}
 
@@ -190,11 +203,6 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
             </View>
           ))}
         </ScrollView>
-        <Gap h={space.xs} />
-        <Row style={{ gap: 6 }}>
-          <Ionicons name="information-circle-outline" size={13} color={palette.inkFaint} />
-          <AppText variant="small" tone="inkFaint">Photos are compressed before upload to keep storage small.</AppText>
-        </Row>
 
         <Gap h={space.lg} />
         <TextInput value={title} onChangeText={setTitle} placeholder="Title" placeholderTextColor={palette.inkFaint} style={[styles.titleInput, { color: palette.ink }]} />
@@ -205,12 +213,6 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
         {!!saveMsg && (<><Gap h={space.md} /><AppText variant="small" tone="shu" center>{saveMsg}</AppText></>)}
         <Gap h={space.xl} />
         <Button label={saving ? 'Saving…' : editing ? 'Save changes' : 'Save stop'} tone="matcha" onPress={save} disabled={!canSave || saving} />
-        {!editing && !isSupabaseConfigured && (
-          <>
-            <Gap h={space.sm} />
-            <AppText variant="small" tone="inkFaint" center>Sign in with Supabase connected to actually record to the database.</AppText>
-          </>
-        )}
       </ScrollView>
     </SafeAreaView>
   );

@@ -65,10 +65,6 @@ export default function BookNew() {
         ))}
 
         <View style={{ flex: 1 }} />
-        <Row style={{ gap: 6, marginBottom: space.sm }}>
-          <Ionicons name="construct-outline" size={13} color={palette.inkFaint} />
-          <AppText variant="small" tone="inkFaint">Auto-layout, PDF export (pdf-lib) and checkout are planned.</AppText>
-        </Row>
         <Button label="Generate layout" tone="ai" onPress={() => {}} />
         <Gap h={space.md} />
       </View>

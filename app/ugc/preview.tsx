@@ -20,11 +20,6 @@ export default function UgcPreview() {
       <Rule />
       <View style={{ flex: 1, paddingHorizontal: space.lg, alignItems: 'center', justifyContent: 'center' }}>
         <UgcCard card={card} width={width * 0.6} />
-        <Gap h={space.lg} />
-        <Row style={[styles.badge, { borderColor: palette.ruleStrong }]}>
-          <Ionicons name="construct-outline" size={14} color={palette.inkFaint} />
-          <AppText variant="small" tone="inkFaint">High-res rendering in progress (simplified preview)</AppText>
-        </Row>
       </View>
       <View style={{ padding: space.lg }}>
         <Button label="Share" tone="matcha" onPress={() => router.push('/share')} />

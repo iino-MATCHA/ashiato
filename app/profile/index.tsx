@@ -12,8 +12,8 @@ import { RankModal, rankFor } from '@/components/RankModal';
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { fetchUnreadCount } from '@/lib/api';
-import { friends } from '@/lib/mock';
+import { fetchUnreadCount, fetchFriends, fetchFriendRequests, type UserSummary } from '@/lib/api';
+import { friends as mockFriends } from '@/lib/mock';
 
 export default function ProfilePage() {
   const { palette } = useTheme();
@@ -22,10 +22,18 @@ export default function ProfilePage() {
   const { codes: visited } = useVisitedPrefectures();
   const [rankOpen, setRankOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [friends, setFriends] = useState<UserSummary[]>(
+    isSupabaseConfigured ? [] : mockFriends.map((f) => ({ id: f.id, name: f.name, username: f.username, avatarUrl: '' }))
+  );
+  const [pendingReq, setPendingReq] = useState(0);
   const aliveRef = useRef(true);
   useFocusEffect(useCallback(() => {
     aliveRef.current = true;
-    if (isSupabaseConfigured) fetchUnreadCount().then((n) => aliveRef.current && setUnread(n));
+    if (isSupabaseConfigured) {
+      fetchUnreadCount().then((n) => aliveRef.current && setUnread(n));
+      fetchFriends().then((f) => aliveRef.current && setFriends(f)).catch(() => {});
+      fetchFriendRequests().then((r) => aliveRef.current && setPendingReq(r.length)).catch(() => {});
+    }
     return () => { aliveRef.current = false; };
   }, []));
   // real data only — exclude the sample/showcase trip from stats
@@ -89,17 +97,28 @@ export default function ProfilePage() {
         {/* Friends */}
         <Gap h={space.xl} />
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <Eyebrow>Friends · {friends.length}</Eyebrow>
+          <Row style={{ gap: 8, alignItems: 'center' }}>
+            <Eyebrow>Friends · {friends.length}</Eyebrow>
+            {pendingReq > 0 && (
+              <View style={[styles.badge, { backgroundColor: palette.shu }]}>
+                <AppText variant="small" style={{ color: '#fff' }}>{pendingReq}</AppText>
+              </View>
+            )}
+          </Row>
           <Pressable onPress={() => router.push('/friends')}>
             <AppText variant="small" tone="matcha">See all →</AppText>
           </Pressable>
         </Row>
         <Gap h={space.md} />
         <Row style={{ gap: space.md, alignItems: 'center' }}>
-          {friends.map((f) => (
+          {friends.slice(0, 5).map((f) => (
             <Pressable key={f.id} onPress={() => router.push(`/friends/${f.id}`)} style={{ alignItems: 'center', width: 56 }}>
-              <View style={[styles.friendAvatar, { backgroundColor: f.color }]}>
-                <AppText variant="bodyStrong" style={{ color: '#fff' }}>{f.name.slice(0, 1)}</AppText>
+              <View style={[styles.friendAvatar, { backgroundColor: palette.fill }]}>
+                {f.avatarUrl ? (
+                  <Image source={{ uri: f.avatarUrl }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
+                ) : (
+                  <Ionicons name="person" size={20} color={palette.matcha} />
+                )}
               </View>
               <Gap h={4} />
               <AppText variant="small" tone="inkSoft" numberOfLines={1}>{f.name}</AppText>
@@ -164,7 +183,7 @@ const styles = StyleSheet.create({
   avatar: { width: 68, height: 68, borderRadius: 34, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   rankPill: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, borderWidth: StyleSheet.hairlineWidth * 2, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
   distance: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: hairline, borderRadius: 3, padding: space.lg },
-  friendAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  friendAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   friendAdd: { width: 44, height: 44, borderRadius: 22, borderWidth: hairline * 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   setting: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
   badge: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },

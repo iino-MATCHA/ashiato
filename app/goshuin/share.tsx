@@ -66,11 +66,6 @@ export default function GoshuinShare() {
           <ExportBtn icon="logo-instagram" label="Stories" onPress={() => share('stories')} palette={palette} color="#C13584" />
           <ExportBtn icon="logo-twitter" label="X" onPress={() => share('x')} palette={palette} color={palette.ink} />
         </Row>
-        <Gap h={space.md} />
-        <Row style={{ gap: 6 }}>
-          <Ionicons name="information-circle-outline" size={13} color={palette.inkFaint} />
-          <AppText variant="small" tone="inkFaint">High-res image export (Skia/canvas) is planned.</AppText>
-        </Row>
       </View>
     </SafeAreaView>
   );
