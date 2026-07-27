@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Button, Eyebrow } from '@/components/ui';
+import { DateInput } from '@/components/DateInput';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -154,7 +155,9 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
         <Gap h={space.sm} />
         <Row style={[styles.search, { borderColor: palette.ruleStrong }]}>
           <Ionicons name="calendar-outline" size={18} color={palette.inkFaint} />
-          <TextInput value={when} onChangeText={setWhen} placeholder="2026.04.01" placeholderTextColor={palette.inkFaint} style={[styles.searchInput, { color: palette.ink }]} />
+          <View style={{ flex: 1 }}>
+            <DateInput value={when} onChange={setWhen} />
+          </View>
         </Row>
 
         {/* 3) PHOTOS + TEXT */}
@@ -204,7 +207,7 @@ const styles = StyleSheet.create({
   search: { alignItems: 'center', gap: space.sm, borderBottomWidth: hairline * 2, paddingBottom: space.sm },
   searchInput: { flex: 1, fontFamily: fonts.gothicRegular, fontSize: type.body, paddingVertical: 4 },
   hit: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.md, borderBottomWidth: hairline, borderBottomColor: 'rgba(0,0,0,0.06)' },
-  selected: { alignItems: 'center', gap: space.sm, borderWidth: hairline * 2, borderRadius: 10, padding: space.md },
+  selected: { alignItems: 'center', gap: space.sm, borderBottomWidth: hairline * 2, borderColor: 'rgba(0,0,0,0)', paddingVertical: space.sm },
   addPhoto: { width: 96, height: 96, borderRadius: 8, borderWidth: hairline * 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   photoWrap: { position: 'relative' },
   photo: { width: 96, height: 96, borderRadius: 8, backgroundColor: '#eee' },

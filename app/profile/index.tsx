@@ -1,4 +1,4 @@
-import { View, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,7 +37,11 @@ export default function ProfilePage() {
         <Gap h={space.sm} />
         <Row style={{ gap: space.md, alignItems: 'center' }}>
           <View style={[styles.avatar, { backgroundColor: palette.fill, borderColor: palette.matcha }]}>
-            <Ionicons name="person" size={30} color={palette.matcha} />
+            {profile.avatarUrl ? (
+              <Image source={{ uri: profile.avatarUrl }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
+            ) : (
+              <Ionicons name="person" size={30} color={palette.matcha} />
+            )}
           </View>
           <View style={{ flex: 1 }}>
             <AppText variant="h2" tone="ink">{profile.name}</AppText>
@@ -142,7 +146,7 @@ function Stat({ value, label, palette }: any) {
 }
 
 const styles = StyleSheet.create({
-  avatar: { width: 68, height: 68, borderRadius: 34, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 68, height: 68, borderRadius: 34, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   rankPill: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, borderWidth: StyleSheet.hairlineWidth * 2, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
   distance: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: hairline, borderRadius: 3, padding: space.lg },
   friendAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },

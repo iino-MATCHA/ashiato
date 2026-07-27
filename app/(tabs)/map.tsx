@@ -51,8 +51,12 @@ export default function Home() {
           <Gap h={space.md} />
           <Pressable onPress={() => router.push('/profile')} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
             <Row style={{ gap: space.md, alignItems: 'center' }}>
-              <View style={[styles.avatar, { backgroundColor: palette.fill, borderColor: palette.matcha, borderWidth: 2 }]}>
-                <Ionicons name="person" size={22} color={palette.matcha} />
+              <View style={[styles.avatar, { backgroundColor: palette.fill, borderColor: palette.matcha, borderWidth: 2, overflow: 'hidden' }]}>
+                {profile.avatarUrl ? (
+                  <Image source={{ uri: profile.avatarUrl }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
+                ) : (
+                  <Ionicons name="person" size={22} color={palette.matcha} />
+                )}
               </View>
               <View style={{ flex: 1 }}>
                 <AppText variant="bodyStrong" tone="ink">{profile.name}</AppText>
@@ -183,7 +187,7 @@ const styles = StyleSheet.create({
   pulse: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   cardMenu: { position: 'absolute', top: space.sm, right: space.sm, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  sheet: { padding: space.lg, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: space.xxl },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: space.lg },
+  sheet: { width: '100%', maxWidth: 360, padding: space.lg, borderRadius: 16 },
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
 });

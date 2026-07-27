@@ -95,12 +95,8 @@ export function TripMap({
         map.on('load', async () => {
           await buildRoutes(map, steps, effectiveModes);
           readyRef.current = true;
-          if (steps.length > 1) {
-            const b = new mapboxgl.LngLatBounds();
-            steps.forEach((s) => b.extend([s.lng, s.lat]));
-            map.fitBounds(b, { padding: 70, duration: 0 });
-          }
-          updateActive(activeIndex);
+          if (overview || steps.length <= 1) frameAll();
+          else updateActive(activeIndex);
         });
       })
       .catch(() => {});

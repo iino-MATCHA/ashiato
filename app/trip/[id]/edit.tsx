@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, TextInput, Pressable, StyleSheet, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -23,6 +23,18 @@ export default function EditTrip() {
   const [saving, setSaving] = useState(false);
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(trip?.steps[0]?.images[0] ?? null);
+  const [ready, setReady] = useState(false);
+
+  // trip loads async — prefill the form once it arrives
+  useEffect(() => {
+    if (trip && !ready) {
+      setTitle(trip.title ?? '');
+      setStart(trip.startDate ?? '');
+      setEnd(trip.endDate ?? '');
+      if (!coverPreview) setCoverPreview(trip.steps[0]?.images[0] ?? null);
+      setReady(true);
+    }
+  }, [trip, ready]);
 
   const pickCover = () => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;

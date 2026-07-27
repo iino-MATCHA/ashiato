@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, ScrollView, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { AppText, Row, Rule, Gap, Eyebrow, Button } from '@/components/ui';
 import { Header } from '@/components/Header';
 import { JapanSvgMap } from '@/components/JapanSvgMap';
+import { hairline } from '@/lib/theme';
 import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -19,6 +21,8 @@ export default function PrefectureOnboarding() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const baseW = Math.min(width - space.lg * 2, 420);
 
   // when re-editing, preload what's already saved
   useEffect(() => {
@@ -64,9 +68,17 @@ export default function PrefectureOnboarding() {
         <AppText variant="body" tone="inkSoft">Tap every prefecture you’ve already visited. We’ll mark them on your map and goshuin book.</AppText>
 
         <Gap h={space.lg} />
-        <View style={{ alignItems: 'center' }}>
-          <JapanSvgMap visited={selected} onToggle={toggle} width={Math.min(width - space.lg * 2, 420)} />
-        </View>
+        <Row style={{ justifyContent: 'flex-end', gap: space.sm, marginBottom: space.sm }}>
+          <Pressable onPress={() => setZoom((z) => Math.max(1, +(z - 0.5).toFixed(1)))} style={[styles.zoomBtn, { borderColor: palette.ruleStrong }]}>
+            <Ionicons name="remove" size={20} color={palette.ink} />
+          </Pressable>
+          <Pressable onPress={() => setZoom((z) => Math.min(3, +(z + 0.5).toFixed(1)))} style={[styles.zoomBtn, { borderColor: palette.ruleStrong }]}>
+            <Ionicons name="add" size={20} color={palette.ink} />
+          </Pressable>
+        </Row>
+        <ScrollView horizontal showsHorizontalScrollIndicator={zoom > 1} contentContainerStyle={{ minWidth: '100%', alignItems: 'center', justifyContent: 'center' }}>
+          <JapanSvgMap visited={selected} onToggle={toggle} width={baseW * zoom} hideOkinawa />
+        </ScrollView>
 
         <Gap h={space.md} />
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -80,7 +92,7 @@ export default function PrefectureOnboarding() {
         {!!error && (<><Gap h={space.sm} /><AppText variant="small" tone="shu">{error}</AppText></>)}
       </ScrollView>
 
-      <View style={{ padding: space.lg }}>
+      <View style={{ padding: space.lg }} pointerEvents="box-none">
         <Rule />
         <Gap h={space.md} />
         <Button
@@ -93,3 +105,7 @@ export default function PrefectureOnboarding() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  zoomBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: hairline * 2, alignItems: 'center', justifyContent: 'center' },
+});

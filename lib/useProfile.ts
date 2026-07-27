@@ -6,10 +6,11 @@ export interface Profile {
   name: string;
   username: string;
   bio: string;
+  avatarUrl: string;
 }
 
 // tiny shared store so the profile stays in sync across pages
-let current: Profile = { name: me.name, username: me.username, bio: '' };
+let current: Profile = { name: me.name, username: me.username, bio: '', avatarUrl: '' };
 const listeners = new Set<() => void>();
 function emit() {
   listeners.forEach((l) => l());
@@ -20,9 +21,14 @@ async function loadFromDb() {
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth?.user?.id;
   if (!uid) return;
-  const { data } = await supabase.from('profiles').select('display_name, username, bio').eq('id', uid).single();
+  const { data } = await supabase.from('profiles').select('display_name, username, bio, avatar_url').eq('id', uid).single();
   if (data) {
-    current = { name: data.display_name ?? current.name, username: data.username ?? current.username, bio: data.bio ?? '' };
+    current = {
+      name: data.display_name ?? current.name,
+      username: data.username ?? current.username,
+      bio: data.bio ?? '',
+      avatarUrl: data.avatar_url ?? '',
+    };
     emit();
   }
 }
@@ -34,7 +40,7 @@ export async function saveProfile(next: Profile) {
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth?.user?.id;
   if (!uid) return;
-  await supabase.from('profiles').upsert({ id: uid, display_name: next.name, username: next.username, bio: next.bio });
+  await supabase.from('profiles').upsert({ id: uid, display_name: next.name, username: next.username, bio: next.bio, avatar_url: next.avatarUrl || null });
 }
 
 export function useProfile() {

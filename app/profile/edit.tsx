@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, TextInput, StyleSheet } from 'react-native';
+import { View, TextInput, StyleSheet, Pressable, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,8 @@ import { AppText, Row, Rule, Gap, Button } from '@/components/ui';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useProfile } from '@/lib/useProfile';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { uploadAvatar } from '@/lib/api';
 
 export default function EditProfile() {
   const { palette } = useTheme();
@@ -15,11 +17,28 @@ export default function EditProfile() {
   const [name, setName] = useState(profile.name);
   const [username, setUsername] = useState(profile.username);
   const [bio, setBio] = useState(profile.bio);
+  const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl);
+  const [avatarBlob, setAvatarBlob] = useState<Blob | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState(profile.avatarUrl);
   const [saving, setSaving] = useState(false);
+
+  const pickAvatar = () => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => {
+      const f = input.files?.[0];
+      if (f) { setAvatarBlob(f); setAvatarPreview(URL.createObjectURL(f)); }
+    };
+    input.click();
+  };
 
   const save = async () => {
     setSaving(true);
-    await update({ name: name.trim() || profile.name, username: username.trim() || profile.username, bio: bio.trim() });
+    let url = avatarUrl;
+    if (avatarBlob && isSupabaseConfigured) url = (await uploadAvatar(avatarBlob)) ?? avatarUrl;
+    await update({ name: name.trim() || profile.name, username: username.trim() || profile.username, bio: bio.trim(), avatarUrl: url });
     setSaving(false);
     router.back();
   };
@@ -32,9 +51,16 @@ export default function EditProfile() {
         <View style={styles.form}>
           <Gap h={space.lg} />
           <Row style={{ justifyContent: 'center' }}>
-            <View style={[styles.avatar, { backgroundColor: palette.fill, borderColor: palette.matcha }]}>
-              <Ionicons name="person" size={38} color={palette.matcha} />
-            </View>
+            <Pressable onPress={pickAvatar} style={[styles.avatar, { backgroundColor: palette.fill, borderColor: palette.matcha }]}>
+              {avatarPreview ? (
+                <Image source={{ uri: avatarPreview }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
+              ) : (
+                <Ionicons name="person" size={38} color={palette.matcha} />
+              )}
+              <View style={styles.avatarBadge}>
+                <Ionicons name="camera" size={14} color="#fff" />
+              </View>
+            </Pressable>
           </Row>
 
           <Gap h={space.xl} />
@@ -65,6 +91,7 @@ function Field({ label, prefix, palette, ...rest }: any) {
 
 const styles = StyleSheet.create({
   form: { width: '100%', maxWidth: 360, alignSelf: 'center' },
-  avatar: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
   input: { fontFamily: fonts.minchoMedium, fontSize: type.h3, paddingVertical: space.sm },
 });

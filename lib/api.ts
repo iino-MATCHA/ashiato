@@ -276,7 +276,7 @@ export async function saveVisitedPrefectures(codes: number[]): Promise<boolean> 
 }
 
 /** 画像を画質を保ったまま縮小圧縮（Web）。ネイティブは非対応でそのまま返す。 */
-async function compressImage(blob: Blob, maxDim = 1600, quality = 0.82): Promise<Blob> {
+async function compressImage(blob: Blob, maxDim = 1280, quality = 0.72): Promise<Blob> {
   if (typeof document === 'undefined' || typeof createImageBitmap === 'undefined') return blob;
   try {
     const bmp = await createImageBitmap(blob);
@@ -336,6 +336,14 @@ export async function uploadTripCover(tripId: string, blob: Blob): Promise<strin
   const uid = await currentUserId();
   if (!uid) return null;
   const path = await uploadPhoto(uid, tripId, blob);
+  return path ? publicUrl(path) : null;
+}
+
+/** プロフィール画像をアップロードして公開URLを返す。 */
+export async function uploadAvatar(blob: Blob): Promise<string | null> {
+  const uid = await currentUserId();
+  if (!uid) return null;
+  const path = await uploadPhoto(uid, 'avatar', blob);
   return path ? publicUrl(path) : null;
 }
 
