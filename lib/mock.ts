@@ -71,20 +71,20 @@ export const PREFECTURE_TOTAL = 47;
 // Accurate, place-specific photos from Wikimedia Commons (one correct image per stop).
 const C = 'https://upload.wikimedia.org/wikipedia/commons/thumb';
 const IMAGE: Record<string, string> = {
-  gtTokyo: `${C}/b/b2/Skyscrapers_of_Shinjuku_2009_January.jpg/800px-Skyscrapers_of_Shinjuku_2009_January.jpg`,
-  gtTokyo2: `${C}/b/b2/Skyscrapers_of_Shinjuku_2009_January.jpg/800px-Skyscrapers_of_Shinjuku_2009_January.jpg`,
-  gtKanazawa: `${C}/3/31/Stone_lantern_Kenrokuen.jpg/800px-Stone_lantern_Kenrokuen.jpg`,
-  gtKyoto: `${C}/0/0e/Torii_path_with_lantern_at_Fushimi_Inari_Taisha_Shrine%2C_Kyoto%2C_Japan.jpg/800px-Torii_path_with_lantern_at_Fushimi_Inari_Taisha_Shrine%2C_Kyoto%2C_Japan.jpg`,
-  gtOsaka: `${C}/f/f4/Osaka_Dotonbori_Ebisu_Bridge.jpg/800px-Osaka_Dotonbori_Ebisu_Bridge.jpg`,
-  gtHiroshima: `${C}/e/ef/Itsukushima_Shrine_Torii_Gate_%2813890465459%29.jpg/800px-Itsukushima_Shrine_Torii_Gate_%2813890465459%29.jpg`,
-  gtFukuoka: `${C}/b/bd/Fukuoka_Skyline_of_Seaside_Momochi.jpg/800px-Fukuoka_Skyline_of_Seaside_Momochi.jpg`,
-  gtOkinawa: `${C}/5/56/Naha_Okinawa_Japan_Shuri-Castle-01.jpg/800px-Naha_Okinawa_Japan_Shuri-Castle-01.jpg`,
-  gtSapporo: `${C}/5/54/SapporoCity_Skylines2020.jpg/800px-SapporoCity_Skylines2020.jpg`,
-  gtSendai: `${C}/1/1d/SendaiCity_Skylines_from_Mukaiyama2018.jpg/800px-SendaiCity_Skylines_from_Mukaiyama2018.jpg`,
-  mkNaoshima: `${C}/6/60/Beachside_Torii%2C_Naoshima.jpg/800px-Beachside_Torii%2C_Naoshima.jpg`,
-  mkOkayama: `${C}/f/f2/%E5%BE%A9%E5%85%83%E3%81%95%E3%82%8C%E3%81%9F%E5%B2%A1%E5%B1%B1%E5%9F%8E.jpg/800px-%E5%BE%A9%E5%85%83%E3%81%95%E3%82%8C%E3%81%9F%E5%B2%A1%E5%B1%B1%E5%9F%8E.jpg`,
-  rkAomori: `${C}/8/88/Aomori_Montage.jpg/800px-Aomori_Montage.jpg`,
-  rkAkita: `${C}/9/92/Bukeyashiki_Street_in_Kakunodate_20060506.jpg/800px-Bukeyashiki_Street_in_Kakunodate_20060506.jpg`,
+  gtTokyo: `${C}/b/b2/Skyscrapers_of_Shinjuku_2009_January.jpg/960px-Skyscrapers_of_Shinjuku_2009_January.jpg`,
+  gtTokyo2: `${C}/b/b2/Skyscrapers_of_Shinjuku_2009_January.jpg/960px-Skyscrapers_of_Shinjuku_2009_January.jpg`,
+  gtKanazawa: `${C}/3/31/Stone_lantern_Kenrokuen.jpg/960px-Stone_lantern_Kenrokuen.jpg`,
+  gtKyoto: `${C}/0/0e/Torii_path_with_lantern_at_Fushimi_Inari_Taisha_Shrine%2C_Kyoto%2C_Japan.jpg/960px-Torii_path_with_lantern_at_Fushimi_Inari_Taisha_Shrine%2C_Kyoto%2C_Japan.jpg`,
+  gtOsaka: `${C}/f/f4/Osaka_Dotonbori_Ebisu_Bridge.jpg/960px-Osaka_Dotonbori_Ebisu_Bridge.jpg`,
+  gtHiroshima: `${C}/e/ef/Itsukushima_Shrine_Torii_Gate_%2813890465459%29.jpg/960px-Itsukushima_Shrine_Torii_Gate_%2813890465459%29.jpg`,
+  gtFukuoka: `${C}/b/bd/Fukuoka_Skyline_of_Seaside_Momochi.jpg/960px-Fukuoka_Skyline_of_Seaside_Momochi.jpg`,
+  gtOkinawa: `${C}/5/56/Naha_Okinawa_Japan_Shuri-Castle-01.jpg/960px-Naha_Okinawa_Japan_Shuri-Castle-01.jpg`,
+  gtSapporo: `${C}/5/54/SapporoCity_Skylines2020.jpg/960px-SapporoCity_Skylines2020.jpg`,
+  gtSendai: `${C}/1/1d/SendaiCity_Skylines_from_Mukaiyama2018.jpg/960px-SendaiCity_Skylines_from_Mukaiyama2018.jpg`,
+  mkNaoshima: `${C}/6/60/Beachside_Torii%2C_Naoshima.jpg/960px-Beachside_Torii%2C_Naoshima.jpg`,
+  mkOkayama: `${C}/f/f2/%E5%BE%A9%E5%85%83%E3%81%95%E3%82%8C%E3%81%9F%E5%B2%A1%E5%B1%B1%E5%9F%8E.jpg/960px-%E5%BE%A9%E5%85%83%E3%81%95%E3%82%8C%E3%81%9F%E5%B2%A1%E5%B1%B1%E5%9F%8E.jpg`,
+  rkAomori: `${C}/8/88/Aomori_Montage.jpg/960px-Aomori_Montage.jpg`,
+  rkAkita: `${C}/9/92/Bukeyashiki_Street_in_Kakunodate_20060506.jpg/960px-Bukeyashiki_Street_in_Kakunodate_20060506.jpg`,
 };
 const photos = (seed: string, _n = 1) => [IMAGE[seed] ?? IMAGE.gtTokyo];
 

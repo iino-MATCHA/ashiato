@@ -7,21 +7,23 @@ import type { PropsWithChildren } from 'react';
  * layout is full-width and doesn't scroll horizontally.
  */
 const css = `
-html, body { margin: 0; padding: 0; height: 100%; }
-#root { display: flex; flex-direction: column; min-height: 100%; width: 100%; }
-/* fill the *visible* viewport on mobile so the footer isn't below the fold */
-@supports (height: 100dvh) {
-  html, body, #root { min-height: 100dvh; }
-}
-/* keep the top (back button etc.) clear of the notch / status bar on mobile */
+/* Fixed-height app shell: the app always fits the VISIBLE viewport exactly,
+   so the bottom tab bar is never cut off. Screens scroll internally. */
+html { height: 100%; }
 body {
+  margin: 0;
+  height: 100%;
+  box-sizing: border-box; /* safe-area paddings are inside the height */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
   overflow-x: hidden;
   overscroll-behavior-y: none;
   -webkit-text-size-adjust: 100%;
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-  box-sizing: border-box;
 }
+@supports (height: 100dvh) {
+  body { height: 100dvh; } /* dynamic viewport = excludes browser chrome */
+}
+#root { display: flex; flex-direction: column; height: 100%; width: 100%; }
 `;
 
 export default function Root({ children }: PropsWithChildren) {
