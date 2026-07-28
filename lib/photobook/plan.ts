@@ -1,9 +1,19 @@
 /**
- * 台割（どのページに何を載せるか）を組む。
- * docs/photobook.md の設計をそのまま実装した純粋関数。副作用も描画も持たない。
+ * 台割（どのページに何を載せるか）を組む。純粋関数。
+ *
+ * ページ数は写真の枚数から決まる:
+ *   固定4ページ（表紙・行程図・道中記・奥付）+ 写真ページ（1ページに2〜3枚）
+ * 章扉は独立ページにせず、各県の最初の写真ページに帯として載せる。
+ * 空押しのような「息継ぎ」ページは廃止（ページ数を膨らませない）。
  */
 import type { Trip, Step } from '@/lib/mock';
-import { PREFECTURE_EN_BY_ID, PREFECTURE_KANJI_BY_ID, PREFECTURE_KANA_BY_ID, PREFECTURE_ID_BY_SLUG, slugForName } from '@/lib/prefectures';
+import {
+  PREFECTURE_EN_BY_ID, PREFECTURE_KANJI_BY_ID, PREFECTURE_KANA_BY_ID,
+  PREFECTURE_ID_BY_SLUG, slugForName,
+} from '@/lib/prefectures';
+
+/** これ未満だと本として薄すぎる。書き出し前に足すよう促す */
+export const MIN_PHOTOS = 5;
 
 // ---------------------------------------------------------------- 型
 
@@ -13,28 +23,39 @@ export interface Chapter {
   prefKanji: string;
   prefKana: string;
   stops: Step[];
-  /** 同じ県に離れて再訪した場合の回数（2回目以降は扉に出す） */
+  /** 同じ県に離れて再訪した場合の回数（2回目以降は帯に出す） */
   visitNo: number;
   days: number;
   photoCount: number;
+  /** この章が使う写真ページ数（配分結果） */
   pages: number;
 }
+
+export interface ChapterLabel {
+  prefEn: string;
+  prefKanji: string;
+  prefKana: string;
+  visitNo: number;
+  dateLabel: string;
+  sekki: string;
+}
+
+export interface PagePhoto { uri: string; stopTitle: string }
 
 export type Page =
   | { kind: 'cover'; title: string; dateLabel: string; hero: string; progress: number }
   | { kind: 'map'; title: string; stops: { lat: number; lng: number }[]; visitedCodes: number[]; progress: number }
   | { kind: 'itinerary'; rows: ItineraryRow[]; progress: number }
   | {
-      kind: 'chapter';
-      prefEn: string; prefKanji: string; prefKana: string;
-      visitNo: number; dateLabel: string; sekki: string;
-      places: string[]; progress: number;
+      kind: 'photos';
+      photos: PagePhoto[];
+      caption: string;
+      place: string;
+      /** 章の最初のページにだけ付く帯 */
+      chapter?: ChapterLabel;
+      progress: number;
     }
-  | { kind: 'photos'; photos: PagePhoto[]; caption: string; place: string; progress: number }
-  | { kind: 'breather'; photo: PagePhoto; progress: number }
   | { kind: 'colophon'; stats: [string, string][]; progress: number };
-
-export interface PagePhoto { uri: string; stopTitle: string }
 
 export interface ItineraryRow {
   date: string;
@@ -46,6 +67,7 @@ export interface ItineraryRow {
 export interface BookPlan {
   pages: Page[];
   chapters: Chapter[];
+  totalPhotos: number;
   /** 進行帯のために、地点が全体のどこかを 0..1 で持つ */
   stopProgress: number[];
 }
@@ -72,7 +94,6 @@ export function sekkiFor(date: string): string {
   if (!date) return '';
   const [, mm, dd] = date.split('-').map(Number);
   if (!mm || !dd) return '';
-  // その日以前で最も近い節気
   const sorted = [...SEKKI].sort((a, b) => a[0] * 100 + a[1] - (b[0] * 100 + b[1]));
   let hit = sorted[sorted.length - 1];
   for (const s of sorted) {
@@ -113,76 +134,38 @@ export function buildChapters(steps: Step[]): Chapter[] {
     });
   });
   out.forEach((ch) => {
-    ch.photoCount = ch.stops.reduce((n, s) => n + s.images.length, 0);
+    ch.photoCount = ch.stops.reduce((n, s) => n + s.images.filter(Boolean).length, 0);
     ch.days = new Set(ch.stops.map((s) => s.loggedAt)).size;
   });
   return out;
 }
 
 /**
- * ページ配分。写真枚数の平方根で重みをつける。
- * 線形にすると1箇所で100枚撮った旅で本が食い潰されるため。
+ * n枚の写真を「1ページ2〜3枚」に分ける。
+ * 端数が1のときは [.., 3, 1] にせず [.., 2, 2] に直す（1枚だけのページを作らない）。
  */
-export function allocatePages(chapters: Chapter[], photoPages: number): Chapter[] {
-  const weight = (c: Chapter) => Math.sqrt(Math.max(c.photoCount, 1)) * (1 + 0.15 * Math.max(c.days - 1, 0));
-  const total = chapters.reduce((s, c) => s + weight(c), 0) || 1;
-  chapters.forEach((c) => {
-    const raw = Math.round((photoPages * weight(c)) / total);
-    c.pages = Math.min(8, Math.max(1, raw));
-  });
-  return chapters;
-}
-
-/**
- * 章の写真を選ぶ。
- * 連写した似た写真が並ぶのを避けるため、各地点から等間隔に抜く
- * （1枚目はユーザーが自分で選んだ表紙なので必ず入れる）。
- */
-export function pickPhotos(chapter: Chapter, slots: number): PagePhoto[] {
-  const perStop = Math.max(1, Math.ceil(slots / chapter.stops.length));
-  const picked: PagePhoto[] = [];
-  chapter.stops.forEach((s) => {
-    const imgs = s.images.filter(Boolean);
-    if (!imgs.length) return;
-    const take = Math.min(perStop, imgs.length);
-    for (let i = 0; i < take; i++) {
-      // 0, 中央, 末尾… と散らして取る
-      const idx = take === 1 ? 0 : Math.round((i * (imgs.length - 1)) / (take - 1));
-      const uri = imgs[idx];
-      if (!picked.some((p) => p.uri === uri)) picked.push({ uri, stopTitle: s.title });
-    }
-  });
-  return picked.slice(0, slots);
+export function groupPhotos(n: number): number[] {
+  if (n <= 0) return [];
+  if (n === 1) return [1]; // 1枚しか無いときだけ許す
+  const groups: number[] = [];
+  let left = n;
+  while (left > 0) {
+    groups.push(Math.min(3, left));
+    left -= 3;
+  }
+  if (groups[groups.length - 1] === 1) {
+    groups[groups.length - 2] = 2;
+    groups[groups.length - 1] = 2;
+  }
+  return groups;
 }
 
 // ---------------------------------------------------------------- 台割
 
-/** 1ページに載せる枚数。多すぎると「並べただけ」になるので最大4枚。 */
-function photosPerPage(n: number): number[] {
-  const out: number[] = [];
-  let left = n;
-  while (left > 0) {
-    // 4枚のときは 2+2（3+1 だと1枚だけのページが締まらない）
-    const take = Math.min(left, left === 4 ? 2 : 3);
-    out.push(take);
-    left -= take;
-  }
-  return out;
-}
-
-export interface PlanOptions {
-  /** 目標ページ数。折に合わせて4の倍数に丸める */
-  targetPages?: number;
-}
-
-export function planBook(trip: Trip, opts: PlanOptions = {}): BookPlan {
+export function planBook(trip: Trip): BookPlan {
   const steps = trip.steps ?? [];
   const chapters = buildChapters(steps);
-
-  // 固定ページ: 表紙 / 扉(地図) / 行程表 / 奥付 = 4
-  const FIXED = 4;
-  const target = opts.targetPages ?? Math.max(FIXED + 4, Math.min(48, FIXED + steps.length * 2));
-  allocatePages(chapters, Math.max(1, target - FIXED - chapters.length));
+  const totalPhotos = chapters.reduce((n, c) => n + c.photoCount, 0);
 
   const totalStops = Math.max(steps.length - 1, 1);
   const stopProgress = steps.map((_, i) => i / totalStops);
@@ -219,34 +202,38 @@ export function planBook(trip: Trip, opts: PlanOptions = {}): BookPlan {
     progress: 0,
   });
 
+  // 写真ページ: 章ごとに全写真を2〜3枚ずつ割る。章の最初のページに帯を付ける
   chapters.forEach((ch) => {
+    const photos: PagePhoto[] = [];
+    ch.stops.forEach((s) => {
+      s.images.filter(Boolean).forEach((uri) => photos.push({ uri, stopTitle: s.title }));
+    });
+    if (!photos.length) return;
+
     const first = ch.stops[0];
-    pages.push({
-      kind: 'chapter',
+    const label: ChapterLabel = {
       prefEn: ch.prefEn,
       prefKanji: ch.prefKanji,
       prefKana: ch.prefKana,
       visitNo: ch.visitNo,
       dateLabel: dateLabel(first?.loggedAt, ch.stops[ch.stops.length - 1]?.loggedAt),
       sekki: sekkiFor(first?.loggedAt ?? ''),
-      places: ch.stops.map((s) => s.placeName || s.title),
-      progress: progressOfStop(first),
-    });
+    };
 
-    // その章のページ数だけ写真面を作る
-    const slots = ch.pages * 3;
-    const photos = pickPhotos(ch, slots);
     let cursor = 0;
-    photosPerPage(Math.min(photos.length, ch.pages * 3)).forEach((take, i) => {
+    const groups = groupPhotos(photos.length);
+    ch.pages = groups.length;
+    groups.forEach((take, gi) => {
       const slice = photos.slice(cursor, cursor + take);
       cursor += take;
-      if (!slice.length) return;
-      const stop = ch.stops[Math.min(i, ch.stops.length - 1)];
+      // このページの写真がどのstopのものかで説明文を選ぶ
+      const stop = ch.stops.find((s) => s.title === slice[0]?.stopTitle) ?? ch.stops[0];
       pages.push({
         kind: 'photos',
         photos: slice,
         caption: stop?.note ?? '',
         place: stop?.placeName || stop?.title || '',
+        chapter: gi === 0 ? label : undefined,
         progress: progressOfStop(stop),
       });
     });
@@ -259,21 +246,12 @@ export function planBook(trip: Trip, opts: PlanOptions = {}): BookPlan {
       ['Stops', String(steps.length)],
       ['Distance', `${trip.distanceKm.toLocaleString()} km`],
       ['Days', String(daysBetween(trip.startDate, trip.endDate))],
-      ['Photos', String(steps.reduce((n, s) => n + s.images.length, 0))],
+      ['Photos', String(totalPhotos)],
     ],
     progress: 1,
   });
 
-  // 折に合わせて4の倍数へ。足すときは余白の多い「息継ぎ」ページ
-  const breatherSource = pages.filter((p): p is Extract<Page, { kind: 'photos' }> => p.kind === 'photos');
-  while (pages.length % 4 !== 0) {
-    const src = breatherSource[Math.floor(breatherSource.length / 2)];
-    const photo = src?.photos[0];
-    if (!photo) break;
-    pages.splice(pages.length - 1, 0, { kind: 'breather', photo, progress: src.progress });
-  }
-
-  return { pages, chapters, stopProgress };
+  return { pages, chapters, totalPhotos, stopProgress };
 }
 
 // ---------------------------------------------------------------- 小物

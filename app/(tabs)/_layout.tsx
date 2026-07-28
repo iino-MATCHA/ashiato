@@ -2,9 +2,11 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
+import { useI18n } from '@/lib/i18n';
 
 export default function TabsLayout() {
   const { palette } = useTheme();
+  const { t } = useI18n();
 
   return (
     <Tabs
@@ -31,7 +33,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="map"
         options={{
-          title: 'Trips',
+          title: t('tab.trips'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="earth-outline" size={size - 2} color={color} />
           ),
@@ -40,7 +42,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="goshuin"
         options={{
-          title: 'Goshuin',
+          title: t('tab.goshuin'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="ribbon-outline" size={size - 2} color={color} />
           ),
@@ -49,7 +51,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          title: 'Explore',
+          title: t('tab.explore'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="compass-outline" size={size - 2} color={color} />
           ),

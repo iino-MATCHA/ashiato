@@ -6,9 +6,11 @@
  */
 import React from 'react';
 import { View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
 import { PREFECTURE_PATHS } from '@/lib/mappath';
 import { PREFECTURE_SLUG_BY_ID, PREFECTURE_ID_BY_SLUG, slugForName } from '@/lib/prefectures';
+import { okinawaOffset, contentHeight, pathBox } from '@/lib/ugc/geo';
+import { fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 
 const VB_W = 860;
@@ -45,6 +47,7 @@ export function JapanSvgMap({
   tint,
   onToggle,
   hideOkinawa = false,
+  okinawaInset = false,
   intensity,
 }: {
   /** 都道府県ID(1..47) / 名前 / slug の配列またはSet */
@@ -55,19 +58,26 @@ export function JapanSvgMap({
   onToggle?: (prefectureCode: number) => void;
   /** 表示地図から沖縄を除外する */
   hideOkinawa?: boolean;
+  /** 沖縄を千葉の下のインセットとして表示する（小さくOKINAWAラベルつき） */
+  okinawaInset?: boolean;
   /** コロプレス表示: prefecture_code → 0..1 の濃さ（管理画面の分析で使用） */
   intensity?: Record<number, number>;
 }) {
   const { palette } = useTheme();
   const set = toSlugSet(visited);
-  const height = (width * VB_H) / VB_W;
+  // インセット時は沖縄を下げた分だけ版面が縦に伸びる
+  const vbH = okinawaInset ? contentHeight() : VB_H;
+  const height = (width * vbH) / VB_W;
   const fillVisited = tint ?? palette.matcha;
+  const oki = okinawaInset ? okinawaOffset() : null;
+  const okiBox = okinawaInset ? pathBox(PREFECTURE_PATHS.okinawa) : null;
 
   return (
     <View style={{ width, height }}>
-      <Svg width={width} height={height} viewBox={`0 0 ${VB_W} ${VB_H}`}>
+      <Svg width={width} height={height} viewBox={`0 0 ${VB_W} ${vbH}`}>
         {Object.entries(PREFECTURE_PATHS).map(([slug, d]) => {
-          if (hideOkinawa && slug === 'okinawa') return null;
+          const isOki = slug === 'okinawa';
+          if (hideOkinawa && isOki && !okinawaInset) return null;
           const on = set.has(slug);
           let fill = on ? fillVisited : palette.fill;
           if (intensity) {
@@ -75,7 +85,7 @@ export function JapanSvgMap({
             const v = intensity[PREFECTURE_ID_BY_SLUG[slug]] ?? 0;
             fill = v > 0 ? withAlpha(fillVisited, 0.12 + v * 0.88) : palette.fill;
           }
-          return (
+          const path = (
             <Path
               key={slug}
               d={d}
@@ -88,7 +98,28 @@ export function JapanSvgMap({
               onPress={onToggle ? () => onToggle(PREFECTURE_ID_BY_SLUG[slug]) : undefined}
             />
           );
+          // 沖縄はSVG上では房総沖に浮いて見えるので、千葉の下へ移して置く
+          if (isOki && okinawaInset && oki) {
+            return (
+              <G key={slug} transform={`translate(${oki.dx} ${oki.dy})`}>
+                {path}
+              </G>
+            );
+          }
+          return path;
         })}
+        {okinawaInset && oki && okiBox && (
+          <SvgText
+            x={okiBox.maxX + oki.dx + 14}
+            y={(okiBox.minY + okiBox.maxY) / 2 + oki.dy + 5}
+            fontSize={15}
+            fontFamily={fonts.gothicMedium}
+            letterSpacing={2}
+            fill={palette.inkFaint}
+          >
+            OKINAWA
+          </SvgText>
+        )}
       </Svg>
     </View>
   );

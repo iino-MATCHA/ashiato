@@ -13,18 +13,19 @@ import { AppText, Row, Rule, Gap, Eyebrow, Button } from '@/components/ui';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
-import { planBook, type Page } from '@/lib/photobook/plan';
+import { planBook, MIN_PHOTOS, type Page } from '@/lib/photobook/plan';
 import { renderPage, renderPdf, PAGE_SIZE, type RenderProgress } from '@/lib/photobook/render';
 
 const PAGE_LABEL: Record<Page['kind'], string> = {
   cover: 'Cover',
   map: 'Route',
   itinerary: 'Itinerary',
-  chapter: 'Chapter',
   photos: 'Photos',
-  breather: 'Breath',
   colophon: 'Colophon',
 };
+
+/** プレビューを実描画する最大ページ数（それ以降はラベル表示のみ） */
+const PREVIEW_LIMIT = 24;
 
 export default function TripBook() {
   const { palette } = useTheme();
@@ -36,13 +37,13 @@ export default function TripBook() {
   const [previews, setPreviews] = useState<(string | null)[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
-  // 最初の数ページだけ実際に描いて見せる（全ページ描くと待たされる）
+  // 全ページを順に描いてプレビューにする（大きな本は上限まで）
   useEffect(() => {
     if (!plan || Platform.OS !== 'web') return;
     let alive = true;
     (async () => {
       const out: (string | null)[] = [];
-      for (let i = 0; i < Math.min(plan.pages.length, 6); i++) {
+      for (let i = 0; i < Math.min(plan.pages.length, PREVIEW_LIMIT); i++) {
         const url = await renderPage(plan, i);
         if (!alive) return;
         out.push(url);
@@ -60,9 +61,9 @@ export default function TripBook() {
     );
   }
 
-  const sheets = plan.pages.length / 4;
   const thumbW = Math.min((width - space.lg * 2 - space.sm * 2) / 3, 120);
   const thumbH = thumbW * (PAGE_SIZE.height / PAGE_SIZE.width);
+  const tooFewPhotos = plan.totalPhotos < MIN_PHOTOS;
 
   const exportPdf = async () => {
     if (Platform.OS !== 'web' || typeof document === 'undefined' || busy) return;
@@ -72,7 +73,7 @@ export default function TripBook() {
     if (!blob) return;
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.download = `ashiato-book-${trip.id}.pdf`;
+    link.download = `ashiato-journal-${trip.id}.pdf`;
     link.href = url;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
@@ -80,20 +81,38 @@ export default function TripBook() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header title="Make a book" />
+      <Header title="Travel journal" />
       <Rule />
       <ScrollView contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxl }} showsVerticalScrollIndicator={false}>
         <AppText variant="h2" tone="ink">{trip.title}</AppText>
         <Gap h={space.xs} />
         <AppText variant="small" tone="inkFaint">
-          {plan.pages.length} pages · {sheets} signatures · {plan.chapters.length} chapters
+          A keepsake PDF of this trip — {plan.pages.length} pages · {plan.totalPhotos} photos · {plan.chapters.length} chapters
         </AppText>
+        {tooFewPhotos && (
+          <>
+            <Gap h={space.md} />
+            {/* 制限ではなく「あと◯枚」の見せ方で、写真の投稿を促す */}
+            <Row style={[styles.notice, { borderColor: palette.matcha }]}>
+              <Ionicons name="images-outline" size={18} color={palette.matcha} />
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodyStrong" tone="ink">
+                  {MIN_PHOTOS - plan.totalPhotos} more photo{MIN_PHOTOS - plan.totalPhotos === 1 ? '' : 's'} to unlock
+                </AppText>
+                <AppText variant="small" tone="inkFaint">
+                  Add photos to your stops and this journal builds itself.
+                </AppText>
+              </View>
+              <AppText variant="h3" tone="matcha">{plan.totalPhotos}/{MIN_PHOTOS}</AppText>
+            </Row>
+          </>
+        )}
 
         {/* 章立て */}
         <Gap h={space.xl} />
         <Eyebrow tone="matcha">Chapters</Eyebrow>
         <Gap h={space.sm} />
-        <AppText variant="small" tone="inkFaint">One chapter per prefecture, so each one earns its own goshuin page.</AppText>
+        <AppText variant="small" tone="inkFaint">One chapter per prefecture — the journal follows your route.</AppText>
         <Gap h={space.md} />
         <Rule />
         {plan.chapters.map((ch, i) => (
@@ -139,14 +158,24 @@ export default function TripBook() {
           label={busy ?? 'Export PDF'}
           tone="matcha"
           onPress={exportPdf}
-          disabled={!!busy || Platform.OS !== 'web'}
+          disabled={!!busy || tooFewPhotos || Platform.OS !== 'web'}
         />
         <Gap h={space.md} />
         <Row style={{ gap: 6, alignItems: 'flex-start' }}>
           <Ionicons name="information-circle-outline" size={16} color={palette.inkFaint} />
           <AppText variant="small" tone="inkFaint" style={{ flex: 1 }}>
-            A5, 200dpi. Page count is rounded to a multiple of four so a printer can bind it.
+            Free to save and share. The journal grows with every photo you add — two to three per page.
           </AppText>
+        </Row>
+
+        {/* 印刷版への布石。PDF自体には入れない（綺麗なまま共有された方が宣伝になる） */}
+        <Gap h={space.lg} />
+        <Row style={[styles.printTeaser, { borderColor: palette.rule, backgroundColor: palette.paper }]}>
+          <Ionicons name="book-outline" size={20} color={palette.inkSoft} />
+          <View style={{ flex: 1 }}>
+            <AppText variant="bodyStrong" tone="ink">Want it on your shelf?</AppText>
+            <AppText variant="small" tone="inkFaint">A printed edition of this journal is coming soon.</AppText>
+          </View>
         </Row>
       </ScrollView>
     </SafeAreaView>
@@ -156,4 +185,6 @@ export default function TripBook() {
 const styles = StyleSheet.create({
   chapter: { alignItems: 'center', gap: space.sm, paddingVertical: space.md },
   thumb: { borderWidth: hairline, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  notice: { gap: space.sm, alignItems: 'center', borderWidth: hairline, borderRadius: 10, padding: space.md },
+  printTeaser: { gap: space.sm, alignItems: 'center', borderWidth: hairline, borderRadius: 10, padding: space.md },
 });

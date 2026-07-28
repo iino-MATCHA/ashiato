@@ -77,7 +77,8 @@ export default function PrefectureOnboarding() {
           </Pressable>
         </Row>
         <ScrollView horizontal showsHorizontalScrollIndicator={zoom > 1} contentContainerStyle={{ minWidth: '100%', alignItems: 'center', justifyContent: 'center' }}>
-          <JapanSvgMap visited={selected} onToggle={toggle} width={baseW * zoom} hideOkinawa />
+          {/* 沖縄もインセットで選択できるようにする（以前は非表示で選べなかった） */}
+          <JapanSvgMap visited={selected} onToggle={toggle} width={baseW * zoom} okinawaInset />
         </ScrollView>
 
         <Gap h={space.md} />

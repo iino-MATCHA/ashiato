@@ -14,10 +14,12 @@ import { useFocusEffect } from 'expo-router';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { fetchUnreadCount, fetchFriends, fetchFriendRequests, fetchMyAdminRole, type UserSummary } from '@/lib/api';
 import { friends as mockFriends } from '@/lib/mock';
+import { useI18n } from '@/lib/i18n';
 
 export default function ProfilePage() {
   const { palette } = useTheme();
   const { profile, signOut } = useProfile();
+  const { t } = useI18n();
   const { trips } = useTrips();
   const { codes: visited } = useVisitedPrefectures();
   const [rankOpen, setRankOpen] = useState(false);
@@ -137,17 +139,17 @@ export default function ProfilePage() {
 
         {/* Settings */}
         <Gap h={space.xl} />
-        <Eyebrow tone="ai">Settings</Eyebrow>
+        <Eyebrow tone="ai">{t('settings.title')}</Eyebrow>
         <Gap h={space.md} />
         <Rule />
         {[
-          { icon: 'notifications-outline', label: 'Notifications', onPress: () => router.push('/notifications'), badge: unread },
-          { icon: 'map-outline', label: 'Edit visited prefectures', onPress: () => router.push('/(auth)/prefectures?edit=1') },
-          { icon: 'share-social-outline', label: 'Share my Japan card', onPress: () => router.push('/goshuin/share') },
-          { icon: 'receipt-outline', label: 'Order history' },
-          { icon: 'lock-closed-outline', label: 'Privacy policy', onPress: () => router.push('/privacy') },
-          { icon: 'help-circle-outline', label: 'Help & contact' },
-          ...(adminRole ? [{ icon: 'shield-checkmark-outline', label: 'Admin console', onPress: () => router.push('/admin') }] : []),
+          { icon: 'notifications-outline', label: t('settings.notifications'), onPress: () => router.push('/notifications'), badge: unread },
+          { icon: 'map-outline', label: t('settings.editPrefectures'), onPress: () => router.push('/(auth)/prefectures?edit=1') },
+          { icon: 'share-social-outline', label: t('settings.shareCard'), onPress: () => router.push('/goshuin/share') },
+          { icon: 'receipt-outline', label: t('settings.orders') },
+          { icon: 'lock-closed-outline', label: t('settings.privacy'), onPress: () => router.push('/privacy') },
+          { icon: 'help-circle-outline', label: t('settings.help') },
+          ...(adminRole ? [{ icon: 'shield-checkmark-outline', label: t('settings.admin'), onPress: () => router.push('/admin') }] : []),
         ].map((s: any) => (
           <View key={s.label}>
             <Pressable onPress={s.onPress} style={({ pressed }) => [styles.setting, pressed && { opacity: 0.6 }]}>
@@ -166,7 +168,7 @@ export default function ProfilePage() {
 
         <Gap h={space.xl} />
         <Pressable onPress={() => { signOut(); router.replace('/(auth)/login'); }} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
-          <AppText variant="body" tone="inkFaint" center>Log out</AppText>
+          <AppText variant="body" tone="inkFaint" center>{t('common.logout')}</AppText>
         </Pressable>
       </Screen>
     </SafeAreaView>

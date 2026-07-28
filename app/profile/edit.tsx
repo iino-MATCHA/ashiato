@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, TextInput, StyleSheet, Pressable, Image } from 'react-native';
+import { View, TextInput, StyleSheet, Pressable, Image, Modal, ScrollView, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,10 +12,13 @@ import { useProfile } from '@/lib/useProfile';
 import { PhotoPicker } from '@/components/PhotoPicker';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { uploadAvatar } from '@/lib/api';
+import { useI18n, LOCALES } from '@/lib/i18n';
+import { NATIONALITIES } from '@/lib/nationalities';
 
 export default function EditProfile() {
   const { palette } = useTheme();
   const { profile, update } = useProfile();
+  const { t, locale, setLocale } = useI18n();
   const [name, setName] = useState(profile.name);
   const [username, setUsername] = useState(profile.username);
   const [bio, setBio] = useState(profile.bio);
@@ -25,6 +28,7 @@ export default function EditProfile() {
   const [birthDate, setBirthDate] = useState(profile.birthDate);
   const [nationality, setNationality] = useState(profile.nationality);
   const [residence, setResidence] = useState(profile.residence || 'domestic');
+  const [natOpen, setNatOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
 
@@ -54,18 +58,25 @@ export default function EditProfile() {
       bio: bio.trim(),
       avatarUrl: url,
       birthDate,
-      nationality: nationality.trim().toUpperCase(),
+      nationality,
       residence,
     });
     setSaving(false);
     router.back();
   };
 
+  const selectedNat = NATIONALITIES.find((n) => n.code === nationality);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header title="Edit profile" />
+      <Header title={t('profile.edit')} />
       <Rule />
-      <View style={{ flex: 1, paddingHorizontal: space.lg, alignItems: 'center' }}>
+      {/* 項目が増えたので必ずスクロールできるようにする（以前は View でスクロール不可だった） */}
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.form}>
           <Gap h={space.lg} />
           <Row style={{ justifyContent: 'center' }}>
@@ -82,26 +93,36 @@ export default function EditProfile() {
           </Row>
 
           <Gap h={space.xl} />
-          <Field label="Display name" value={name} onChangeText={setName} placeholder="Your name" palette={palette} />
-          <Field label="Username" value={username} onChangeText={setUsername} placeholder="username" prefix="@" palette={palette} autoCapitalize="none" />
-          <Field label="Bio" value={bio} onChangeText={setBio} placeholder="A line about you" palette={palette} multiline />
+          <Field label={t('profile.displayName')} value={name} onChangeText={setName} placeholder="Your name" palette={palette} />
+          <Field label={t('profile.username')} value={username} onChangeText={setUsername} placeholder="username" prefix="@" palette={palette} autoCapitalize="none" />
+          <Field label={t('profile.bio')} value={bio} onChangeText={setBio} placeholder="A line about you" palette={palette} multiline />
 
           <View style={{ marginBottom: space.lg }}>
-            <AppText variant="small" tone="inkSoft">Date of birth</AppText>
+            <AppText variant="small" tone="inkSoft">{t('profile.birthDate')}</AppText>
             <Gap h={4} />
             <DateInput value={birthDate} onChange={setBirthDate} />
             <Gap h={space.xs} />
             <Rule strong />
           </View>
 
-          <Field label="Nationality (e.g. JP, TW, US)" value={nationality} onChangeText={setNationality} placeholder="JP" palette={palette} autoCapitalize="characters" maxLength={2} />
+          {/* 国籍は自由入力をやめて選択式に（分析でコードの揺れを無くす） */}
+          <View style={{ marginBottom: space.lg }}>
+            <AppText variant="small" tone="inkSoft">{t('profile.nationality')}</AppText>
+            <Pressable onPress={() => setNatOpen(true)} style={styles.selectRow}>
+              <AppText style={styles.input} tone={selectedNat ? 'ink' : 'inkFaint'}>
+                {selectedNat ? `${selectedNat.flag}  ${selectedNat.en}` : t('profile.selectNationality')}
+              </AppText>
+              <Ionicons name="chevron-down" size={16} color={palette.inkFaint} />
+            </Pressable>
+            <Rule strong />
+          </View>
 
-          <AppText variant="small" tone="inkSoft">Living in Japan?</AppText>
+          <AppText variant="small" tone="inkSoft">{t('profile.residence')}</AppText>
           <Gap h={space.sm} />
           <Row style={{ gap: space.sm, marginBottom: space.lg }}>
             {[
-              { key: 'domestic', label: 'Resident' },
-              { key: 'inbound', label: 'Visiting' },
+              { key: 'domestic', label: t('profile.resident') },
+              { key: 'inbound', label: t('profile.visiting') },
             ].map((o) => {
               const on = residence === o.key;
               return (
@@ -116,10 +137,57 @@ export default function EditProfile() {
             })}
           </Row>
 
+          {/* UI言語（保存を待たず即時反映。localStorage + profiles.language に保持） */}
+          <AppText variant="small" tone="inkSoft">{t('profile.language')}</AppText>
+          <Gap h={space.sm} />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginBottom: space.lg }}>
+            {LOCALES.map((l) => {
+              const on = locale === l.key;
+              return (
+                <Pressable
+                  key={l.key}
+                  onPress={() => setLocale(l.key)}
+                  style={[styles.segmentFit, { borderColor: on ? palette.matcha : palette.ruleStrong }, on && { backgroundColor: palette.matcha }]}
+                >
+                  <AppText variant="small" style={{ color: on ? '#fff' : palette.inkSoft }}>{l.label}</AppText>
+                </Pressable>
+              );
+            })}
+          </View>
+
           <Gap h={space.md} />
-          <Button label={saving ? 'Saving…' : 'Save'} tone="matcha" onPress={save} disabled={saving} />
+          <Button label={saving ? t('common.saving') : t('common.save')} tone="matcha" onPress={save} disabled={saving} />
         </View>
-      </View>
+      </ScrollView>
+
+      {/* 国籍ピッカー */}
+      <Modal visible={natOpen} transparent animationType="fade" onRequestClose={() => setNatOpen(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setNatOpen(false)}>
+          <Pressable style={[styles.sheet, { backgroundColor: palette.washi }]} onPress={() => {}}>
+            <AppText variant="h3" tone="ink">{t('profile.selectNationality')}</AppText>
+            <Gap h={space.md} />
+            <FlatList
+              data={NATIONALITIES}
+              keyExtractor={(n) => n.code}
+              style={{ maxHeight: 420 }}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const on = item.code === nationality;
+                return (
+                  <Pressable
+                    onPress={() => { setNationality(item.code); setNatOpen(false); }}
+                    style={({ pressed }) => [styles.natRow, pressed && { opacity: 0.6 }]}
+                  >
+                    <AppText variant="body" tone="ink" style={{ width: 32 }}>{item.flag}</AppText>
+                    <AppText variant="body" tone={on ? 'matcha' : 'ink'} style={{ flex: 1 }}>{item.en}</AppText>
+                    {on && <Ionicons name="checkmark" size={18} color={palette.matcha} />}
+                  </Pressable>
+                );
+              }}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -142,5 +210,10 @@ const styles = StyleSheet.create({
   avatar: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
   input: { fontFamily: fonts.minchoMedium, fontSize: type.h3, paddingVertical: space.sm },
+  selectRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   segment: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 999, borderWidth: hairline * 2 },
+  segmentFit: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, borderWidth: hairline * 2 },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: space.lg },
+  sheet: { width: '100%', maxWidth: 360, borderRadius: 16, padding: space.lg },
+  natRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: space.sm },
 });

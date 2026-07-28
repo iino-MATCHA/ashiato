@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase';
 import { setLegTransport } from '@/lib/api';
 import { bump } from '@/lib/refresh';
 import { transportLabel, type Step, type TransportMode } from '@/lib/mock';
+import { useI18n } from '@/lib/i18n';
 
 const transportIcon: Record<TransportMode, any> = {
   car: 'car-outline', train: 'subway-outline', shinkansen: 'train-outline',
@@ -30,6 +31,7 @@ export default function TripDetail() {
   const { id, readonly } = useLocalSearchParams<{ id: string; readonly?: string }>();
   const { trip, loading } = useTrip(id);
   const { navigate } = useRippleNav();
+  const { t } = useI18n();
 
   const CARD_W = Math.min(width * 0.8, 340);
   const SNAP = CARD_W + CARD_GAP;
@@ -155,10 +157,10 @@ export default function TripDetail() {
             <Pressable onPress={() => selectFromMap(0)} style={[styles.overviewCard, { backgroundColor: palette.washi }]}>
               <Ionicons name="map-outline" size={26} color={palette.matcha} />
               <Gap h={space.sm} />
-              <AppText variant="h3" tone="ink">The whole route</AppText>
+              <AppText variant="h3" tone="ink">{t('trip.wholeRoute')}</AppText>
               <AppText variant="small" tone="inkFaint">{n} stops · {trip.distanceKm.toLocaleString()} km</AppText>
               <Gap h={space.xs} />
-              <AppText variant="small" tone="matcha">Swipe → to follow the journey</AppText>
+              <AppText variant="small" tone="matcha">{t('trip.swipe')}</AppText>
             </Pressable>
           </View>
 
@@ -182,8 +184,8 @@ export default function TripDetail() {
             >
               <Ionicons name="add-circle" size={34} color={palette.matcha} />
               <Gap h={space.sm} />
-              <AppText variant="bodyStrong" tone="matcha">Add a new stop</AppText>
-              <AppText variant="small" tone="inkFaint">Photos, notes, check-in</AppText>
+              <AppText variant="bodyStrong" tone="matcha">{t('trip.addStop')}</AppText>
+              <AppText variant="small" tone="inkFaint">{t('trip.addStopSub')}</AppText>
             </Pressable>
           </View>
         </ScrollView>
@@ -197,27 +199,25 @@ export default function TripDetail() {
             <Ionicons name={signedIn === false ? 'footsteps-outline' : 'eye-outline'} size={30} color={palette.matcha} />
             <Gap h={space.sm} />
             <AppText variant="h3" tone="ink" center>
-              {signedIn === false ? 'Start your own footprint' : 'This is a sample'}
+              {signedIn === false ? t('trip.guestTitle') : t('trip.sampleTitle')}
             </AppText>
             <Gap h={space.xs} />
             <AppText variant="small" tone="inkSoft" center>
-              {signedIn === false
-                ? 'You are viewing a shared journey. Sign in to record trips like this one — it takes a minute.'
-                : 'You can look around and share it, but it cannot be edited. Create your own trip to start recording.'}
+              {signedIn === false ? t('trip.guestBody') : t('trip.sampleBody')}
             </AppText>
             <Gap h={space.lg} />
             {signedIn === false ? (
               <Row style={{ gap: space.sm }}>
                 <Pressable onPress={() => setBlocked(false)} style={[styles.centerBtn, { backgroundColor: palette.fill }]}>
-                  <AppText variant="small" tone="inkSoft">Later</AppText>
+                  <AppText variant="small" tone="inkSoft">{t('common.later')}</AppText>
                 </Pressable>
                 <Pressable onPress={() => { setBlocked(false); router.push('/(auth)/login'); }} style={[styles.centerBtn, { backgroundColor: palette.matcha }]}>
-                  <AppText variant="small" style={{ color: '#fff' }}>Sign in</AppText>
+                  <AppText variant="small" style={{ color: '#fff' }}>{t('common.signin')}</AppText>
                 </Pressable>
               </Row>
             ) : (
               <Pressable onPress={() => setBlocked(false)} style={[styles.centerBtn, { backgroundColor: palette.matcha }]}>
-                <AppText variant="small" style={{ color: '#fff' }}>Got it</AppText>
+                <AppText variant="small" style={{ color: '#fff' }}>{t('common.gotit')}</AppText>
               </Pressable>
             )}
           </Pressable>
@@ -235,7 +235,7 @@ export default function TripDetail() {
             <AppText variant="small" tone="inkSoft" center>{notice?.body}</AppText>
             <Gap h={space.lg} />
             <Pressable onPress={() => setNotice(null)} style={[styles.centerBtn, { backgroundColor: palette.matcha }]}>
-              <AppText variant="small" style={{ color: '#fff' }}>Close</AppText>
+              <AppText variant="small" style={{ color: '#fff' }}>{t('common.close')}</AppText>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -245,8 +245,8 @@ export default function TripDetail() {
       <Modal visible={picker !== null} transparent animationType="fade" onRequestClose={() => setPicker(null)}>
         <Pressable style={styles.sheetBackdrop} onPress={() => setPicker(null)}>
           <Pressable style={[styles.sheet, { backgroundColor: palette.washi }]} onPress={() => {}}>
-            <AppText variant="h3" tone="ink">How did you travel?</AppText>
-            <AppText variant="small" tone="inkFaint">Flights and ferries are drawn as an arc.</AppText>
+            <AppText variant="h3" tone="ink">{t('trip.transportQ')}</AppText>
+            <AppText variant="small" tone="inkFaint">{t('trip.transportNote')}</AppText>
             <Gap h={space.md} />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
               {MODE_OPTIONS.map((m) => {

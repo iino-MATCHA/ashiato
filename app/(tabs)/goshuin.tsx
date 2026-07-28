@@ -10,11 +10,13 @@ import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { goshuinList, PREFECTURE_TOTAL } from '@/lib/mock';
 import { useVisitedPrefectures } from '@/lib/useData';
+import { useI18n } from '@/lib/i18n';
 
 export default function GoshuinBook() {
   const { palette } = useTheme();
   const { width } = useWindowDimensions();
   const { codes: visited } = useVisitedPrefectures();
+  const { t } = useI18n();
   const visitedSet = new Set(visited);
   const count = visited.length;
   const [rankOpen, setRankOpen] = useState(false);
@@ -35,18 +37,18 @@ export default function GoshuinBook() {
       {/* Coverage map — which prefectures you've reached */}
       <Gap h={space.lg} />
       <View style={{ alignItems: 'center' }}>
-        <JapanSvgMap visited={visited} width={Math.min(width - space.lg * 2, 380)} hideOkinawa />
+        <JapanSvgMap visited={visited} width={Math.min(width - space.lg * 2, 380)} okinawaInset />
       </View>
       <Gap h={space.xs} />
       <Row style={{ justifyContent: 'center', gap: space.lg }}>
-        <LegendDot color={palette.matcha} label="Visited" palette={palette} />
-        <LegendDot color={palette.fill} label="Not yet" palette={palette} border={palette.ruleStrong} />
+        <LegendDot color={palette.matcha} label={t('goshuin.visited')} palette={palette} />
+        <LegendDot color={palette.fill} label={t('goshuin.notYet')} palette={palette} border={palette.ruleStrong} />
       </Row>
 
       <Gap h={space.lg} />
       <Pressable onPress={() => setRankOpen(true)} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
         <Row style={[styles.rankBand, { borderColor: palette.ruleStrong }]}>
-          <AppText variant="eyebrow" tone="inkFaint">Current rank</AppText>
+          <AppText variant="eyebrow" tone="inkFaint">{t('goshuin.rank')}</AppText>
           <Row style={{ gap: 6, alignItems: 'center' }}>
             <AppText variant="h3" tone="ai">{rankFor(count)}</AppText>
             <Ionicons name="information-circle-outline" size={16} color={palette.inkFaint} />
@@ -57,7 +59,7 @@ export default function GoshuinBook() {
 
       {/* ランクのすぐ下に置く。スタンプを見終わってからでは気づかれにくい */}
       <Gap h={space.md} />
-      <Button label="Create a shareable card" tone="matcha" onPress={() => router.push('/goshuin/share')} />
+      <Button label={t('goshuin.share')} tone="matcha" onPress={() => router.push('/goshuin/share')} />
 
       <Gap h={space.xl} />
       <View style={styles.grid}>

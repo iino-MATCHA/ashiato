@@ -77,9 +77,7 @@ async function paint(plan: BookPlan, index: number): Promise<HTMLCanvasElement |
     case 'cover': await paintCover(ctx, page); break;
     case 'map': paintMap(ctx, page); break;
     case 'itinerary': paintItinerary(ctx, page); break;
-    case 'chapter': paintChapter(ctx, page); break;
     case 'photos': await paintPhotos(ctx, page); break;
-    case 'breather': await paintBreather(ctx, page); break;
     case 'colophon': paintColophon(ctx, page); break;
   }
 
@@ -153,51 +151,43 @@ function paintItinerary(ctx: CanvasRenderingContext2D, p: Extract<Page, { kind: 
   });
 }
 
-function paintChapter(ctx: CanvasRenderingContext2D, p: Extract<Page, { kind: 'chapter' }>) {
-  // 中央に印影のような丸、その上に県名のかなを縦の筆文字で
-  const cx = PW / 2;
-  const cy = PH * 0.42;
-  const r = PW * 0.17;
-
-  ctx.strokeStyle = MATCHA;
-  ctx.globalAlpha = 0.35;
-  ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
-  ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(cx, cy, r * 0.9, 0, Math.PI * 2); ctx.stroke();
-  ctx.globalAlpha = 1;
-
-  const chars = Array.from(p.prefKana);
-  const step = Math.min(r * 0.42, (r * 1.85) / Math.max(chars.length, 1));
+/** 章の帯: 県名のかな（筆）＋ EN ＋ 日付・節気。写真ページの上端に載せる */
+function paintChapterBand(ctx: CanvasRenderingContext2D, c: NonNullable<Extract<Page, { kind: 'photos' }>['chapter']>) {
+  const y = M * 1.15;
   ctx.fillStyle = INK;
-  ctx.textAlign = 'center';
-  chars.forEach((ch, i) => {
-    ctx.font = `400 ${step * 0.95}px ${BRUSH}`;
-    ctx.fillText(ch, cx, cy - (step * (chars.length - 1)) / 2 + i * step + step * 0.33);
-  });
+  ctx.font = `400 ${PW * 0.052}px ${BRUSH}`;
+  ctx.fillText(c.prefKana, M, y);
+  const kw = ctx.measureText(c.prefKana).width;
 
   ctx.fillStyle = SOFT;
-  ctx.font = `500 ${PW * 0.03}px ${SANS}`;
-  (ctx as any).letterSpacing = `${PW * 0.03 * 0.3}px`;
-  ctx.fillText(p.prefEn.toUpperCase(), cx, cy + r + M * 1.1);
+  ctx.font = `500 ${PW * 0.022}px ${SANS}`;
+  (ctx as any).letterSpacing = `${PW * 0.022 * 0.28}px`;
+  ctx.fillText(c.prefEn.toUpperCase() + (c.visitNo > 1 ? ` · ${c.visitNo}` : ''), M + kw + PW * 0.03, y - PW * 0.004);
   (ctx as any).letterSpacing = '0px';
 
   ctx.fillStyle = FAINT;
-  ctx.font = `400 ${PW * 0.023}px ${SANS}`;
-  ctx.fillText(p.dateLabel + (p.visitNo > 1 ? `  ·  再訪 ${p.visitNo}` : ''), cx, cy + r + M * 1.75);
-  if (p.sekki) ctx.fillText(p.sekki, cx, cy + r + M * 2.3);
-
-  ctx.font = `400 ${PW * 0.024}px ${SERIF_R}`;
-  ctx.fillStyle = SOFT;
-  ctx.fillText(p.places.slice(0, 4).join(' · '), cx, PH - M * 2);
+  ctx.font = `400 ${PW * 0.019}px ${SANS}`;
+  ctx.textAlign = 'right';
+  ctx.fillText(`${c.dateLabel}${c.sekki ? '   ' + c.sekki : ''}`, PW - M, y - PW * 0.004);
   ctx.textAlign = 'left';
+
+  ctx.strokeStyle = RULE;
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(M, y + M * 0.45); ctx.lineTo(PW - M, y + M * 0.45); ctx.stroke();
 }
 
 async function paintPhotos(ctx: CanvasRenderingContext2D, p: Extract<Page, { kind: 'photos' }>) {
   const imgs = (await Promise.all(p.photos.map((ph) => loadImage(ph.uri)))).filter(Boolean) as HTMLImageElement[];
-  if (!imgs.length) return;
+  if (p.chapter) paintChapterBand(ctx, p.chapter);
+  if (!imgs.length) {
+    // 読み込みに全滅したときも白紙にはしない
+    ctx.fillStyle = FAINT;
+    ctx.font = `400 ${PW * 0.024}px ${SANS}`;
+    ctx.fillText(p.place, M, PH / 2);
+    return;
+  }
 
-  const top = M * 1.2;
+  const top = p.chapter ? M * 2.2 : M * 1.2;
   const areaH = PH - top - M * 3.2;
 
   if (imgs.length === 1) {
@@ -243,14 +233,6 @@ async function paintPhotos(ctx: CanvasRenderingContext2D, p: Extract<Page, { kin
     ctx.font = `400 ${PW * 0.024}px ${SERIF_R}`;
     wrap(ctx, p.caption, M, PH - M * 1.5, PW - M * 2, PW * 0.034, 2);
   }
-}
-
-async function paintBreather(ctx: CanvasRenderingContext2D, p: Extract<Page, { kind: 'breather' }>) {
-  const img = await loadImage(p.photo.uri);
-  if (!img) return;
-  const w = (PW - M * 2) * 0.46;
-  const h = w * (img.height / img.width);
-  drawCover(ctx, img, (PW - w) / 2, (PH - h) / 2, w, h);
 }
 
 function paintColophon(ctx: CanvasRenderingContext2D, p: Extract<Page, { kind: 'colophon' }>) {
