@@ -94,22 +94,40 @@ async function paint(plan: BookPlan, index: number): Promise<HTMLCanvasElement |
 }
 
 async function paintCover(ctx: CanvasRenderingContext2D, p: Extract<Page, { kind: 'cover' }>) {
-  const img = await loadImage(p.hero);
-  // 上3分の2に写真、下は余白（間）
-  const h = Math.round(PH * 0.62);
-  if (img) drawCover(ctx, img, 0, 0, PW, h);
-  else { ctx.fillStyle = '#E8E7E1'; ctx.fillRect(0, 0, PW, h); }
+  const imgs = (await Promise.all(p.photos.map(loadImage))).filter(Boolean) as HTMLImageElement[];
+
+  // 主写真1枚 ＋ その下に帯（最大3枚）。1枚しか無ければ従来どおり大きく1枚
+  const mainH = Math.round(PH * (imgs.length > 1 ? 0.46 : 0.6));
+  if (imgs[0]) drawCover(ctx, imgs[0], 0, 0, PW, mainH);
+  else { ctx.fillStyle = '#E8E7E1'; ctx.fillRect(0, 0, PW, mainH); }
+
+  let bottom = mainH;
+  if (imgs.length > 1) {
+    const strip = imgs.slice(1, 4);
+    const gap = 6;
+    const stripH = Math.round(PH * 0.155);
+    const w = (PW - gap * (strip.length - 1)) / strip.length;
+    strip.forEach((img, i) => drawCover(ctx, img, i * (w + gap), mainH + gap, w, stripH));
+    bottom = mainH + gap + stripH;
+  }
 
   ctx.fillStyle = FAINT;
   ctx.font = `500 ${PW * 0.02}px ${SANS}`;
   (ctx as any).letterSpacing = `${PW * 0.02 * 0.35}px`;
-  ctx.fillText('ASHIATO', M, h + M * 0.9);
+  ctx.fillText('ASHIATO', M, bottom + M * 0.95);
   (ctx as any).letterSpacing = '0px';
 
   ctx.fillStyle = INK;
-  const size = PW * 0.072;
+  const size = PW * 0.068;
   ctx.font = `700 ${size}px ${SERIF}`;
-  wrap(ctx, p.title, M, h + M * 2.1, PW - M * 2, size * 1.35, 3);
+  const lines = wrap(ctx, p.title, M, bottom + M * 1.95, PW - M * 2, size * 1.3, 2);
+
+  // sampleの旅から作ったPDFは、それと分かるようにタイトル直下に明示する
+  if (p.sampleMark) {
+    ctx.fillStyle = FAINT;
+    ctx.font = `400 ${PW * 0.026}px ${SANS}`;
+    ctx.fillText('「sample」', M, bottom + M * 1.95 + (lines - 1) * size * 1.3 + M * 0.75);
+  }
 
   ctx.fillStyle = SOFT;
   ctx.font = `400 ${PW * 0.026}px ${SANS}`;
@@ -237,8 +255,11 @@ async function paintPhotos(ctx: CanvasRenderingContext2D, p: Extract<Page, { kin
 
 function paintColophon(ctx: CanvasRenderingContext2D, p: Extract<Page, { kind: 'colophon' }>) {
   heading(ctx, 'COLOPHON', '奥付');
+  // ラベルと数値は同じベースラインに置き、罫はそのすぐ下（18px）に引く。
+  // 以前は罫を次の行の途中に引いていたため、文字と下線がずれて見えた
   let y = PH * 0.34;
   p.stats.forEach(([label, value]) => {
+    ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = FAINT;
     ctx.font = `400 ${PW * 0.022}px ${SANS}`;
     ctx.fillText(label, M, y);
@@ -247,9 +268,10 @@ function paintColophon(ctx: CanvasRenderingContext2D, p: Extract<Page, { kind: '
     ctx.textAlign = 'right';
     ctx.fillText(value, PW - M, y);
     ctx.textAlign = 'left';
-    y += PW * 0.075;
     ctx.strokeStyle = RULE;
-    ctx.beginPath(); ctx.moveTo(M, y - PW * 0.03); ctx.lineTo(PW - M, y - PW * 0.03); ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(M, y + 18); ctx.lineTo(PW - M, y + 18); ctx.stroke();
+    y += PW * 0.075;
   });
   ctx.fillStyle = FAINT;
   ctx.font = `700 ${PW * 0.034}px ${SERIF}`;
@@ -376,7 +398,7 @@ function loadImage(url: string): Promise<HTMLImageElement | null> {
 function wrap(
   ctx: CanvasRenderingContext2D, text: string,
   x: number, y: number, maxW: number, lh: number, maxLines: number
-) {
+): number {
   const tokens: string[] = [];
   text.split(/\s+/).forEach((word, i, arr) => {
     if (ctx.measureText(word).width <= maxW) tokens.push(i < arr.length - 1 ? `${word} ` : word);
@@ -398,6 +420,7 @@ function wrap(
     const last = i === lines.length - 1;
     ctx.fillText(last && cut ? `${l}…` : l, x, y + i * lh);
   });
+  return lines.length || 1;
 }
 
 export const PAGE_SIZE = { width: PW, height: PH };

@@ -62,6 +62,9 @@ export default function TripDetail() {
     scrollRef.current?.scrollTo({ x: 0, animated: false });
   }, [n]);
   const canEdit = (trip?.authorId === 'me' || !trip?.authorId) && readonly !== '1';
+  // 他人の旅は「サンプル」と「他の旅人の旅」で扱いを分ける
+  const isSample = !!trip?.sample;
+  const isFellow = !canEdit && !isSample;
   const effModes = modes.length === n && n > 0 ? modes : steps.map((s) => s.transport);
   const sideInset = (width - CARD_W) / 2;
 
@@ -78,7 +81,7 @@ export default function TripDetail() {
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const idx = Math.round(e.nativeEvent.contentOffset.x / SNAP);
-    const maxIdx = n + 1; // overview + stops + add card
+    const maxIdx = n + (isFellow ? 0 : 1); // overview + stops (+ add card)
     const clamped = Math.max(0, Math.min(maxIdx, idx));
     if (clamped !== active) setActive(clamped);
   };
@@ -126,11 +129,15 @@ export default function TripDetail() {
             {trip.title}
           </AppText>
         </View>
-        {/* サンプルや他人の旅でもボタンは通常どおり出す。編集だけを止める。 */}
+        {/* 自分の旅とサンプルはボタンを出す。他の旅人の旅では共有・設定を出さない */}
         <View style={styles.actionCol} pointerEvents="box-none">
-          <Glass onPress={() => router.push(`/trip/${trip.id}/share`)} icon="share-outline" palette={palette} />
-          <Glass onPress={() => router.push(`/trip/${trip.id}/book`)} icon="book-outline" palette={palette} />
-          <Glass onPress={() => (canEdit ? router.push(`/trip/${trip.id}/edit`) : setBlocked(true))} icon="settings-outline" palette={palette} />
+          {!isFellow && (
+            <>
+              <Glass onPress={() => router.push(`/trip/${trip.id}/share`)} icon="share-outline" palette={palette} />
+              <Glass onPress={() => router.push(`/trip/${trip.id}/book`)} icon="book-outline" palette={palette} />
+              <Glass onPress={() => (canEdit ? router.push(`/trip/${trip.id}/edit`) : setBlocked(true))} icon="settings-outline" palette={palette} />
+            </>
+          )}
         </View>
       </View>
 
@@ -175,19 +182,22 @@ export default function TripDetail() {
             </View>
           ))}
 
-          {/* Add card — サンプルでも見えるが、押すとサンプルの案内を出す */}
-          <View style={{ width: CARD_W, marginRight: CARD_GAP }}>
-            <Connector mode={'car'} gap={CARD_GAP} editable={false} palette={palette} onPress={() => {}} plus />
-            <Pressable
-              onPress={() => (canEdit ? router.push(`/trip/${trip.id}/step/new`) : setBlocked(true))}
-              style={[styles.addCard, { borderColor: palette.matcha }]}
-            >
-              <Ionicons name="add-circle" size={34} color={palette.matcha} />
-              <Gap h={space.sm} />
-              <AppText variant="bodyStrong" tone="matcha">{t('trip.addStop')}</AppText>
-              <AppText variant="small" tone="inkFaint">{t('trip.addStopSub')}</AppText>
-            </Pressable>
-          </View>
+          {/* Add card — 自分の旅とサンプルで表示（サンプルは押すと案内）。
+              他の旅人の旅では編集を誘う要素なので出さない */}
+          {!isFellow && (
+            <View style={{ width: CARD_W, marginRight: CARD_GAP }}>
+              <Connector mode={'car'} gap={CARD_GAP} editable={false} palette={palette} onPress={() => {}} plus />
+              <Pressable
+                onPress={() => (canEdit ? router.push(`/trip/${trip.id}/step/new`) : setBlocked(true))}
+                style={[styles.addCard, { borderColor: palette.matcha }]}
+              >
+                <Ionicons name="add-circle" size={34} color={palette.matcha} />
+                <Gap h={space.sm} />
+                <AppText variant="bodyStrong" tone="matcha">{t('trip.addStop')}</AppText>
+                <AppText variant="small" tone="inkFaint">{t('trip.addStopSub')}</AppText>
+              </Pressable>
+            </View>
+          )}
         </ScrollView>
       </View>
 
@@ -199,11 +209,11 @@ export default function TripDetail() {
             <Ionicons name={signedIn === false ? 'footsteps-outline' : 'eye-outline'} size={30} color={palette.matcha} />
             <Gap h={space.sm} />
             <AppText variant="h3" tone="ink" center>
-              {signedIn === false ? t('trip.guestTitle') : t('trip.sampleTitle')}
+              {signedIn === false ? t('trip.guestTitle') : isFellow ? t('trip.fellowTitle') : t('trip.sampleTitle')}
             </AppText>
             <Gap h={space.xs} />
             <AppText variant="small" tone="inkSoft" center>
-              {signedIn === false ? t('trip.guestBody') : t('trip.sampleBody')}
+              {signedIn === false ? t('trip.guestBody') : isFellow ? t('trip.fellowBody') : t('trip.sampleBody')}
             </AppText>
             <Gap h={space.lg} />
             {signedIn === false ? (

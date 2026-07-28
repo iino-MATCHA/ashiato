@@ -9,6 +9,7 @@
  * コードで in() 取得して突き合わせる。
  */
 import { supabase, isSupabaseConfigured } from './supabase';
+import { prefectureCodeForQuery } from './prefectures';
 import { bump } from './refresh';
 import type { Trip, Step, Goshuin, TransportMode } from './mock';
 
@@ -67,7 +68,7 @@ export async function fetchTrip(id: string): Promise<Trip | null> {
   // getSession はローカル読み取り（通信なし）。未ログインでも公開旅はRLSが通す
   const uid = await currentUserId();
 
-  const [{ data: logs }, { data: transports }, { data: members }] = await Promise.all([
+  const [{ data: logs }, { data: transports }, { data: members }, { data: ownerProfile }] = await Promise.all([
     supabase
       .from('logs')
       .select('id, title, note, municipality_code, prefecture_code, lat, lng, logged_at, sort_order')
@@ -76,6 +77,8 @@ export async function fetchTrip(id: string): Promise<Trip | null> {
     supabase.from('transports').select('to_log_id, mode, distance_km').eq('trip_id', id),
     // trip_members has two FKs to profiles (user_id / invited_by) — qualify which one
     supabase.from('trip_members').select('user_id, profiles!trip_members_user_id_fkey(display_name)').eq('trip_id', id),
+    // sample判定（ashiato_demo の旅）と表示用にオーナーの username を引く
+    supabase.from('profiles').select('username').eq('id', trip.owner_id).maybeSingle(),
   ]);
 
   const logRows = logs ?? [];
@@ -139,6 +142,8 @@ export async function fetchTrip(id: string): Promise<Trip | null> {
     distanceKm,
     // 'me' when the signed-in user owns it → controls edit permissions app-wide
     authorId: uid && trip.owner_id === uid ? 'me' : trip.owner_id,
+    ownerUsername: ownerProfile?.username ?? undefined,
+    sample: ownerProfile?.username === 'ashiato_demo',
     visibility: (trip.visibility as Trip['visibility']) ?? 'private',
     steps,
   };
@@ -838,11 +843,26 @@ function toArea(a: any): TourismArea {
 
 const AREA_COLS = 'tourism_area_id, name_en, name_ja, municipality_en, prefecture_code, area_type, matcha_url';
 
-/** Explore の検索: 観光エリア（tourism_area_master）を名前・市区町村で検索。 */
+/**
+ * Explore の検索: 観光エリア（tourism_area_master）を名前・市区町村で検索。
+ * 「東京」「Tokyo」のような都道府県名なら、その県のエリアを一覧で返す。
+ */
 export async function searchTourismAreas(q: string): Promise<TourismArea[]> {
   if (!isSupabaseConfigured) return [];
   const term = q.trim();
   if (!term) return [];
+
+  const prefCode = prefectureCodeForQuery(term);
+  if (prefCode) {
+    const { data } = await supabase
+      .from('tourism_area_master')
+      .select(AREA_COLS)
+      .eq('prefecture_code', prefCode)
+      .order('name_en')
+      .limit(40);
+    return (data ?? []).map(toArea);
+  }
+
   const like = `%${term}%`;
   const { data } = await supabase
     .from('tourism_area_master')

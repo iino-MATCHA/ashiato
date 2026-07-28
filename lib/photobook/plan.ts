@@ -43,7 +43,16 @@ export interface ChapterLabel {
 export interface PagePhoto { uri: string; stopTitle: string }
 
 export type Page =
-  | { kind: 'cover'; title: string; dateLabel: string; hero: string; progress: number }
+  | {
+      kind: 'cover';
+      title: string;
+      dateLabel: string;
+      /** 主写真＋帯写真（旅全体から散らして選ぶ、最大4枚） */
+      photos: string[];
+      /** サンプルの旅から作ったPDFであることの明示 */
+      sampleMark: boolean;
+      progress: number;
+    }
   | { kind: 'map'; title: string; stops: { lat: number; lng: number }[]; visitedCodes: number[]; progress: number }
   | { kind: 'itinerary'; rows: ItineraryRow[]; progress: number }
   | {
@@ -177,11 +186,21 @@ export function planBook(trip: Trip): BookPlan {
   const pages: Page[] = [];
   const visitedCodes = chapters.map((c) => c.prefCode).filter(Boolean);
 
+  // 表紙: 旅の全体から等間隔に写真を抜いてコラージュに（主1枚＋帯3枚）
+  const coverPhotos: string[] = [];
+  const allFirstImages = steps.map((s) => s.images[0]).filter(Boolean);
+  const want = Math.min(4, allFirstImages.length);
+  for (let i = 0; i < want; i++) {
+    const idx = want === 1 ? 0 : Math.round((i * (allFirstImages.length - 1)) / (want - 1));
+    const uri = allFirstImages[idx];
+    if (uri && !coverPhotos.includes(uri)) coverPhotos.push(uri);
+  }
   pages.push({
     kind: 'cover',
     title: trip.title,
     dateLabel: dateLabel(trip.startDate, trip.endDate),
-    hero: steps[0]?.images[0] ?? '',
+    photos: coverPhotos,
+    sampleMark: !!trip.sample,
     progress: 0,
   });
   pages.push({

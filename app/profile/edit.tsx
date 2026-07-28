@@ -59,7 +59,8 @@ export default function EditProfile() {
       avatarUrl: url,
       birthDate,
       nationality,
-      residence,
+      // 質問はやめたので国籍から推定（分析の inbound/domestic 軸を維持するため）
+      residence: nationality ? (nationality === 'JP' ? 'domestic' : 'inbound') : residence,
     });
     setSaving(false);
     router.back();
@@ -117,25 +118,8 @@ export default function EditProfile() {
             <Rule strong />
           </View>
 
-          <AppText variant="small" tone="inkSoft">{t('profile.residence')}</AppText>
-          <Gap h={space.sm} />
-          <Row style={{ gap: space.sm, marginBottom: space.lg }}>
-            {[
-              { key: 'domestic', label: t('profile.resident') },
-              { key: 'inbound', label: t('profile.visiting') },
-            ].map((o) => {
-              const on = residence === o.key;
-              return (
-                <Pressable
-                  key={o.key}
-                  onPress={() => setResidence(o.key)}
-                  style={[styles.segment, { borderColor: on ? palette.matcha : palette.ruleStrong }, on && { backgroundColor: palette.matcha }]}
-                >
-                  <AppText variant="small" style={{ color: on ? '#fff' : palette.inkSoft }}>{o.label}</AppText>
-                </Pressable>
-              );
-            })}
-          </Row>
+          {/* 「日本にお住まいですか？」は質問しない方針。分析用の residence は
+              国籍から推定して保存する（JP=domestic / それ以外=inbound） */}
 
           {/* UI言語（保存を待たず即時反映。localStorage + profiles.language に保持） */}
           <AppText variant="small" tone="inkSoft">{t('profile.language')}</AppText>
