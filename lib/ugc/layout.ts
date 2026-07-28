@@ -38,7 +38,6 @@ export const TYPE = {
   meta: 0.028,
   title: 0.055,
   stat: 0.030,
-  author: 0.026,
 } as const;
 
 /** ピン半径は枚数が増えるほど小さく。 */

@@ -113,8 +113,7 @@ export default function TripDetail() {
         {/* サンプルや他人の旅でもボタンは通常どおり出す。編集だけを止める。 */}
         <View style={styles.actionCol} pointerEvents="box-none">
           <Glass onPress={() => router.push(`/trip/${trip.id}/share`)} icon="share-outline" palette={palette} />
-          {/* Photo book — page not built yet, so no navigation for now */}
-          <Glass onPress={() => {}} icon="book-outline" palette={palette} />
+          <Glass onPress={() => router.push(`/trip/${trip.id}/book`)} icon="book-outline" palette={palette} />
           <Glass onPress={() => (canEdit ? router.push(`/trip/${trip.id}/edit`) : setBlocked(true))} icon="settings-outline" palette={palette} />
         </View>
       </View>

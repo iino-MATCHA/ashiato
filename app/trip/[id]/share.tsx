@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { View, Pressable, StyleSheet, Share as RNShare, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
@@ -9,8 +9,6 @@ import { JourneyCard } from '@/components/ugc/JourneyCard';
 import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
-import { useProfile } from '@/lib/useProfile';
-import { fetchUserProfile } from '@/lib/api';
 import { exportShareCard } from '@/lib/shareCard';
 import { PREFECTURE_ID_BY_SLUG, slugForName } from '@/lib/prefectures';
 
@@ -35,21 +33,7 @@ export default function TripShare() {
   const { width, height } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { trip } = useTrip(id);
-  const { profile } = useProfile();
   const [saving, setSaving] = useState(false);
-  // 他の人（サンプル含む）の旅なら、その所有者のアイコンを載せる
-  const [owner, setOwner] = useState<{ name: string; username: string; avatarUrl: string } | null>(null);
-  const ownerId = trip?.authorId && trip.authorId !== 'me' ? trip.authorId : null;
-  useEffect(() => {
-    if (!ownerId) { setOwner(null); return; }
-    let alive = true;
-    fetchUserProfile(ownerId).then((u) => { if (alive && u) setOwner(u); });
-    return () => { alive = false; };
-  }, [ownerId]);
-
-  const base = owner ?? { name: profile.name, username: profile.username, avatarUrl: profile.avatarUrl };
-  // アイコン未設定でもカードの丸が空にならないよう、旅の1枚目の写真で埋める
-  const author = { ...base, avatarUrl: base.avatarUrl || trip?.steps[0]?.images[0] || '' };
 
   if (!trip) {
     return (
@@ -79,8 +63,6 @@ export default function TripShare() {
     prefectures: prefs,
     days,
     km,
-    authorName: author.name || 'Traveller',
-    avatarUrl: author.avatarUrl || undefined,
     stops,
     visitedPrefectureCodes,
   };

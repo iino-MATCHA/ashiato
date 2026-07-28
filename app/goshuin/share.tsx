@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Pressable, StyleSheet, Share as RNShare, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,11 +10,13 @@ import { space, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useVisitedPrefectures } from '@/lib/useData';
 import { PREFECTURE_TOTAL } from '@/lib/mock';
+import { exportJapanCard } from '@/lib/japanCard';
 
 export default function GoshuinShare() {
   const { palette } = useTheme();
   const { width, height } = useWindowDimensions();
   const { codes: visited } = useVisitedPrefectures();
+  const [saving, setSaving] = useState(false);
   const count = visited.length;
   const pct = Math.round((count / PREFECTURE_TOTAL) * 100);
 
@@ -40,6 +43,25 @@ export default function GoshuinShare() {
       return;
     }
     try { await RNShare.share({ message: text }); } catch {}
+  };
+
+  // プレビューと同じ構成を 1080×1920 で描き直して1枚のPNGにする
+  const download = async () => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined' || saving) return;
+    setSaving(true);
+    const dataUrl = await exportJapanCard({
+      percent: pct,
+      count,
+      total: PREFECTURE_TOTAL,
+      rank: rankFor(count),
+      visitedCodes: visited,
+    });
+    setSaving(false);
+    if (!dataUrl) return;
+    const link = document.createElement('a');
+    link.download = `ashiato-my-japan-${count}of${PREFECTURE_TOTAL}.png`;
+    link.href = dataUrl;
+    link.click();
   };
 
   return (
@@ -97,7 +119,7 @@ export default function GoshuinShare() {
 
         <Gap h={space.lg} />
         <Row style={{ gap: space.xl }}>
-          <ExportBtn icon="download-outline" label="Save" onPress={() => share('save')} palette={palette} />
+          <ExportBtn icon="download-outline" label={saving ? 'Saving…' : 'Save'} onPress={download} palette={palette} />
           <ExportBtn icon="logo-instagram" label="Stories" onPress={() => share('stories')} palette={palette} color="#C13584" />
           <ExportBtn icon="logo-twitter" label="X" onPress={() => share('x')} palette={palette} color={palette.ink} />
         </Row>

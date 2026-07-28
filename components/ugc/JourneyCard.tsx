@@ -17,8 +17,6 @@ export interface JourneyCardProps {
   prefectures: number;
   days: number;
   km: number;
-  authorName: string;
-  avatarUrl?: string;
   stops: { lat: number; lng: number; image: string }[];
   visitedPrefectureCodes: number[];
 }
@@ -118,31 +116,6 @@ export function JourneyCard(props: JourneyCardProps) {
         );
       })}
 
-      {/* 投稿者 */}
-      <Defs>
-        <ClipPath id="avatar">
-          <Circle cx={text.author.cx} cy={text.author.cy} r={text.author.r} />
-        </ClipPath>
-      </Defs>
-      <Circle cx={text.author.cx} cy={text.author.cy} r={text.author.r} fill={PALETTE.paperEdge} />
-      {!!props.avatarUrl && (
-        <SvgImage
-          x={text.author.cx - text.author.r}
-          y={text.author.cy - text.author.r}
-          width={text.author.r * 2}
-          height={text.author.r * 2}
-          href={{ uri: props.avatarUrl } as any}
-          preserveAspectRatio="xMidYMid slice"
-          clipPath="url(#avatar)"
-        />
-      )}
-      <Circle cx={text.author.cx} cy={text.author.cy} r={text.author.r} fill="none" stroke={PALETTE.border} strokeWidth={1} />
-      <SvgText
-        x={text.author.cx} y={text.author.nameY} textAnchor="middle"
-        fontFamily={fonts.gothicMedium} fontSize={text.author.size} fill={PALETTE.inkSoft}
-      >
-        {props.authorName}
-      </SvgText>
     </Svg>
   );
 }

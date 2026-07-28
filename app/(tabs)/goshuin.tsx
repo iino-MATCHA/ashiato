@@ -55,6 +55,10 @@ export default function GoshuinBook() {
       </Pressable>
       <RankModal visible={rankOpen} onClose={() => setRankOpen(false)} count={count} />
 
+      {/* ランクのすぐ下に置く。スタンプを見終わってからでは気づかれにくい */}
+      <Gap h={space.md} />
+      <Button label="Create a shareable card" tone="matcha" onPress={() => router.push('/goshuin/share')} />
+
       <Gap h={space.xl} />
       <View style={styles.grid}>
         {goshuinList.map((g, i) => {
@@ -68,9 +72,6 @@ export default function GoshuinBook() {
           );
         })}
       </View>
-
-      <Gap h={space.xl} />
-      <Button label="Create a shareable card" tone="matcha" onPress={() => router.push('/goshuin/share')} />
 
       <Gap h={space.lg} />
       <Rule />

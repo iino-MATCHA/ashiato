@@ -12,8 +12,6 @@ export interface ShareCardMeta {
   prefectures: number;
   days: number;
   km: number;
-  authorName: string;
-  avatarUrl?: string;
   stops: { lat: number; lng: number; image: string }[];
   visitedPrefectureCodes: number[];
 }
@@ -39,10 +37,7 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
     if (!ctx) return null;
 
     // 先に画像をすべて読み込む（1枚失敗しても他は描く）
-    const [pinImgs, avatarImg] = await Promise.all([
-      Promise.all(s.pins.map((p) => loadImage(p.uri))),
-      meta.avatarUrl ? loadImage(meta.avatarUrl) : Promise.resolve(null),
-    ]);
+    const pinImgs = await Promise.all(s.pins.map((p) => loadImage(p.uri)));
 
     // 地
     ctx.fillStyle = PALETTE.paper;
@@ -122,24 +117,6 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
       ctx.font = `400 ${t.stats.size * 0.72}px ${SANS}`;
       ctx.fillText(label, x + vw + t.stats.size * 0.3, t.stats.y);
     });
-
-    // 投稿者
-    ctx.beginPath();
-    ctx.arc(t.author.cx, t.author.cy, t.author.r, 0, Math.PI * 2);
-    ctx.fillStyle = PALETTE.paperEdge;
-    ctx.fill();
-    if (avatarImg) drawCircularImage(ctx, avatarImg, t.author.cx, t.author.cy, t.author.r);
-    ctx.beginPath();
-    ctx.arc(t.author.cx, t.author.cy, t.author.r, 0, Math.PI * 2);
-    ctx.strokeStyle = PALETTE.border;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    ctx.fillStyle = PALETTE.inkSoft;
-    ctx.font = `500 ${t.author.size}px ${SANS}`;
-    ctx.textAlign = 'center';
-    ctx.fillText(meta.authorName, t.author.cx, t.author.nameY);
-    ctx.textAlign = 'left';
 
     return canvas.toDataURL('image/png');
   } catch {

@@ -23,7 +23,6 @@ export interface Scene {
     dates: { x: number; y: number; size: number };
     title: { x: number; y: number; size: number; maxW: number };
     stats: { x: number; y: number; size: number; gap: number };
-    author: { cx: number; cy: number; r: number; nameY: number; size: number };
   };
 }
 
@@ -76,15 +75,8 @@ export function buildScene({ width: w, stops, visitedPrefectureCodes }: SceneInp
     text: {
       eyebrow: { x: m, y: m * 0.95, size: w * TYPE.eyebrow },
       dates: { x: w - m, y: m * 0.95, size: w * TYPE.meta },
-      title: { x: m, y: h - m - w * 0.145, size: w * TYPE.title, maxW: w - m * 2 - w * 0.24 },
-      stats: { x: m, y: h - m - w * 0.03, size: w * TYPE.stat, gap: w * 0.055 },
-      author: {
-        cx: w - m - w * 0.062,
-        cy: h - m - w * 0.095,
-        r: w * 0.062,
-        nameY: h - m - w * 0.005,
-        size: w * TYPE.author,
-      },
+      title: { x: m, y: h - m - w * 0.13, size: w * TYPE.title, maxW: w - m * 2 },
+      stats: { x: m, y: h - m - w * 0.02, size: w * TYPE.stat, gap: w * 0.055 },
     },
   };
 }

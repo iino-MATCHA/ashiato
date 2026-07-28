@@ -8,8 +8,6 @@ export interface ShareCardMeta {
   prefectures: number;
   days: number;
   km: number;
-  authorName: string;
-  avatarUrl?: string;
   stops: { lat: number; lng: number; image: string }[];
   visitedPrefectureCodes: number[];
 }
