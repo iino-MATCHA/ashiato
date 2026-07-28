@@ -13,8 +13,10 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { updateTrip, deleteTrip, uploadTripCover } from '@/lib/api';
 import { useTrip } from '@/lib/useData';
 
+import { useI18n } from '@/lib/i18n';
 export default function EditTrip() {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { trip } = useTrip(id);
   const [title, setTitle] = useState(trip?.title ?? '');
@@ -67,11 +69,11 @@ export default function EditTrip() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header title="Edit trip" />
+      <Header title={t('tripEdit.header')} />
       <Rule />
       <View style={{ flex: 1, paddingHorizontal: space.lg }}>
         <Gap h={space.lg} />
-        <Eyebrow>Cover photo</Eyebrow>
+        <Eyebrow>{t('tripEdit.cover')}</Eyebrow>
         <Gap h={space.sm} />
         <PhotoPicker onPick={pickCover} style={[styles.cover, { backgroundColor: palette.fill, borderColor: palette.ruleStrong }]}>
           {coverPreview ? (
@@ -79,21 +81,21 @@ export default function EditTrip() {
           ) : null}
           <View style={styles.coverBtn}>
             <Ionicons name="camera-outline" size={18} color="#fff" />
-            <AppText variant="small" style={{ color: '#fff' }}>Change cover</AppText>
+            <AppText variant="small" style={{ color: '#fff' }}>{t('tripEdit.changeCover')}</AppText>
           </View>
         </PhotoPicker>
 
         <Gap h={space.xl} />
-        <Eyebrow>Title</Eyebrow>
-        <TextInput value={title} onChangeText={setTitle} placeholder="Trip title" placeholderTextColor={palette.inkFaint} style={[styles.titleInput, { color: palette.ink }]} multiline />
+        <Eyebrow>{t('tripEdit.title')}</Eyebrow>
+        <TextInput value={title} onChangeText={setTitle} placeholder={t('tripNew.titlePh')} placeholderTextColor={palette.inkFaint} style={[styles.titleInput, { color: palette.ink }]} multiline />
         <Rule strong />
 
         <Gap h={space.xl} />
-        <Eyebrow>Dates</Eyebrow>
+        <Eyebrow>{t('trip.dates')}</Eyebrow>
         <Gap h={space.md} />
         <Row style={{ gap: space.lg, alignItems: 'flex-end' }}>
           <View style={{ flex: 1 }}>
-            <AppText variant="eyebrow" tone="inkFaint">Start</AppText>
+            <AppText variant="eyebrow" tone="inkFaint">{t('trip.start')}</AppText>
             <Gap h={4} />
             <DateInput value={start} onChange={setStart} />
             <Gap h={space.xs} />
@@ -101,7 +103,7 @@ export default function EditTrip() {
           </View>
           <Ionicons name="arrow-forward" size={16} color={palette.inkFaint} style={{ marginBottom: 12 }} />
           <View style={{ flex: 1 }}>
-            <AppText variant="eyebrow" tone="inkFaint">End</AppText>
+            <AppText variant="eyebrow" tone="inkFaint">{t('trip.end')}</AppText>
             <Gap h={4} />
             <DateInput value={end} onChange={setEnd} />
             <Gap h={space.xs} />
@@ -110,24 +112,24 @@ export default function EditTrip() {
         </Row>
 
         <Gap h={space.xl} />
-        <Eyebrow>Visibility</Eyebrow>
+        <Eyebrow>{t('trip.visibility')}</Eyebrow>
         <Gap h={space.md} />
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Row style={{ gap: 8, alignItems: 'center' }}>
             <Ionicons name={isPublic ? 'earth-outline' : 'lock-closed-outline'} size={18} color={isPublic ? palette.matcha : palette.inkSoft} />
-            <AppText variant="bodyStrong" tone="ink">Public</AppText>
+            <AppText variant="bodyStrong" tone="ink">{t('trip.public')}</AppText>
           </Row>
           <Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ true: palette.matcha, false: palette.rule }} thumbColor="#fff" />
         </Row>
 
         {/* 画面が詰まっていても最低限の余白が残るようにする */}
         <View style={{ flex: 1, minHeight: space.xxl }} />
-        <Button label={saving ? 'Saving…' : 'Save changes'} tone="matcha" onPress={save} disabled={saving} />
+        <Button label={saving ? t('common.saving') : t('common.saveChanges')} tone="matcha" onPress={save} disabled={saving} />
         <Gap h={space.sm} />
         <Pressable onPress={remove} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, paddingVertical: space.md }]}>
           <Row style={{ justifyContent: 'center', gap: 6 }}>
             <Ionicons name="trash-outline" size={16} color={palette.shu} />
-            <AppText variant="bodyStrong" tone="shu">Delete this trip</AppText>
+            <AppText variant="bodyStrong" tone="shu">{t('tripEdit.delete')}</AppText>
           </Row>
         </Pressable>
         <Gap h={space.sm} />

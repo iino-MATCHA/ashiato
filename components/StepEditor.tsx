@@ -13,6 +13,7 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { searchPlaces, resolvePlace, createStep, updateStep, type PlaceHit } from '@/lib/api';
 import type { Step } from '@/lib/mock';
 
+import { useI18n } from '@/lib/i18n';
 interface SelectedPlace {
   title: string;
   subtitle: string;
@@ -22,6 +23,7 @@ interface SelectedPlace {
 
 export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const editing = Boolean(step);
 
   const [query, setQuery] = useState('');
@@ -126,7 +128,7 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
       <Rule />
       <ScrollView contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxl }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* 1) WHERE — search */}
-        <Eyebrow tone="matcha">Where did you go?</Eyebrow>
+        <Eyebrow tone="matcha">{t('editor.where')}</Eyebrow>
         <Gap h={space.sm} />
         {place ? (
           <Row style={[styles.selected, { borderColor: palette.matcha }]}>
@@ -147,7 +149,7 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
               <TextInput
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Search a place or area"
+                placeholder={t('editor.searchPh')}
                 placeholderTextColor={palette.inkFaint}
                 style={[styles.searchInput, { color: palette.ink }]}
                 autoCapitalize="none"
@@ -168,7 +170,7 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
 
         {/* 2) WHEN */}
         <Gap h={space.xl} />
-        <Eyebrow tone="matcha">When did you go?</Eyebrow>
+        <Eyebrow tone="matcha">{t('editor.when')}</Eyebrow>
         <Gap h={space.sm} />
         <Row style={[styles.search, { borderColor: palette.ruleStrong }]}>
           <Ionicons name="calendar-outline" size={18} color={palette.inkFaint} />
@@ -179,7 +181,7 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
 
         {/* 3) PHOTOS + TEXT */}
         <Gap h={space.xl} />
-        <Eyebrow tone="matcha">Photos & notes</Eyebrow>
+        <Eyebrow tone="matcha">{t('editor.photosNotes')}</Eyebrow>
         <Gap h={space.md} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
           <PhotoPicker onPick={addPhotos} multiple style={[styles.addPhoto, { borderColor: palette.ruleStrong }]}>
@@ -197,14 +199,14 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
         </ScrollView>
 
         <Gap h={space.lg} />
-        <TextInput value={title} onChangeText={setTitle} placeholder="Title" placeholderTextColor={palette.inkFaint} style={[styles.titleInput, { color: palette.ink }]} />
+        <TextInput value={title} onChangeText={setTitle} placeholder={t('editor.titlePh')} placeholderTextColor={palette.inkFaint} style={[styles.titleInput, { color: palette.ink }]} />
         <Rule strong />
         <Gap h={space.md} />
-        <TextInput value={note} onChangeText={setNote} placeholder="Write what you felt, what to remember…" placeholderTextColor={palette.inkFaint} multiline style={[styles.noteInput, { color: palette.inkSoft }]} />
+        <TextInput value={note} onChangeText={setNote} placeholder={t('editor.notePh')} placeholderTextColor={palette.inkFaint} multiline style={[styles.noteInput, { color: palette.inkSoft }]} />
 
         {!!saveMsg && (<><Gap h={space.md} /><AppText variant="small" tone="shu" center>{saveMsg}</AppText></>)}
         <Gap h={space.xl} />
-        <Button label={saving ? 'Saving…' : editing ? 'Save changes' : 'Save stop'} tone="matcha" onPress={save} disabled={!canSave || saving} />
+        <Button label={saving ? t('common.saving') : editing ? t('common.saveChanges') : t('editor.saveStop')} tone="matcha" onPress={save} disabled={!canSave || saving} />
       </ScrollView>
     </SafeAreaView>
   );

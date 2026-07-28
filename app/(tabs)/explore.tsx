@@ -12,6 +12,7 @@ import { useRippleNav } from '@/lib/transition';
 import { type Trip } from '@/lib/mock';
 import { PREFECTURE_EN_BY_ID } from '@/lib/prefectures';
 
+import { useI18n } from '@/lib/i18n';
 /**
  * Featured ranking + weekly rotation.
  * score favours big, well-documented journeys (distance + stops + prefectures).
@@ -29,6 +30,7 @@ function weeklyFeatured(trips: Trip[]): Trip[] {
 
 export default function Explore() {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const { width } = useWindowDimensions();
   const { trips } = usePublicTrips();
   const [q, setQ] = useState('');
@@ -76,7 +78,7 @@ export default function Explore() {
       <Gap h={space.md} />
       <AppText variant="eyebrow" tone="matcha">EXPLORE</AppText>
       <Gap h={space.sm} />
-      <AppText variant="h2" tone="ink">Get inspired by other travellers</AppText>
+      <AppText variant="h2" tone="ink">{t('explore.heading')}</AppText>
 
       <Gap h={space.lg} />
       <Row style={[styles.search, { borderColor: palette.ruleStrong }]}>
@@ -84,7 +86,7 @@ export default function Explore() {
         <TextInput
           value={q}
           onChangeText={setQ}
-          placeholder="Search areas to explore (e.g. Shibuya, Kyoto)"
+          placeholder={t('explore.searchPh')}
           placeholderTextColor={palette.inkFaint}
           style={[styles.searchInput, { color: palette.ink }]}
           autoCapitalize="none"
@@ -101,7 +103,7 @@ export default function Explore() {
       {searchMode && (
         <>
           <Gap h={space.lg} />
-          <Eyebrow>Areas</Eyebrow>
+          <Eyebrow>{t('explore.areas')}</Eyebrow>
           <Gap h={space.md} />
           <Rule />
           {areas.map((a) => (
@@ -132,7 +134,7 @@ export default function Explore() {
       {!searchMode && featured.length > 0 && (
         <>
           <Gap h={space.xl} />
-          <Eyebrow>Featured journeys</Eyebrow>
+          <Eyebrow>{t('explore.featured')}</Eyebrow>
           <Gap h={space.md} />
           <FeaturedCarousel trips={featured} palette={palette} screenW={width} />
         </>
@@ -142,7 +144,7 @@ export default function Explore() {
       {!searchMode && friendTrips.length > 0 && (
         <>
           <Gap h={space.xl} />
-          <Eyebrow>From your friends</Eyebrow>
+          <Eyebrow>{t('explore.fromFriends')}</Eyebrow>
           <Gap h={space.md} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -space.lg }} contentContainerStyle={{ paddingHorizontal: space.lg, gap: space.md }}>
             {friendTrips.map((t) => (
@@ -156,7 +158,7 @@ export default function Explore() {
       {!searchMode && trending.length > 0 && (
         <>
           <Gap h={space.xl} />
-          <Eyebrow>Trending spots</Eyebrow>
+          <Eyebrow>{t('explore.trending')}</Eyebrow>
           <Gap h={space.md} />
           <Rule />
           {trending.map((a, i) => (

@@ -9,6 +9,7 @@ import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
+import { useI18n } from '@/lib/i18n';
 const redirectTo = typeof window !== 'undefined' ? window.location.origin : undefined;
 
 // show the intro only once per install
@@ -27,6 +28,7 @@ function shouldSplash(): boolean {
 
 export default function Login() {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const [splash, setSplash] = useState(shouldSplash);
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -98,7 +100,7 @@ export default function Login() {
       <View style={styles.card}>
         <Pressable onPress={google} style={({ pressed }) => [styles.google, { borderColor: palette.ruleStrong }, pressed && { opacity: 0.6 }]}>
           <Ionicons name="logo-google" size={18} color={palette.ink} />
-          <AppText variant="bodyStrong" tone="ink">Continue with Google</AppText>
+          <AppText variant="bodyStrong" tone="ink">{t('login.google')}</AppText>
         </Pressable>
 
         <Row style={{ alignItems: 'center', gap: space.sm, marginVertical: space.md }}>
@@ -109,14 +111,14 @@ export default function Login() {
 
         <TextInput
           value={email} onChangeText={setEmail}
-          placeholder="Email" placeholderTextColor={palette.inkFaint}
+          placeholder={t('login.email')} placeholderTextColor={palette.inkFaint}
           autoCapitalize="none" keyboardType="email-address"
           style={[styles.input, { color: palette.ink, borderColor: palette.ruleStrong }]}
         />
         <Gap h={space.sm} />
         <TextInput
           value={password} onChangeText={setPassword}
-          placeholder="Password" placeholderTextColor={palette.inkFaint}
+          placeholder={t('login.password')} placeholderTextColor={palette.inkFaint}
           secureTextEntry
           style={[styles.input, { color: palette.ink, borderColor: palette.ruleStrong }]}
         />

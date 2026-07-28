@@ -27,7 +27,7 @@ export default function GoshuinBook() {
       <AppText variant="eyebrow" tone="shu">GOSHUIN · COLLECTION</AppText>
       <Gap h={space.sm} />
       <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <AppText variant="h1" tone="ink">Stamps of the{'\n'}47 Prefectures</AppText>
+        <AppText variant="h1" tone="ink">{t('goshuin.heading1')}{'\n'}{t('goshuin.heading2')}</AppText>
         <View style={{ alignItems: 'flex-end' }}>
           <AppText variant="display" tone="shu" style={{ lineHeight: 44 }}>{count}</AppText>
           <AppText variant="small" tone="inkFaint">/ {PREFECTURE_TOTAL}</AppText>
@@ -79,7 +79,7 @@ export default function GoshuinBook() {
       <Rule />
       <Gap h={space.md} />
       <AppText variant="small" tone="inkFaint">
-        One goshuin per prefecture. A stamp is received automatically when you check in to that prefecture on a trip.
+        {t('goshuin.footNote')}
       </AppText>
     </Screen>
   );

@@ -12,6 +12,7 @@ import { useTrip } from '@/lib/useData';
 import { exportShareCard } from '@/lib/shareCard';
 import { PREFECTURE_ID_BY_SLUG, slugForName } from '@/lib/prefectures';
 
+import { useI18n } from '@/lib/i18n';
 function daysBetween(a?: string, b?: string): number {
   if (!a || !b) return 0;
   const d1 = new Date(a).getTime();
@@ -30,6 +31,7 @@ function dateRange(a?: string, b?: string): string {
 
 export default function TripShare() {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const { width, height } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { trip } = useTrip(id);
@@ -38,7 +40,7 @@ export default function TripShare() {
   if (!trip) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi, alignItems: 'center', justifyContent: 'center' }}>
-        <AppText variant="small" tone="inkFaint">Loading…</AppText>
+        <AppText variant="small" tone="inkFaint">{t('common.loading')}</AppText>
       </SafeAreaView>
     );
   }
@@ -90,7 +92,7 @@ export default function TripShare() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header title="Share this trip" />
+      <Header title={t('share.header')} />
       <Rule />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.lg }}>
         <View style={styles.card}>
@@ -100,7 +102,7 @@ export default function TripShare() {
         {/* export buttons */}
         <Gap h={space.lg} />
         <Row style={{ gap: space.xl }}>
-          <ExportBtn icon="download-outline" label={saving ? 'Saving…' : 'Save'} onPress={download} palette={palette} />
+          <ExportBtn icon="download-outline" label={saving ? t('common.saving') : t('common.save')} onPress={download} palette={palette} />
           <ExportBtn icon="logo-instagram" label="Stories" onPress={() => nativeShare('stories')} palette={palette} color="#C13584" />
           <ExportBtn icon="logo-twitter" label="X" onPress={() => nativeShare('x')} palette={palette} color={palette.ink} />
         </Row>

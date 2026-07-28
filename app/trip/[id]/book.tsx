@@ -16,6 +16,7 @@ import { useTrip } from '@/lib/useData';
 import { planBook, MIN_PHOTOS, type Page } from '@/lib/photobook/plan';
 import { renderPage, renderPdf, PAGE_SIZE, type RenderProgress } from '@/lib/photobook/render';
 
+import { useI18n } from '@/lib/i18n';
 const PAGE_LABEL: Record<Page['kind'], string> = {
   cover: 'Cover',
   map: 'Route',
@@ -29,6 +30,7 @@ const PREVIEW_LIMIT = 24;
 
 export default function TripBook() {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const { width } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { trip } = useTrip(id);
@@ -56,7 +58,7 @@ export default function TripBook() {
   if (!trip || !plan) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi, alignItems: 'center', justifyContent: 'center' }}>
-        <AppText variant="small" tone="inkFaint">Loading…</AppText>
+        <AppText variant="small" tone="inkFaint">{t('common.loading')}</AppText>
       </SafeAreaView>
     );
   }
@@ -81,7 +83,7 @@ export default function TripBook() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header title="Travel journal" />
+      <Header title={t('book.header')} />
       <Rule />
       <ScrollView contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxl }} showsVerticalScrollIndicator={false}>
         <AppText variant="h2" tone="ink">{trip.title}</AppText>
@@ -97,10 +99,10 @@ export default function TripBook() {
               <Ionicons name="images-outline" size={18} color={palette.matcha} />
               <View style={{ flex: 1 }}>
                 <AppText variant="bodyStrong" tone="ink">
-                  {MIN_PHOTOS - plan.totalPhotos} more photo{MIN_PHOTOS - plan.totalPhotos === 1 ? '' : 's'} to unlock
+                  {t('book.morePhotos', { n: MIN_PHOTOS - plan.totalPhotos })}
                 </AppText>
                 <AppText variant="small" tone="inkFaint">
-                  Add photos to your stops and this journal builds itself.
+                  {t('book.morePhotosSub')}
                 </AppText>
               </View>
               <AppText variant="h3" tone="matcha">{plan.totalPhotos}/{MIN_PHOTOS}</AppText>
@@ -108,11 +110,31 @@ export default function TripBook() {
           </>
         )}
 
+        {/* 台割 */}
+        <Gap h={space.xl} />
+        <Eyebrow tone="matcha">{t('book.pagePlan')}</Eyebrow>
+        <Gap h={space.md} />
+        <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
+          {plan.pages.map((p, i) => (
+            <View key={i} style={{ width: thumbW }}>
+              <View style={[styles.thumb, { width: thumbW, height: thumbH, borderColor: palette.rule, backgroundColor: palette.fill }]}>
+                {previews[i] ? (
+                  <Image source={{ uri: previews[i]! }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                ) : (
+                  <AppText variant="small" tone="inkFaint">{PAGE_LABEL[p.kind]}</AppText>
+                )}
+              </View>
+              <Gap h={4} />
+              <AppText variant="small" tone="inkFaint" center>{i + 1} · {PAGE_LABEL[p.kind]}</AppText>
+            </View>
+          ))}
+        </Row>
+
         {/* 章立て */}
         <Gap h={space.xl} />
-        <Eyebrow tone="matcha">Chapters</Eyebrow>
+        <Eyebrow tone="matcha">{t('book.chapters')}</Eyebrow>
         <Gap h={space.sm} />
-        <AppText variant="small" tone="inkFaint">One chapter per prefecture — the journal follows your route.</AppText>
+        <AppText variant="small" tone="inkFaint">{t('book.chaptersHint')}</AppText>
         <Gap h={space.md} />
         <Rule />
         {plan.chapters.map((ch, i) => (
@@ -133,29 +155,9 @@ export default function TripBook() {
           </View>
         ))}
 
-        {/* 台割 */}
-        <Gap h={space.xl} />
-        <Eyebrow tone="matcha">Page plan</Eyebrow>
-        <Gap h={space.md} />
-        <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
-          {plan.pages.map((p, i) => (
-            <View key={i} style={{ width: thumbW }}>
-              <View style={[styles.thumb, { width: thumbW, height: thumbH, borderColor: palette.rule, backgroundColor: palette.fill }]}>
-                {previews[i] ? (
-                  <Image source={{ uri: previews[i]! }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                ) : (
-                  <AppText variant="small" tone="inkFaint">{PAGE_LABEL[p.kind]}</AppText>
-                )}
-              </View>
-              <Gap h={4} />
-              <AppText variant="small" tone="inkFaint" center>{i + 1} · {PAGE_LABEL[p.kind]}</AppText>
-            </View>
-          ))}
-        </Row>
-
         <Gap h={space.xl} />
         <Button
-          label={busy ?? 'Export PDF'}
+          label={busy ?? t('book.export')}
           tone="matcha"
           onPress={exportPdf}
           disabled={!!busy || tooFewPhotos || Platform.OS !== 'web'}
@@ -164,7 +166,7 @@ export default function TripBook() {
         <Row style={{ gap: 6, alignItems: 'flex-start' }}>
           <Ionicons name="information-circle-outline" size={16} color={palette.inkFaint} />
           <AppText variant="small" tone="inkFaint" style={{ flex: 1 }}>
-            Free to save and share. The journal grows with every photo you add — two to three per page.
+            {t('book.freeNote')}
           </AppText>
         </Row>
 
@@ -173,8 +175,8 @@ export default function TripBook() {
         <Row style={[styles.printTeaser, { borderColor: palette.rule, backgroundColor: palette.paper }]}>
           <Ionicons name="book-outline" size={20} color={palette.inkSoft} />
           <View style={{ flex: 1 }}>
-            <AppText variant="bodyStrong" tone="ink">Want it on your shelf?</AppText>
-            <AppText variant="small" tone="inkFaint">A printed edition of this journal is coming soon.</AppText>
+            <AppText variant="bodyStrong" tone="ink">{t('book.printTitle')}</AppText>
+            <AppText variant="small" tone="inkFaint">{t('book.printBody')}</AppText>
           </View>
         </Row>
       </ScrollView>

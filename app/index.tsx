@@ -4,6 +4,7 @@ import { Redirect } from 'expo-router';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { ensureProfile, fetchUserPrefectures } from '@/lib/api';
 import { useTheme } from '@/lib/useTheme';
+import { Landing } from '@/components/Landing';
 
 /**
  * Auth gate. After an email-confirmation or Google redirect the session is
@@ -18,12 +19,13 @@ export default function Index() {
     let alive = true;
     (async () => {
       if (!isSupabaseConfigured) {
-        if (alive) setTarget('/(auth)/login');
+        if (alive) setTarget('landing');
         return;
       }
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
-        if (alive) setTarget('/(auth)/login');
+        // 未ログインはLPへ（ログイン画面に直行させない）
+        if (alive) setTarget('landing');
         return;
       }
       await ensureProfile();
@@ -42,5 +44,6 @@ export default function Index() {
       </View>
     );
   }
+  if (target === 'landing') return <Landing />;
   return <Redirect href={target as any} />;
 }

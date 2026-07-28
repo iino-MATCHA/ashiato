@@ -11,8 +11,10 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { fetchFriends, fetchFriendRequests, respondFriendRequest, removeFriend, type UserSummary, type FriendRequest } from '@/lib/api';
 import { friends as mockFriends } from '@/lib/mock';
 
+import { useI18n } from '@/lib/i18n';
 export default function FriendsList() {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const [friends, setFriends] = useState<UserSummary[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +46,7 @@ export default function FriendsList() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
       <Header
-        title="Friends"
+        title={t('friends.header')}
         right={
           <Pressable onPress={() => router.push('/friends/add')} hitSlop={8}>
             <Ionicons name="person-add-outline" size={20} color={palette.matcha} />
@@ -107,7 +109,7 @@ export default function FriendsList() {
             )}
 
             <Gap h={space.xl} />
-            <Button label="Add friends" tone="matcha" onPress={() => router.push('/friends/add')} />
+            <Button label={t('friends.add')} tone="matcha" onPress={() => router.push('/friends/add')} />
           </>
         )}
       </View>

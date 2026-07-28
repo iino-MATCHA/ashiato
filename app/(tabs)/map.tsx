@@ -14,6 +14,7 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { deleteTrip } from '@/lib/api';
 import { useRippleNav } from '@/lib/transition';
 
+import { useI18n, t } from '@/lib/i18n';
 const statusLabel: Record<Trip['status'], string> = {
   planning: 'Planning',
   ongoing: 'On the road',
@@ -22,6 +23,7 @@ const statusLabel: Record<Trip['status'], string> = {
 
 export default function Home() {
   const { palette } = useTheme();
+  useI18n(); // 言語切替の再レンダー購読
   const { trips } = useTrips();
   const { trips: publicTrips } = usePublicTrips();
   const { profile } = useProfile();
@@ -78,7 +80,7 @@ export default function Home() {
           <Rule />
           <Gap h={space.lg} />
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <AppText variant="h2" tone="ink">Your Trips</AppText>
+            <AppText variant="h2" tone="ink">{t('home.yourTrips')}</AppText>
             <Pressable onPress={() => router.push('/trip/new')} hitSlop={8}>
               <Row style={{ gap: 5, alignItems: 'center' }}>
                 <Ionicons name="add-circle" size={22} color={palette.matcha} />
@@ -90,9 +92,9 @@ export default function Home() {
           {/* slim inline stats */}
           <Gap h={space.sm} />
           <Row style={{ gap: space.lg }}>
-            <InlineStat value={`${pct}%`} label="of Japan" palette={palette} />
-            <InlineStat value={String(visited.length)} label="goshuin" palette={palette} />
-            <InlineStat value={String(trips.filter((t) => !t.sample).length)} label="trips" palette={palette} />
+            <InlineStat value={`${pct}%`} label={t('home.ofJapan')} palette={palette} />
+            <InlineStat value={String(visited.length)} label={t('home.goshuin')} palette={palette} />
+            <InlineStat value={String(trips.filter((t) => !t.sample).length)} label={t('home.trips')} palette={palette} />
           </Row>
 
           <Gap h={space.lg} />
@@ -110,12 +112,12 @@ export default function Home() {
             <Gap h={space.md} />
             <Pressable onPress={() => { const t = menuTrip; setMenuTrip(null); if (t) router.push(`/trip/${t.id}/edit`); }} style={styles.menuRow}>
               <Ionicons name="create-outline" size={20} color={palette.ink} />
-              <AppText variant="body" tone="ink">Edit trip details</AppText>
+              <AppText variant="body" tone="ink">{t('home.editTrip')}</AppText>
             </Pressable>
             <Rule />
             <Pressable onPress={onDelete} style={styles.menuRow}>
               <Ionicons name="trash-outline" size={20} color={palette.shu} />
-              <AppText variant="body" tone="shu">Delete trip</AppText>
+              <AppText variant="body" tone="shu">{t('home.deleteTrip')}</AppText>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -145,13 +147,13 @@ function TripCard({ trip, palette, onEdit }: { trip: Trip; palette: any; onEdit:
         {ongoing && (
           <View style={[styles.pill, { backgroundColor: palette.matcha }]}>
             <View style={styles.pulse} />
-            <AppText variant="eyebrow" style={{ color: '#fff' }}>On the road</AppText>
+            <AppText variant="eyebrow" style={{ color: '#fff' }}>{t('home.onTheRoad')}</AppText>
           </View>
         )}
         {trip.sample && (
           <View style={[styles.pill, { backgroundColor: 'rgba(43,66,87,0.9)' }]}>
             <Ionicons name="sparkles-outline" size={11} color="#fff" />
-            <AppText variant="eyebrow" style={{ color: '#fff' }}>Sample</AppText>
+            <AppText variant="eyebrow" style={{ color: '#fff' }}>{t('home.sample')}</AppText>
           </View>
         )}
         {editable && (

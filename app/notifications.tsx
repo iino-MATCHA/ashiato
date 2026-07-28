@@ -11,8 +11,10 @@ import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { fetchCommentNotifications, markNotificationRead, addComment, type CommentNotification } from '@/lib/api';
 
+import { useI18n, t } from '@/lib/i18n';
 export default function Notifications() {
   const { palette } = useTheme();
+  useI18n(); // 言語切替の再レンダー購読
   const [items, setItems] = useState<CommentNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const alive = useRef(true);
@@ -33,7 +35,7 @@ export default function Notifications() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header title="Notifications" />
+      <Header title={t('noti.header')} />
       <Rule />
       <ScrollView contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxl, alignItems: 'center' }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {loading ? (
@@ -43,14 +45,14 @@ export default function Notifications() {
             <Gap h={space.xxl} />
             <Ionicons name="checkmark-done-circle-outline" size={44} color={palette.matcha} />
             <Gap h={space.sm} />
-            <AppText variant="h3" tone="ink">All caught up</AppText>
+            <AppText variant="h3" tone="ink">{t('noti.caughtUp')}</AppText>
             <AppText variant="small" tone="inkFaint">New comments on your stops will appear here.</AppText>
           </>
         ) : (
           <>
             <Row style={{ gap: 6 }}>
               <Ionicons name="arrow-forward" size={13} color={palette.inkFaint} />
-              <AppText variant="small" tone="inkFaint">Swipe a card to the right to mark it as read</AppText>
+              <AppText variant="small" tone="inkFaint">{t('noti.swipeHint')}</AppText>
             </Row>
             <Gap h={space.md} />
             {items.map((n) => (
@@ -81,7 +83,7 @@ function NotificationCard({ n, palette, onRead, onReplied }: { n: CommentNotific
       renderLeftActions={() => (
         <View style={styles.readAction}>
           <Ionicons name="checkmark" size={22} color="#fff" />
-          <AppText variant="small" style={{ color: '#fff' }}>Read</AppText>
+          <AppText variant="small" style={{ color: '#fff' }}>{t('noti.read')}</AppText>
         </View>
       )}
       leftThreshold={70}
@@ -98,7 +100,7 @@ function NotificationCard({ n, palette, onRead, onReplied }: { n: CommentNotific
             </View>
           )}
           <View style={{ flex: 1 }}>
-            <AppText variant="eyebrow" tone="matcha">YOUR STOP</AppText>
+            <AppText variant="eyebrow" tone="matcha">{t('noti.yourStop')}</AppText>
             <AppText variant="h3" tone="ink" numberOfLines={1}>{n.stepTitle}</AppText>
           </View>
         </Row>
@@ -116,14 +118,14 @@ function NotificationCard({ n, palette, onRead, onReplied }: { n: CommentNotific
         {sent ? (
           <Row style={{ gap: 6 }}>
             <Ionicons name="checkmark-circle" size={15} color={palette.matcha} />
-            <AppText variant="small" tone="matcha">Reply sent</AppText>
+            <AppText variant="small" tone="matcha">{t('noti.replySent')}</AppText>
           </Row>
         ) : (
           <View style={[styles.replyBar, { borderColor: palette.ruleStrong }]}>
             <TextInput
               value={reply}
               onChangeText={setReply}
-              placeholder="Reply…"
+              placeholder={t('noti.replyPh')}
               placeholderTextColor={palette.inkFaint}
               style={[styles.replyInput, { color: palette.ink }]}
               onSubmitEditing={send}

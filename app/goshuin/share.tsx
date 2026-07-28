@@ -12,8 +12,10 @@ import { useVisitedPrefectures } from '@/lib/useData';
 import { PREFECTURE_TOTAL } from '@/lib/mock';
 import { exportJapanCard } from '@/lib/japanCard';
 
+import { useI18n } from '@/lib/i18n';
 export default function GoshuinShare() {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const { width, height } = useWindowDimensions();
   const { codes: visited } = useVisitedPrefectures();
   const [saving, setSaving] = useState(false);
@@ -66,7 +68,7 @@ export default function GoshuinShare() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header title="Create a card" />
+      <Header title={t('share.cardHeader')} />
       <Rule />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.lg }}>
         <View style={[styles.card, { width: cardW, height: cardH, backgroundColor: palette.paper, borderColor: palette.rule }]}>
@@ -119,7 +121,7 @@ export default function GoshuinShare() {
 
         <Gap h={space.lg} />
         <Row style={{ gap: space.xl }}>
-          <ExportBtn icon="download-outline" label={saving ? 'Saving…' : 'Save'} onPress={download} palette={palette} />
+          <ExportBtn icon="download-outline" label={saving ? t('common.saving') : t('common.save')} onPress={download} palette={palette} />
           <ExportBtn icon="logo-instagram" label="Stories" onPress={() => share('stories')} palette={palette} color="#C13584" />
           <ExportBtn icon="logo-twitter" label="X" onPress={() => share('x')} palette={palette} color={palette.ink} />
         </Row>

@@ -148,7 +148,6 @@ export default function ProfilePage() {
           { icon: 'share-social-outline', label: t('settings.shareCard'), onPress: () => router.push('/goshuin/share') },
           { icon: 'receipt-outline', label: t('settings.orders') },
           { icon: 'lock-closed-outline', label: t('settings.privacy'), onPress: () => router.push('/privacy') },
-          { icon: 'help-circle-outline', label: t('settings.help') },
           ...(adminRole ? [{ icon: 'shield-checkmark-outline', label: t('settings.admin'), onPress: () => router.push('/admin') }] : []),
         ].map((s: any) => (
           <View key={s.label}>

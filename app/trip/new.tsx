@@ -11,8 +11,10 @@ import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { createTrip } from '@/lib/api';
 
+import { useI18n } from '@/lib/i18n';
 export default function NewTrip() {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const [title, setTitle] = useState('');
   const [start, setStart] = useState(''); // YYYY-MM-DD
   const [end, setEnd] = useState('');
@@ -39,22 +41,22 @@ export default function NewTrip() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header closeIcon title="New Trip" />
+      <Header closeIcon title={t('tripNew.header')} />
       <Rule />
       <View style={{ flex: 1, paddingHorizontal: space.lg }}>
         <Gap h={space.lg} />
-        <TextInput placeholder="Trip title" placeholderTextColor={palette.inkFaint} value={title} onChangeText={setTitle} style={[styles.titleInput, { color: palette.ink }]} multiline />
+        <TextInput placeholder={t('tripNew.titlePh')} placeholderTextColor={palette.inkFaint} value={title} onChangeText={setTitle} style={[styles.titleInput, { color: palette.ink }]} multiline />
         <Rule strong />
 
         <Gap h={space.xl} />
         <Row style={{ gap: 6 }}>
-          <Eyebrow>Dates</Eyebrow>
+          <Eyebrow>{t('trip.dates')}</Eyebrow>
           <AppText variant="small" tone="shu">*</AppText>
         </Row>
         <Gap h={space.md} />
         <Row style={{ gap: space.lg, alignItems: 'flex-end' }}>
           <View style={{ flex: 1 }}>
-            <AppText variant="eyebrow" tone="inkFaint">Start</AppText>
+            <AppText variant="eyebrow" tone="inkFaint">{t('trip.start')}</AppText>
             <Gap h={4} />
             <DateInput value={start} onChange={setStart} />
             <Gap h={space.xs} />
@@ -62,7 +64,7 @@ export default function NewTrip() {
           </View>
           <Ionicons name="arrow-forward" size={16} color={palette.inkFaint} style={{ marginBottom: 12 }} />
           <View style={{ flex: 1 }}>
-            <AppText variant="eyebrow" tone="inkFaint">End</AppText>
+            <AppText variant="eyebrow" tone="inkFaint">{t('trip.end')}</AppText>
             <Gap h={4} />
             <DateInput value={end} onChange={setEnd} />
             <Gap h={space.xs} />
@@ -71,12 +73,12 @@ export default function NewTrip() {
         </Row>
 
         <Gap h={space.xl} />
-        <Eyebrow>Visibility</Eyebrow>
+        <Eyebrow>{t('trip.visibility')}</Eyebrow>
         <Gap h={space.md} />
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Row style={{ gap: 8, alignItems: 'center' }}>
             <Ionicons name={isPublic ? 'earth-outline' : 'lock-closed-outline'} size={18} color={isPublic ? palette.matcha : palette.inkSoft} />
-            <AppText variant="bodyStrong" tone="ink">Public</AppText>
+            <AppText variant="bodyStrong" tone="ink">{t('trip.public')}</AppText>
           </Row>
           <Switch
             value={isPublic}

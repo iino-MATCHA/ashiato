@@ -12,6 +12,8 @@ import { useProfile } from '@/lib/useProfile';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { fetchStepSocial, toggleLike, addComment, type StepSocial } from '@/lib/api';
 import { useKeyboardInset, scrollInputIntoView } from '@/lib/useKeyboardInset';
+import { useI18n } from '@/lib/i18n';
+import { translateText } from '@/lib/translate';
 import { transportLabel, type TransportMode } from '@/lib/mock';
 
 const transportIcon: Record<TransportMode, any> = {
@@ -36,6 +38,18 @@ export default function StepDetail() {
   const [posting, setPosting] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const keyboardInset = useKeyboardInset();
+  const { t, locale } = useI18n();
+  // 翻訳された本文（null = 原文表示）
+  const [translated, setTranslated] = useState<string | null>(null);
+  const [translating, setTranslating] = useState(false);
+  const toggleTranslate = async () => {
+    if (translated) { setTranslated(null); return; }
+    if (!step?.note.trim()) return;
+    setTranslating(true);
+    const out = await translateText(step.note, locale);
+    setTranslating(false);
+    if (out) setTranslated(out);
+  };
 
   const loadSocial = () => {
     if (!isSupabaseConfigured || !stepId) return;
@@ -53,7 +67,7 @@ export default function StepDetail() {
   if (!trip || !step) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi, alignItems: 'center', justifyContent: 'center' }}>
-        <AppText variant="small" tone="inkFaint">Loading…</AppText>
+        <AppText variant="small" tone="inkFaint">{t('common.loading')}</AppText>
       </SafeAreaView>
     );
   }
@@ -135,12 +149,29 @@ export default function StepDetail() {
         <AppText variant="h2" tone="ink">{step.title}</AppText>
         <AppText variant="small" tone="inkSoft">{step.placeName}</AppText>
         <Gap h={space.sm} />
-        <AppText variant="body" tone="ink" style={{ lineHeight: 24 }}>{step.note}</AppText>
+        <AppText variant="body" tone="ink" style={{ lineHeight: 24 }}>
+          {translated ?? step.note}
+        </AppText>
+
+        {/* 本文の機械翻訳（現在のUI言語へ）。原文に戻すトグルつき */}
+        {!!step.note.trim() && (
+          <>
+            <Gap h={space.sm} />
+            <Pressable onPress={toggleTranslate} disabled={translating} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+              <Row style={{ gap: 5, alignItems: 'center' }}>
+                <Ionicons name="language-outline" size={15} color={palette.matcha} />
+                <AppText variant="small" tone="matcha">
+                  {translating ? t('common.translating') : translated ? t('common.showOriginal') : t('common.translate')}
+                </AppText>
+              </Row>
+            </Pressable>
+          </>
+        )}
 
         {canEdit && (
           <>
             <Gap h={space.lg} />
-            <Button label="Edit this stop" variant="outline" tone="ink" onPress={() => router.push(`/trip/${trip.id}/step/${step.id}/edit`)} />
+            <Button label={t('step.edit')} variant="outline" tone="ink" onPress={() => router.push(`/trip/${trip.id}/step/${step.id}/edit`)} />
           </>
         )}
 
@@ -174,7 +205,7 @@ export default function StepDetail() {
               </View>
             ))}
             {(social?.comments.length ?? 0) === 0 && (
-              <AppText variant="small" tone="inkFaint">Be the first to comment.</AppText>
+              <AppText variant="small" tone="inkFaint">{t('step.beFirst')}</AppText>
             )}
 
             {!!msg && (<><Gap h={space.sm} /><AppText variant="small" tone="shu">{msg}</AppText></>)}
@@ -184,7 +215,7 @@ export default function StepDetail() {
             <View style={[styles.commentBar, { borderColor: palette.ruleStrong }]}>
               <TextInput
                 value={draft} onChangeText={setDraft}
-                placeholder="Add a comment…" placeholderTextColor={palette.inkFaint}
+                placeholder={t('step.commentPh')} placeholderTextColor={palette.inkFaint}
                 style={[styles.commentInput, { color: palette.ink }]}
                 onSubmitEditing={post}
                 onFocus={() => scrollInputIntoView()}
