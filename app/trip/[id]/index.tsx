@@ -12,6 +12,7 @@ import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
 import { useRippleNav } from '@/lib/transition';
+import { supabase } from '@/lib/supabase';
 import { setLegTransport } from '@/lib/api';
 import { bump } from '@/lib/refresh';
 import { transportLabel, type Step, type TransportMode } from '@/lib/mock';
@@ -32,6 +33,7 @@ export default function TripDetail() {
 
   const CARD_W = Math.min(width * 0.8, 340);
   const SNAP = CARD_W + CARD_GAP;
+  const compact = width < 480; // スマホ幅ではヘッダーのチップを詰める
 
   // active = carousel index. 0 = overview, 1..n = stops, n+1 = add card.
   const [active, setActive] = useState(0);
@@ -40,6 +42,13 @@ export default function TripDetail() {
   const [notice, setNotice] = useState<{ title: string; body: string } | null>(null);
   const [modes, setModes] = useState<TransportMode[]>([]);
   const scrollRef = useRef<ScrollView | null>(null);
+  // 未ログイン閲覧（共有リンク経由）を許すので、編集を止めたときの案内を出し分ける
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    supabase.auth.getSession().then(({ data }) => { if (alive) setSignedIn(!!data.session); });
+    return () => { alive = false; };
+  }, []);
 
   const steps = trip?.steps ?? [];
   const n = steps.length;
@@ -105,10 +114,15 @@ export default function TripDetail() {
       <View style={styles.headerZone} pointerEvents="box-none">
         <Glass onPress={() => router.back()} icon="arrow-back" palette={palette} />
         <Gap h={space.sm} />
-        {/* fixed dark text — the pill is always white, even in dark mode */}
+        {/* fixed dark text — the pill is always white-ish, even in dark mode.
+            スマホでは地図が狭いので、チップを小さく・半透明にして地図を隠さない */}
         <View style={styles.titleGlass}>
-          <AppText variant="small" style={{ color: '#7A7A7A' }}>{trip.subtitle}</AppText>
-          <AppText variant="h3" style={{ color: '#171717' }} numberOfLines={1}>{trip.title}</AppText>
+          <AppText variant="small" style={{ color: '#5E5B57', fontSize: compact ? 10 : 12, lineHeight: compact ? 13 : 16 }} numberOfLines={1}>
+            {trip.subtitle}
+          </AppText>
+          <AppText variant="h3" style={{ color: '#171717', fontSize: compact ? 14 : 18, lineHeight: compact ? 19 : 24 }} numberOfLines={1}>
+            {trip.title}
+          </AppText>
         </View>
         {/* サンプルや他人の旅でもボタンは通常どおり出す。編集だけを止める。 */}
         <View style={styles.actionCol} pointerEvents="box-none">
@@ -175,21 +189,37 @@ export default function TripDetail() {
         </ScrollView>
       </View>
 
-      {/* サンプル／他人の旅を編集しようとしたときの中央ポップアップ */}
+      {/* サンプル／他人の旅を編集しようとしたときの中央ポップアップ。
+          未ログイン（共有リンクから来た人）にはサインアップへの導線を出す */}
       <Modal visible={blocked} transparent animationType="fade" onRequestClose={() => setBlocked(false)}>
         <Pressable style={styles.centerBackdrop} onPress={() => setBlocked(false)}>
           <Pressable style={[styles.centerModal, { backgroundColor: palette.washi }]} onPress={() => {}}>
-            <Ionicons name="eye-outline" size={30} color={palette.matcha} />
+            <Ionicons name={signedIn === false ? 'footsteps-outline' : 'eye-outline'} size={30} color={palette.matcha} />
             <Gap h={space.sm} />
-            <AppText variant="h3" tone="ink" center>This is a sample</AppText>
+            <AppText variant="h3" tone="ink" center>
+              {signedIn === false ? 'Start your own footprint' : 'This is a sample'}
+            </AppText>
             <Gap h={space.xs} />
             <AppText variant="small" tone="inkSoft" center>
-              You can look around and share it, but it cannot be edited. Create your own trip to start recording.
+              {signedIn === false
+                ? 'You are viewing a shared journey. Sign in to record trips like this one — it takes a minute.'
+                : 'You can look around and share it, but it cannot be edited. Create your own trip to start recording.'}
             </AppText>
             <Gap h={space.lg} />
-            <Pressable onPress={() => setBlocked(false)} style={[styles.centerBtn, { backgroundColor: palette.matcha }]}>
-              <AppText variant="small" style={{ color: '#fff' }}>Got it</AppText>
-            </Pressable>
+            {signedIn === false ? (
+              <Row style={{ gap: space.sm }}>
+                <Pressable onPress={() => setBlocked(false)} style={[styles.centerBtn, { backgroundColor: palette.fill }]}>
+                  <AppText variant="small" tone="inkSoft">Later</AppText>
+                </Pressable>
+                <Pressable onPress={() => { setBlocked(false); router.push('/(auth)/login'); }} style={[styles.centerBtn, { backgroundColor: palette.matcha }]}>
+                  <AppText variant="small" style={{ color: '#fff' }}>Sign in</AppText>
+                </Pressable>
+              </Row>
+            ) : (
+              <Pressable onPress={() => setBlocked(false)} style={[styles.centerBtn, { backgroundColor: palette.matcha }]}>
+                <AppText variant="small" style={{ color: '#fff' }}>Got it</AppText>
+              </Pressable>
+            )}
           </Pressable>
         </Pressable>
       </Modal>
@@ -291,8 +321,9 @@ const styles = StyleSheet.create({
   headerZone: { position: 'absolute', top: space.md, left: space.lg, right: space.lg, zIndex: 20, alignItems: 'flex-start' },
   actionCol: { position: 'absolute', top: 0, right: 0, gap: space.sm, zIndex: 30 },
   glassCircle: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(0,0,0,0.08)', shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6 },
-  // 右上のアクション列(46px)にタイトルが被らないよう、幅と右余白を確保する
-  titleGlass: { alignSelf: 'flex-start', maxWidth: '68%', marginRight: 58, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 14, paddingHorizontal: space.md, paddingVertical: space.sm, ...shadow },
+  // 右上のアクション列(46px)にタイトルが被らないよう、幅と右余白を確保する。
+  // 背景は半透明にして、チップの下の地図（ピン）が透けて見えるようにする
+  titleGlass: { alignSelf: 'flex-start', maxWidth: '62%', marginRight: 58, backgroundColor: 'rgba(255,255,255,0.55)', borderRadius: 12, paddingHorizontal: space.sm + 2, paddingVertical: 6, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   dock: { position: 'absolute', bottom: space.lg, left: 0, right: 0, zIndex: 20 },
   card: { borderRadius: 12, overflow: 'hidden', ...shadow },
   cardPhoto: { width: '100%', height: 140, overflow: 'hidden' },

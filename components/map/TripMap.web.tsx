@@ -157,7 +157,8 @@ export function TripMap({
     });
     // single stop (or all stops in one town): stay wide instead of slamming to street level
     if (e - w < 0.4 && n - s < 0.4) {
-      map.easeTo({ center: [(w + e) / 2, (n + s) / 2], zoom: 8, duration: 1200, offset: [0, -bottomInset / 2], essential: true });
+      // 1つの町だけの旅も、ピンをチップの裏に押し込まない控えめなオフセットで
+      map.easeTo({ center: [(w + e) / 2, (n + s) / 2], zoom: 8, duration: 1200, offset: [0, -bottomInset / 6], essential: true });
     } else {
       map.fitBounds([[w, s], [e, n]], { padding: { top: 90, bottom: bottomInset, left: 60, right: 60 }, duration: 1800, maxZoom: 8.5, essential: true });
     }
@@ -172,13 +173,15 @@ export function TripMap({
     const map = mapRef.current;
     const step = steps[i];
     if (!map || !step) return;
-    // slower + wider so the movement reads clearly and context stays visible
+    // slower + wider so the movement reads clearly and context stays visible.
+    // オフセットは控えめに: 大きく上へ寄せると左上のタイトルチップの裏に
+    // ピンが隠れてしまう（特にスマホ）。カードの少し上あたりに置く
     map.flyTo({
       center: [step.lng, step.lat],
       zoom: 7.6,
       duration: 2400,
       curve: 1.4,
-      offset: [0, -bottomInset / 2],
+      offset: [0, -bottomInset / 6],
       essential: true,
     });
     markersRef.current.forEach((m, idx) => {

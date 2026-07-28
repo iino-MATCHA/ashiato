@@ -64,8 +64,8 @@ export async function fetchTrip(id: string): Promise<Trip | null> {
     .single();
   if (error || !trip) return null;
 
-  const { data: auth } = await supabase.auth.getUser();
-  const uid = auth?.user?.id ?? null;
+  // getSession はローカル読み取り（通信なし）。未ログインでも公開旅はRLSが通す
+  const uid = await currentUserId();
 
   const [{ data: logs }, { data: transports }, { data: members }] = await Promise.all([
     supabase
