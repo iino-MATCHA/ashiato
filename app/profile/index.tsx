@@ -49,10 +49,10 @@ export default function ProfilePage() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top']}>
       <Header
-        title="Profile"
+        title={t('profile.header')}
         right={
           <Pressable onPress={() => router.push('/profile/edit')} hitSlop={8}>
-            <AppText variant="bodyStrong" tone="matcha">Edit</AppText>
+            <AppText variant="bodyStrong" tone="matcha">{t('common.edit')}</AppText>
           </Pressable>
         }
       />
@@ -80,16 +80,16 @@ export default function ProfilePage() {
 
         <Gap h={space.xl} />
         <Row style={{ alignItems: 'stretch' }}>
-          <Stat value={myTrips.length} label="Trips" palette={palette} />
+          <Stat value={myTrips.length} label={t('profile.trips')} palette={palette} />
           <Rule vertical />
-          <Stat value={totalStops} label="Stops" palette={palette} />
+          <Stat value={totalStops} label={t('profile.stops')} palette={palette} />
           <Rule vertical />
-          <Stat value={visited.length} label="Goshuin" palette={palette} />
+          <Stat value={visited.length} label={t('profile.goshuin')} palette={palette} />
         </Row>
         <Gap h={space.lg} />
         <Row style={[styles.distance, { borderColor: palette.rule }]}>
           <View>
-            <AppText variant="eyebrow" tone="inkFaint">Total distance</AppText>
+            <AppText variant="eyebrow" tone="inkFaint">{t('profile.totalDistance')}</AppText>
             <Gap h={2} />
             <Row style={{ alignItems: 'flex-end', gap: 4 }}>
               <AppText variant="display" tone="matcha" style={{ lineHeight: 44 }}>{totalKm.toLocaleString()}</AppText>
@@ -103,7 +103,7 @@ export default function ProfilePage() {
         <Gap h={space.xl} />
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Row style={{ gap: 8, alignItems: 'center' }}>
-            <Eyebrow>Friends · {friends.length}</Eyebrow>
+            <Eyebrow>{t('profile.friends')} · {friends.length}</Eyebrow>
             {pendingReq > 0 && (
               <View style={[styles.badge, { backgroundColor: palette.shu }]}>
                 <AppText variant="small" style={{ color: '#fff' }}>{pendingReq}</AppText>
@@ -111,7 +111,7 @@ export default function ProfilePage() {
             )}
           </Row>
           <Pressable onPress={() => router.push('/friends')}>
-            <AppText variant="small" tone="matcha">See all →</AppText>
+            <AppText variant="small" tone="matcha">{t('common.seeAll')} →</AppText>
           </Pressable>
         </Row>
         <Gap h={space.md} />
@@ -134,7 +134,7 @@ export default function ProfilePage() {
               <Ionicons name="person-add-outline" size={18} color={palette.inkSoft} />
             </View>
             <Gap h={4} />
-            <AppText variant="small" tone="inkFaint">Add</AppText>
+            <AppText variant="small" tone="inkFaint">{t('common.add')}</AppText>
           </Pressable>
         </Row>
 

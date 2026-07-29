@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Pressable, StyleSheet, Share as RNShare, Platform, useWindowDimensions } from 'react-native';
+import { View, Pressable, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
 import { exportShareCard } from '@/lib/shareCard';
+import { shareImage, type ShareTarget } from '@/lib/shareImage';
 import { PREFECTURE_ID_BY_SLUG, slugForName } from '@/lib/prefectures';
 
 import { useI18n } from '@/lib/i18n';
@@ -36,6 +37,8 @@ export default function TripShare() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { trip } = useTrip(id);
   const [saving, setSaving] = useState(false);
+  const [busy, setBusy] = useState<ShareTarget | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   if (!trip) {
     return (
@@ -77,17 +80,25 @@ export default function TripShare() {
     setSaving(false);
     if (!dataUrl) return;
     const link = document.createElement('a');
-    link.download = `ashiato-${trip.id}.png`;
+    link.download = `my-japan-${trip.id}.png`;
     link.href = dataUrl;
     link.click();
   };
-  const nativeShare = async (to: string) => {
-    const text = `${trip.title} — ${prefs} prefectures, ${km} km with Ashiato #ashiato`;
-    if (to === 'x' && Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
-      return;
-    }
-    try { await RNShare.share({ message: text }); } catch {}
+
+  /** カードを描き直して、画像ごとSNSへ渡す。 */
+  const send = async (to: ShareTarget) => {
+    if (busy) return;
+    setBusy(to);
+    setNotice(null);
+    const dataUrl = await exportShareCard(cardMeta);
+    const text = `${trip.title} — ${prefs} prefectures, ${km} km with My Japan #myjapan`;
+    const res = dataUrl
+      ? await shareImage(to, dataUrl, text, `my-japan-${trip.id}.png`)
+      : 'failed';
+    setBusy(null);
+    // 共有シートが使えない環境では画像を保存して投稿画面を開くので、その旨を伝える
+    if (res === 'downloaded') setNotice(t('share.savedThenAttach'));
+    else if (res === 'failed') setNotice(t('share.failed'));
   };
 
   return (
@@ -103,9 +114,15 @@ export default function TripShare() {
         <Gap h={space.lg} />
         <Row style={{ gap: space.xl }}>
           <ExportBtn icon="download-outline" label={saving ? t('common.saving') : t('common.save')} onPress={download} palette={palette} />
-          <ExportBtn icon="logo-instagram" label="Stories" onPress={() => nativeShare('stories')} palette={palette} color="#C13584" />
-          <ExportBtn icon="logo-twitter" label="X" onPress={() => nativeShare('x')} palette={palette} color={palette.ink} />
+          <ExportBtn icon="logo-instagram" label={busy === 'instagram' ? '…' : 'Stories'} onPress={() => send('instagram')} palette={palette} color="#C13584" />
+          <ExportBtn icon="logo-twitter" label={busy === 'x' ? '…' : 'X'} onPress={() => send('x')} palette={palette} color={palette.ink} />
         </Row>
+        {!!notice && (
+          <>
+            <Gap h={space.md} />
+            <AppText variant="small" tone="inkFaint" center style={{ maxWidth: 300, lineHeight: 19 }}>{notice}</AppText>
+          </>
+        )}
       </View>
     </SafeAreaView>
   );

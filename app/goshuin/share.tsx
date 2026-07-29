@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Pressable, StyleSheet, Share as RNShare, Platform, useWindowDimensions } from 'react-native';
+import { View, Pressable, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
@@ -11,6 +11,7 @@ import { useTheme } from '@/lib/useTheme';
 import { useVisitedPrefectures } from '@/lib/useData';
 import { PREFECTURE_TOTAL } from '@/lib/mock';
 import { exportJapanCard } from '@/lib/japanCard';
+import { shareImage, type ShareTarget } from '@/lib/shareImage';
 import { CountUp } from '@/components/CountUp';
 
 import { useI18n } from '@/lib/i18n';
@@ -20,6 +21,8 @@ export default function GoshuinShare() {
   const { width, height } = useWindowDimensions();
   const { codes: visited } = useVisitedPrefectures();
   const [saving, setSaving] = useState(false);
+  const [busy, setBusy] = useState<ShareTarget | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const count = visited.length;
   const pct = Math.round((count / PREFECTURE_TOTAL) * 100);
 
@@ -39,30 +42,39 @@ export default function GoshuinShare() {
     mark: cardW * 0.040,
   };
 
-  const share = async (to: string) => {
-    const text = `I've visited ${count}/47 prefectures of Japan (${pct}%) — ${rankFor(count)} on Ashiato #ashiato`;
-    if (to === 'x' && Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
-      return;
-    }
-    try { await RNShare.share({ message: text }); } catch {}
+  const cardMeta = () => ({
+    percent: pct,
+    count,
+    total: PREFECTURE_TOTAL,
+    rank: rankFor(count),
+    visitedCodes: visited,
+  });
+
+  /** カードを描き直して、画像ごとSNSへ渡す。 */
+  const share = async (to: ShareTarget) => {
+    if (busy) return;
+    setBusy(to);
+    setNotice(null);
+    const dataUrl = await exportJapanCard(cardMeta());
+    const text = `I've visited ${count}/47 prefectures of Japan (${pct}%) — ${rankFor(count)} on My Japan #myjapan`;
+    const res = dataUrl
+      ? await shareImage(to, dataUrl, text, `my-japan-${count}of${PREFECTURE_TOTAL}.png`)
+      : 'failed';
+    setBusy(null);
+    // 共有シートが使えない環境では画像を保存して投稿画面を開くので、その旨を伝える
+    if (res === 'downloaded') setNotice(t('share.savedThenAttach'));
+    else if (res === 'failed') setNotice(t('share.failed'));
   };
 
   // プレビューと同じ構成を 1080×1920 で描き直して1枚のPNGにする
   const download = async () => {
     if (Platform.OS !== 'web' || typeof document === 'undefined' || saving) return;
     setSaving(true);
-    const dataUrl = await exportJapanCard({
-      percent: pct,
-      count,
-      total: PREFECTURE_TOTAL,
-      rank: rankFor(count),
-      visitedCodes: visited,
-    });
+    const dataUrl = await exportJapanCard(cardMeta());
     setSaving(false);
     if (!dataUrl) return;
     const link = document.createElement('a');
-    link.download = `ashiato-my-japan-${count}of${PREFECTURE_TOTAL}.png`;
+    link.download = `my-japan-${count}of${PREFECTURE_TOTAL}.png`;
     link.href = dataUrl;
     link.click();
   };
@@ -120,15 +132,21 @@ export default function GoshuinShare() {
             </View>
           </Row>
           <Gap h={space.sm} />
-          <AppText style={[styles.mark, { fontSize: f.mark }]} tone="inkFaint">足跡</AppText>
+          <AppText style={[styles.mark, { fontSize: f.mark }]} tone="inkFaint">My Japan</AppText>
         </View>
 
         <Gap h={space.lg} />
         <Row style={{ gap: space.xl }}>
           <ExportBtn icon="download-outline" label={saving ? t('common.saving') : t('common.save')} onPress={download} palette={palette} />
-          <ExportBtn icon="logo-instagram" label="Stories" onPress={() => share('stories')} palette={palette} color="#C13584" />
-          <ExportBtn icon="logo-twitter" label="X" onPress={() => share('x')} palette={palette} color={palette.ink} />
+          <ExportBtn icon="logo-instagram" label={busy === 'instagram' ? '…' : 'Stories'} onPress={() => share('instagram')} palette={palette} color="#C13584" />
+          <ExportBtn icon="logo-twitter" label={busy === 'x' ? '…' : 'X'} onPress={() => share('x')} palette={palette} color={palette.ink} />
         </Row>
+        {!!notice && (
+          <>
+            <Gap h={space.md} />
+            <AppText variant="small" tone="inkFaint" center style={{ maxWidth: 300, lineHeight: 19 }}>{notice}</AppText>
+          </>
+        )}
       </View>
     </SafeAreaView>
   );

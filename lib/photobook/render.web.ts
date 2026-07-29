@@ -277,7 +277,7 @@ function paintColophon(ctx: CanvasRenderingContext2D, p: Extract<Page, { kind: '
   ctx.font = `700 ${PW * 0.034}px ${SERIF}`;
   ctx.textAlign = 'center';
   ctx.globalAlpha = 0.5;
-  ctx.fillText('足跡', PW / 2, PH - M * 2.4);
+  ctx.fillText('My Japan', PW / 2, PH - M * 2.4);
   ctx.globalAlpha = 1;
   ctx.textAlign = 'left';
 }

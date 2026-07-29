@@ -75,7 +75,7 @@ export default function TripBook() {
     if (!blob) return;
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.download = `ashiato-journal-${trip.id}.pdf`;
+    link.download = `my-japan-journal-${trip.id}.pdf`;
     link.href = url;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 4000);

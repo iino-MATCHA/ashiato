@@ -13,9 +13,11 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { saveVisitedPrefectures, fetchUserPrefectures } from '@/lib/api';
 import { PREFECTURE_EN_BY_ID } from '@/lib/prefectures';
 import { AutoTripModal } from '@/components/AutoTripModal';
+import { useI18n } from '@/lib/i18n';
 
 export default function PrefectureOnboarding() {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const { width } = useWindowDimensions();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
   const isEdit = edit === '1';
@@ -51,7 +53,7 @@ export default function PrefectureOnboarding() {
       const ok = await saveVisitedPrefectures(Array.from(selected));
       setSaving(false);
       if (!ok) {
-        setError('Could not save. Please sign in and try again.');
+        setError(t('prefs.saveFailed'));
         return;
       }
     }
@@ -63,14 +65,14 @@ export default function PrefectureOnboarding() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={isEdit ? ['top', 'bottom'] : ['top', 'bottom']}>
-      {isEdit && <><Header title="Visited prefectures" /><Rule /></>}
+      {isEdit && <><Header title={t('prefs.header')} /><Rule /></>}
       <ScrollView contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxl }} showsVerticalScrollIndicator={false}>
         <Gap h={space.lg} />
-        <Eyebrow tone="matcha">{isEdit ? 'EDIT' : 'WELCOME'}</Eyebrow>
+        <Eyebrow tone="matcha">{isEdit ? t('common.edit') : t('prefs.welcome')}</Eyebrow>
         <Gap h={space.sm} />
-        <AppText variant="h1" tone="ink">Where have you{'\n'}been in Japan?</AppText>
+        <AppText variant="h1" tone="ink">{t('prefs.title')}</AppText>
         <Gap h={space.sm} />
-        <AppText variant="body" tone="inkSoft">Tap every prefecture you’ve already visited. We’ll mark them on your map and goshuin book.</AppText>
+        <AppText variant="body" tone="inkSoft">{t('prefs.lead')}</AppText>
 
         <Gap h={space.lg} />
         <Row style={{ justifyContent: 'flex-end', gap: space.sm, marginBottom: space.sm }}>
@@ -88,12 +90,12 @@ export default function PrefectureOnboarding() {
 
         <Gap h={space.md} />
         <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <AppText variant="small" tone="inkFaint">Selected</AppText>
+          <AppText variant="small" tone="inkFaint">{t('prefs.selected')}</AppText>
           <AppText variant="h3" tone="matcha">{selected.size} / 47</AppText>
         </Row>
         <Gap h={space.xs} />
         <AppText variant="small" tone="inkFaint" numberOfLines={2}>
-          {Array.from(selected).map((c) => PREFECTURE_EN_BY_ID[c]).filter(Boolean).join(' · ') || 'None yet'}
+          {Array.from(selected).map((c) => PREFECTURE_EN_BY_ID[c]).filter(Boolean).join(' · ') || t('prefs.noneYet')}
         </AppText>
         {!!error && (<><Gap h={space.sm} /><AppText variant="small" tone="shu">{error}</AppText></>)}
       </ScrollView>
@@ -102,7 +104,12 @@ export default function PrefectureOnboarding() {
         <Rule />
         <Gap h={space.md} />
         <Button
-          label={saving ? 'Saving…' : isEdit ? 'Save' : selected.size ? `Start with ${selected.size} prefectures` : 'Start with a blank map'}
+          label={
+            saving ? t('common.saving')
+              : isEdit ? t('common.save')
+              : selected.size ? t('prefs.startWith', { n: selected.size })
+              : t('prefs.startBlank')
+          }
           tone="matcha"
           onPress={start}
           disabled={saving}

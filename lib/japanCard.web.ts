@@ -86,7 +86,7 @@ export async function exportJapanCard(meta: JapanCardMeta): Promise<string | nul
     ctx.globalAlpha = 0.45;
     ctx.font = `700 ${W * 0.04}px ${SERIF}`;
     ctx.textAlign = 'center';
-    ctx.fillText('足跡', W / 2, H - M * 0.45);
+    ctx.fillText('My Japan', W / 2, H - M * 0.45);
     ctx.textAlign = 'left';
     ctx.globalAlpha = 1;
 

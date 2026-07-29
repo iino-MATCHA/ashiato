@@ -5,7 +5,7 @@ import { useTheme } from '@/lib/useTheme';
 
 /**
  * One-time intro shown before the login screen. Stylish and brief:
- * the 足跡 mark fades/rises in, a matcha underline sweeps, then it dismisses.
+ * the wordmark fades/rises in, a matcha underline sweeps, then it dismisses.
  */
 export function Splash({ onDone }: { onDone: () => void }) {
   const { palette } = useTheme();
@@ -29,18 +29,19 @@ export function Splash({ onDone }: { onDone: () => void }) {
   return (
     <Animated.View style={[StyleSheet.absoluteFill, styles.root, { backgroundColor: palette.washi, opacity: out }]}>
       <Animated.Text style={[styles.brand, { color: palette.ink, opacity: fade, transform: [{ translateY: rise }] }]}>
-        足跡
+        My Japan
       </Animated.Text>
       <View style={{ height: 10 }} />
       <Animated.View style={{ height: 2, backgroundColor: palette.matcha, opacity: fade, width: line.interpolate({ inputRange: [0, 1], outputRange: [0, 128] }) }} />
       <View style={{ height: space.md }} />
-      <Animated.Text style={[styles.tag, { color: palette.matcha, opacity: line }]}>A S H I A T O</Animated.Text>
+      <Animated.Text style={[styles.tag, { color: palette.matcha, opacity: line }]}>日本を、あるく</Animated.Text>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { alignItems: 'center', justifyContent: 'center', zIndex: 100 },
-  brand: { fontFamily: fonts.minchoBold, fontSize: 96, lineHeight: 104, letterSpacing: 6 },
+  // 「My Japan」は2文字の漢字より横に長いので、字を詰めて幅を抑える
+  brand: { fontFamily: fonts.minchoBold, fontSize: 58, lineHeight: 70, letterSpacing: 1 },
   tag: { fontFamily: fonts.gothicMedium, fontSize: 12, letterSpacing: 5 },
 });

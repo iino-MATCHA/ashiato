@@ -99,9 +99,9 @@ export default function Login() {
     <SafeAreaView style={[styles.root, { backgroundColor: palette.washi }]}>
       {/* Brand */}
       <View style={styles.hero}>
-        <AppText style={styles.brand} tone="ink">足跡</AppText>
+        <AppText style={styles.brand} tone="ink">My Japan</AppText>
         <Gap h={space.xs} />
-        <AppText variant="eyebrow" tone="matcha">A S H I A T O</AppText>
+        <AppText variant="eyebrow" tone="matcha">日本を、あるく</AppText>
         <Gap h={space.md} />
         <AppText variant="body" tone="inkSoft" center style={{ maxWidth: 280 }}>
           Where you walk becomes a map.{'\n'}Where you visit, a stamp is earned.
@@ -159,7 +159,7 @@ export default function Login() {
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: space.lg, justifyContent: 'center', alignItems: 'center' },
   hero: { alignItems: 'center', marginBottom: space.xl },
-  brand: { fontFamily: fonts.minchoBold, fontSize: 72, lineHeight: 80, letterSpacing: 4 },
+  brand: { fontFamily: fonts.minchoBold, fontSize: 48, lineHeight: 58, letterSpacing: 1 },
   card: { width: '100%', maxWidth: 340, alignSelf: 'center' },
   google: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, borderWidth: hairline * 2, borderRadius: 10, paddingVertical: 13 },
   input: { borderBottomWidth: hairline * 2, paddingVertical: 12, fontFamily: fonts.gothicRegular, fontSize: type.body },

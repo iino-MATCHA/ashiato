@@ -9,9 +9,11 @@ import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { searchUsers, fetchSuggestedUsers, sendFriendRequest, type UserSummary } from '@/lib/api';
+import { useI18n } from '@/lib/i18n';
 
 export default function AddFriend() {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const [q, setQ] = useState('');
   const [results, setResults] = useState<UserSummary[]>([]);
   const [suggested, setSuggested] = useState<UserSummary[]>([]);
@@ -48,7 +50,7 @@ export default function AddFriend() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header title="Add friends" />
+      <Header title={t('friends.addHeader')} />
       <Rule />
       <View style={{ flex: 1, paddingHorizontal: space.lg }}>
         <Gap h={space.lg} />
@@ -57,7 +59,7 @@ export default function AddFriend() {
           <TextInput
             value={q}
             onChangeText={setQ}
-            placeholder="Search by name or username"
+            placeholder={t('friends.searchPh')}
             placeholderTextColor={palette.inkFaint}
             style={[styles.searchInput, { color: palette.ink }]}
             autoCapitalize="none"
@@ -96,7 +98,7 @@ export default function AddFriend() {
           </View>
         ))}
         {q.trim() !== '' && !searching && results.length === 0 && (
-          <><Gap h={space.md} /><AppText variant="small" tone="inkFaint">No one found for “{q.trim()}”.</AppText></>
+          <><Gap h={space.md} /><AppText variant="small" tone="inkFaint">{t('friends.noneFound', { q: q.trim() })}</AppText></>
         )}
       </View>
     </SafeAreaView>

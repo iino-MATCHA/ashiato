@@ -47,7 +47,7 @@ export default function Onboarding() {
       <Row style={{ gap: space.sm, alignItems: 'flex-start' }}>
         <Ionicons name="location-outline" size={16} color={palette.aiSoft} style={{ marginTop: 2 }} />
         <AppText variant="small" tone="inkFaint" style={{ flex: 1 }}>
-          Ashiato never tracks your location in the background. You record places yourself when you add a stop.
+          My Japan never tracks your location in the background. You record places yourself when you add a stop.
         </AppText>
       </Row>
 

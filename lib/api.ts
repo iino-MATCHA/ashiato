@@ -971,6 +971,36 @@ export async function updateStep(logId: string, input: { title?: string; note?: 
   return true;
 }
 
+// ---------------------------------------------------------------- 既存写真の編集
+export interface StoredPhoto { id: string; path: string; url: string }
+
+/** その地点に既に付いている写真。編集画面で消せるように id ごと返す。 */
+export async function fetchStepPhotos(logId: string): Promise<StoredPhoto[]> {
+  if (!isSupabaseConfigured || !logId) return [];
+  const { data } = await supabase
+    .from('photos')
+    .select('id, storage_path, sort_order')
+    .eq('log_id', logId)
+    .order('sort_order', { ascending: true });
+  return (data ?? []).map((p: any) => ({ id: p.id, path: p.storage_path, url: publicUrl(p.storage_path) }));
+}
+
+/**
+ * 写真を消す。行を消してから実体も消す。
+ * 実体の削除に失敗しても行は戻さない（画面から消えたものが残り続ける方が困る）。
+ */
+export async function deleteStepPhotos(photos: StoredPhoto[]): Promise<boolean> {
+  if (!photos.length) return true;
+  const { error } = await supabase.from('photos').delete().in('id', photos.map((p) => p.id));
+  if (error) return false;
+  const paths = photos.map((p) => p.path).filter((p) => p && !/^https?:\/\//.test(p));
+  if (paths.length) {
+    try { await supabase.storage.from(PHOTO_BUCKET).remove(paths); } catch {}
+  }
+  bump('trips');
+  return true;
+}
+
 // ---------------------------------------------------------------- 写真から旅を起こす
 export interface NearestPlace {
   municipalityCode: number;

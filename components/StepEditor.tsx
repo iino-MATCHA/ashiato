@@ -10,7 +10,10 @@ import { PhotoPicker } from '@/components/PhotoPicker';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { searchPlaces, resolvePlace, createStep, updateStep, type PlaceHit } from '@/lib/api';
+import {
+  searchPlaces, resolvePlace, createStep, updateStep,
+  fetchStepPhotos, deleteStepPhotos, type PlaceHit, type StoredPhoto,
+} from '@/lib/api';
 import type { Step } from '@/lib/mock';
 
 import { useI18n } from '@/lib/i18n';
@@ -43,6 +46,22 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
   const [photoHint, setPhotoHint] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  /**
+   * すでに付いている写真。編集を開いた時点で読み込む。
+   * これを出さないと、入れた写真をあとから消す手段が無くなる。
+   * 消す指定は保存まで確定させない（× を押した直後に戻れるように）。
+   */
+  const [existing, setExisting] = useState<StoredPhoto[]>([]);
+  const [dropped, setDropped] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!step?.id || !isSupabaseConfigured) return;
+    let alive = true;
+    fetchStepPhotos(step.id).then((p) => alive && setExisting(p)).catch(() => {});
+    return () => { alive = false; };
+  }, [step?.id]);
+
+  const kept = existing.filter((p) => !dropped.has(p.id));
 
   // debounced place search
   useEffect(() => {
@@ -96,6 +115,13 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
     // editing an existing stop: update title / note / date (+append photos); place is locked
     if (editing && step && isSupabaseConfigured && tripId) {
       setSaving(true);
+      // ×を付けた写真は、ここで初めて実際に消す
+      const remove = existing.filter((p) => dropped.has(p.id));
+      if (remove.length) {
+        await deleteStepPhotos(remove);
+        setExisting((cur) => cur.filter((p) => !dropped.has(p.id)));
+        setDropped(new Set());
+      }
       const ok = await updateStep(step.id, {
         title: title.trim() || step.title,
         note: note.trim(),
@@ -104,7 +130,7 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
         newPhotos: photos.map((p) => p.blob),
       });
       setSaving(false);
-      if (!ok) { setSaveMsg('Could not save changes. Please sign in and try again.'); return; }
+      if (!ok) { setSaveMsg(t('editor.saveFailed')); return; }
       router.back();
       return;
     }
@@ -126,11 +152,11 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
       });
       setSaving(false);
       if (!res.id) {
-        setSaveMsg('Could not save. Please sign in and try again.');
+        setSaveMsg(t('editor.saveFailed'));
         return;
       }
       if (res.photoFailed > 0) {
-        setSaveMsg(`Saved, but ${res.photoFailed} photo(s) failed to upload.`);
+        setSaveMsg(t('editor.savePhotoFailed', { n: res.photoFailed }));
         setTimeout(() => router.back(), 1500);
         return;
       }
@@ -150,8 +176,8 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
       <Header
-        title={editing ? 'Edit stop' : 'Add stop'}
-        right={<Pressable onPress={save} hitSlop={10} disabled={!canSave || saving}><AppText variant="bodyStrong" tone={canSave ? 'matcha' : 'inkFaint'}>{saving ? '…' : 'Save'}</AppText></Pressable>}
+        title={editing ? t('editor.editStop') : t('editor.addStop')}
+        right={<Pressable onPress={save} hitSlop={10} disabled={!canSave || saving}><AppText variant="bodyStrong" tone={canSave ? 'matcha' : 'inkFaint'}>{saving ? '…' : t('common.save')}</AppText></Pressable>}
       />
       <Rule />
       <ScrollView contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxl }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -214,8 +240,20 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
           <PhotoPicker onPick={addPhotos} multiple style={[styles.addPhoto, { borderColor: palette.ruleStrong }]}>
             <Ionicons name="add" size={26} color={palette.inkFaint} />
-            <AppText variant="small" tone="inkFaint">Add</AppText>
+            <AppText variant="small" tone="inkFaint">{t('common.add')}</AppText>
           </PhotoPicker>
+          {/* すでに入っている写真。×で消す指定にして、保存で確定する */}
+          {kept.map((p) => (
+            <View key={p.id} style={styles.photoWrap}>
+              <Image source={{ uri: p.url }} style={styles.photo} resizeMode="cover" />
+              <Pressable
+                onPress={() => setDropped((cur) => new Set(cur).add(p.id))}
+                style={styles.photoX}
+              >
+                <Ionicons name="close" size={12} color="#fff" />
+              </Pressable>
+            </View>
+          ))}
           {photos.map((p, i) => (
             <View key={i} style={styles.photoWrap}>
               <Image source={{ uri: p.url }} style={styles.photo} resizeMode="cover" />
@@ -233,6 +271,9 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
         </ScrollView>
         {!!photoHint && (
           <><Gap h={space.sm} /><AppText variant="small" tone="inkFaint">{photoHint}</AppText></>
+        )}
+        {dropped.size > 0 && (
+          <><Gap h={space.sm} /><AppText variant="small" tone="shu">{t('editor.removingPhotos', { n: dropped.size })}</AppText></>
         )}
 
         <Gap h={space.lg} />

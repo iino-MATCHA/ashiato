@@ -53,18 +53,18 @@ export default function Root({ children }: PropsWithChildren) {
           content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no, viewport-fit=cover"
         />
         {/* タブアイコンとSNSシェア時のカード（画像は public/ → dist 直下に配られる） */}
-        <title>足跡 Ashiato — 日本の旅を、かたちに残そう</title>
+        <title>My Japan — 日本の旅を、かたちに残そう</title>
         <meta name="description" content="Record your Japan trip, collect a goshuin for every prefecture, and keep it all as a journal. 歩いた場所を記録して、御朱印を集めて、旅をジャーナルに。" />
         <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/icon-512.png" />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Ashiato" />
-        <meta property="og:title" content="足跡 Ashiato — 日本の旅を、かたちに残そう" />
+        <meta property="og:site_name" content="My Japan" />
+        <meta property="og:title" content="My Japan — 日本の旅を、かたちに残そう" />
         <meta property="og:description" content="Record your Japan trip, collect a goshuin for every prefecture, and keep it as a journal." />
         <meta property="og:image" content="https://www.my-japan-matcha.com/og.png" />
         <meta property="og:url" content="https://www.my-japan-matcha.com/" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="足跡 Ashiato" />
+        <meta name="twitter:title" content="My Japan" />
         <meta name="twitter:description" content="Turn your Japan trip into a keepsake." />
         <meta name="twitter:image" content="https://www.my-japan-matcha.com/og.png" />
         <ScrollViewStyleReset />

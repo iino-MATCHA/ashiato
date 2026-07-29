@@ -22,7 +22,7 @@ export default function ShareScreen() {
 
   const nativeShare = async () => {
     try {
-      await RNShare.share({ message: 'I made a route card of this trip with Ashiato! #ashiato #travel' });
+      await RNShare.share({ message: 'I made a route card of this trip with My Japan! #myjapan #travel' });
     } catch {}
   };
 

@@ -63,7 +63,7 @@ export default function FriendsList() {
             {requests.length > 0 && (
               <>
                 <Gap h={space.lg} />
-                <Eyebrow tone="shu">Friend requests · {requests.length}</Eyebrow>
+                <Eyebrow tone="shu">{t('friends.requests')} · {requests.length}</Eyebrow>
                 <Gap h={space.sm} />
                 {requests.map((r) => (
                   <View key={r.id} style={[styles.requestCard, { borderColor: palette.rule, backgroundColor: palette.paper }]}>
@@ -84,7 +84,7 @@ export default function FriendsList() {
             )}
 
             <Gap h={space.lg} />
-            <Eyebrow>Your friends · {friends.length}</Eyebrow>
+            <Eyebrow>{t('friends.yours')} · {friends.length}</Eyebrow>
             <Gap h={space.sm} />
             <Rule />
             {friends.map((f) => (
@@ -105,7 +105,7 @@ export default function FriendsList() {
               </View>
             ))}
             {friends.length === 0 && (
-              <><Gap h={space.md} /><AppText variant="small" tone="inkFaint">No friends yet — add someone below.</AppText></>
+              <><Gap h={space.md} /><AppText variant="small" tone="inkFaint">{t('friends.none')}</AppText></>
             )}
 
             <Gap h={space.xl} />

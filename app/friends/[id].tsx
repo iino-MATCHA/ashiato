@@ -13,9 +13,11 @@ import { fetchUserProfile, fetchTripsByOwner, fetchVisitedPrefecturesOf, type Us
 import { RankModal, rankFor } from '@/components/RankModal';
 import { findFriend, allTrips, PREFECTURE_TOTAL, type Trip } from '@/lib/mock';
 import { PREFECTURE_EN_BY_ID } from '@/lib/prefectures';
+import { useI18n } from '@/lib/i18n';
 
 export default function FriendProfile() {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [user, setUser] = useState<UserSummary | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -91,13 +93,13 @@ export default function FriendProfile() {
         </Row>
 
         <Gap h={space.xl} />
-        <Eyebrow>Their trips</Eyebrow>
+        <Eyebrow>{t('friends.theirTrips')}</Eyebrow>
         <Gap h={space.md} />
         {trips.map((t) => (
           <FriendTripCard key={t.id} trip={t} />
         ))}
         {trips.length === 0 && (
-          <AppText variant="small" tone="inkFaint">No trips they've shared with you yet.</AppText>
+          <AppText variant="small" tone="inkFaint">{t('friends.noTrips')}</AppText>
         )}
       </Screen>
     </SafeAreaView>
