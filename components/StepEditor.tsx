@@ -39,7 +39,8 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
   const [when, setWhen] = useState(step?.loggedAt ?? new Date().toISOString().slice(0, 10));
   const [title, setTitle] = useState(step?.title ?? '');
   const [note, setNote] = useState(step?.note ?? '');
-  const [photos, setPhotos] = useState<{ blob: Blob; url: string }[]>([]);
+  const [photos, setPhotos] = useState<{ blob: Blob; url: string; onDay?: boolean }[]>([]);
+  const [photoHint, setPhotoHint] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
@@ -73,8 +74,21 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
 
   // compression happens on upload
   const addPhotos = (files: File[]) => {
-    const next = files.slice(0, 10).map((f) => ({ blob: f as Blob, url: URL.createObjectURL(f) }));
+    // その日に撮った写真を先に見せる。選んだ日付と同じ日のものを前へ寄せ、
+    // 違う日のものは「別の日」として畳んでおく（写真アプリで探す手間を省く）
+    const day = (when || '').replace(/\./g, '-').slice(0, 10);
+    const sameDay = (f: File) =>
+      !!day && new Date(f.lastModified || Date.now()).toISOString().slice(0, 10) === day;
+
+    const sorted = [...files].sort((a, b) => Number(sameDay(b)) - Number(sameDay(a)));
+    const next = sorted.slice(0, 10).map((f) => ({
+      blob: f as Blob,
+      url: URL.createObjectURL(f),
+      onDay: sameDay(f),
+    }));
     setPhotos((cur) => [...cur, ...next].slice(0, 10));
+    const off = next.filter((n) => !n.onDay).length;
+    setPhotoHint(day && off > 0 ? t('editor.otherDayPhotos', { n: off }) : null);
   };
 
   const save = async () => {
@@ -205,12 +219,21 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
           {photos.map((p, i) => (
             <View key={i} style={styles.photoWrap}>
               <Image source={{ uri: p.url }} style={styles.photo} resizeMode="cover" />
+              {/* この日に撮られた写真だけ印をつける */}
+              {p.onDay && (
+                <View style={[styles.photoDay, { backgroundColor: palette.matcha }]}>
+                  <Ionicons name="checkmark" size={10} color="#fff" />
+                </View>
+              )}
               <Pressable onPress={() => setPhotos((cur) => cur.filter((_, j) => j !== i))} style={styles.photoX}>
                 <Ionicons name="close" size={12} color="#fff" />
               </Pressable>
             </View>
           ))}
         </ScrollView>
+        {!!photoHint && (
+          <><Gap h={space.sm} /><AppText variant="small" tone="inkFaint">{photoHint}</AppText></>
+        )}
 
         <Gap h={space.lg} />
         <TextInput value={title} onChangeText={setTitle} placeholder={t('editor.titlePh')} placeholderTextColor={palette.inkFaint} style={[styles.titleInput, { color: palette.ink }]} />
@@ -234,6 +257,7 @@ const styles = StyleSheet.create({
   addPhoto: { width: 96, height: 96, borderRadius: 8, borderWidth: hairline * 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   photoWrap: { position: 'relative' },
   photo: { width: 96, height: 96, borderRadius: 8, backgroundColor: '#eee' },
+  photoDay: { position: 'absolute', left: 4, bottom: 4, width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   photoX: { position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
   titleInput: { fontFamily: fonts.minchoBold, fontSize: type.h2, paddingVertical: space.sm },
   noteInput: { fontFamily: fonts.gothicRegular, fontSize: type.body, lineHeight: type.body * 1.8, minHeight: 96, textAlignVertical: 'top' },

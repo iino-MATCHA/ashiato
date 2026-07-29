@@ -12,7 +12,7 @@ import { useRippleNav } from '@/lib/transition';
 import { type Trip } from '@/lib/mock';
 import { PREFECTURE_EN_BY_ID } from '@/lib/prefectures';
 
-import { useI18n } from '@/lib/i18n';
+import { useI18n, localizeMatchaUrl } from '@/lib/i18n';
 /**
  * Featured ranking + weekly rotation.
  * score favours big, well-documented journeys (distance + stops + prefectures).
@@ -59,13 +59,15 @@ export default function Explore() {
   }, [q]);
 
   const openMatcha = (area: TourismArea) => {
-    if (!area.matchaUrl) return;
+    // 表示言語と同じ言語のMATCHAページへ（DBには日本語版が入っている）
+    const url = localizeMatchaUrl(area.matchaUrl);
+    if (!url) return;
     if (Platform.OS === 'web') {
       // web app: normal navigation in a new tab
-      if (typeof window !== 'undefined') window.open(area.matchaUrl, '_blank');
+      if (typeof window !== 'undefined') window.open(url, '_blank');
     } else {
       // native: in-app browser
-      WebBrowser.openBrowserAsync(area.matchaUrl);
+      WebBrowser.openBrowserAsync(url);
     }
   };
 

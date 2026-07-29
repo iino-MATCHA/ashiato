@@ -75,6 +75,12 @@ const en: Dict = {
   'goshuin.share': 'Create a shareable card',
   'goshuin.visited': 'Visited',
   'goshuin.notYet': 'Not yet',
+  'orders.journals': 'YOUR JOURNALS',
+  'orders.journalsHint': 'The PDF for each trip, always here to download again.',
+  'orders.printed': 'PRINTED EDITIONS',
+  'orders.printedEmpty': 'No printed orders yet. Printing will open soon.',
+  'orders.noTrips': 'No trips yet. Record one and its journal appears here.',
+  'editor.otherDayPhotos': '{n} photo(s) are from another day — the ones taken on this date are marked.',
   'goshuin.byRegion': 'BY REGION',
   'goshuin.allJapan': 'ALL JAPAN',
   'goshuin.tapToClose': 'Tap anywhere to close',
@@ -215,6 +221,12 @@ const ja: Dict = {
   'goshuin.share': 'シェア用カードを作る',
   'goshuin.visited': '訪問済み',
   'goshuin.notYet': 'まだ',
+  'orders.journals': '手元のジャーナル',
+  'orders.journalsHint': '各旅のPDFはいつでもここから取り出せます。',
+  'orders.printed': '印刷版の注文',
+  'orders.printedEmpty': 'まだ注文はありません。印刷版は準備中です。',
+  'orders.noTrips': 'まだ旅がありません。記録するとここにジャーナルが並びます。',
+  'editor.otherDayPhotos': '{n}枚は別の日の写真です（この日に撮ったものには印がついています）。',
   'goshuin.byRegion': '地方別',
   'goshuin.allJapan': '日本全国',
   'goshuin.tapToClose': 'どこかをタップで戻る',
@@ -355,6 +367,12 @@ const ko: Dict = {
   'goshuin.share': '공유 카드 만들기',
   'goshuin.visited': '방문함',
   'goshuin.notYet': '아직',
+  'orders.journals': '내 저널',
+  'orders.journalsHint': '각 여행의 PDF는 언제든 여기서 다시 받을 수 있습니다.',
+  'orders.printed': '인쇄판 주문',
+  'orders.printedEmpty': '아직 주문이 없습니다. 인쇄판은 준비 중입니다.',
+  'orders.noTrips': '아직 여행이 없습니다. 기록하면 여기에 저널이 나타납니다.',
+  'editor.otherDayPhotos': '{n}장은 다른 날의 사진입니다 (이 날 찍은 사진에는 표시가 있습니다).',
   'goshuin.byRegion': '지방별',
   'goshuin.allJapan': '일본 전국',
   'goshuin.tapToClose': '아무 곳이나 탭하면 닫힘',
@@ -495,6 +513,12 @@ const zhHans: Dict = {
   'goshuin.share': '生成分享卡片',
   'goshuin.visited': '已到访',
   'goshuin.notYet': '尚未',
+  'orders.journals': '我的手账',
+  'orders.journalsHint': '每段旅程的PDF随时可以在这里重新下载。',
+  'orders.printed': '印刷版订单',
+  'orders.printedEmpty': '还没有订单。印刷版即将开放。',
+  'orders.noTrips': '还没有旅程。记录之后手账会出现在这里。',
+  'editor.otherDayPhotos': '有{n}张是其他日期的照片（当天拍摄的照片带有标记）。',
   'goshuin.byRegion': '按地区',
   'goshuin.allJapan': '日本全国',
   'goshuin.tapToClose': '点击任意处返回',
@@ -635,6 +659,12 @@ const zhHant: Dict = {
   'goshuin.share': '建立分享卡片',
   'goshuin.visited': '已造訪',
   'goshuin.notYet': '尚未',
+  'orders.journals': '我的手帳',
+  'orders.journalsHint': '每段旅程的PDF隨時可以在這裡重新下載。',
+  'orders.printed': '印刷版訂單',
+  'orders.printedEmpty': '還沒有訂單。印刷版即將開放。',
+  'orders.noTrips': '還沒有旅程。記錄之後手帳會出現在這裡。',
+  'editor.otherDayPhotos': '有{n}張是其他日期的照片（當天拍攝的照片帶有標記）。',
   'goshuin.byRegion': '按地區',
   'goshuin.allJapan': '日本全國',
   'goshuin.tapToClose': '點擊任意處返回',
@@ -807,6 +837,26 @@ export async function setLocale(next: Locale) {
 
 export function getLocale(): Locale {
   return current;
+}
+
+/**
+ * MATCHA のURLに使う言語セグメント。
+ * DBには日本語版(/jp/)で入っているので、表示言語に合わせて差し替える。
+ * 実際に叩いて該当ページが返ることを確認済み（en / ko / cn / tw）。
+ */
+const MATCHA_LANG: Record<Locale, string> = {
+  en: 'en',
+  ja: 'jp',
+  ko: 'ko',
+  'zh-Hans': 'cn',
+  'zh-Hant': 'tw',
+};
+
+/** MATCHAのURLを現在の表示言語のものに置き換える。 */
+export function localizeMatchaUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const seg = MATCHA_LANG[current] ?? 'en';
+  return url.replace(/matcha-jp\.com\/[a-z]{2}\//i, `matcha-jp.com/${seg}/`);
 }
 
 /** 現在の言語での翻訳。辞書に無いキーは英語へフォールバック。 */

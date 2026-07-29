@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -134,23 +134,15 @@ function isOnTheRoad(trip: Trip): boolean {
 }
 
 function TripCard({ trip, palette, onEdit }: { trip: Trip; palette: any; onEdit: () => void }) {
-  const { navigate, navigatePhoto } = useRippleNav();
+  const { navigate } = useRippleNav();
   const cover = trip.steps[0]?.images[0];
   const ongoing = isOnTheRoad(trip);
   const mine = trip.authorId === 'me' || !trip.authorId;
   const editable = !trip.sample && mine; // sample & others' trips can't be edited/deleted
   const href = `/trip/${trip.id}${editable ? '' : '?readonly=1'}`;
-  // カバー写真の画面上の位置を測り、そのまま地図のピンへ飛ばす
-  const coverRef = useRef<View | null>(null);
-  const open = (e: any) => {
-    if (!cover || !coverRef.current) return navigate(href, e);
-    coverRef.current.measureInWindow((x, y, width, height) => {
-      navigatePhoto(href, cover, { x, y, width, height }, e);
-    });
-  };
   return (
-    <Pressable onPress={open} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
-      <View style={styles.cover} ref={coverRef}>
+    <Pressable onPress={(e) => navigate(href, e)} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
+      <View style={styles.cover}>
         {cover && <Image source={{ uri: cover }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />}
         <View style={styles.coverShade} />
         {ongoing && (

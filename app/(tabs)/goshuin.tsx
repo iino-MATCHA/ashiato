@@ -34,16 +34,18 @@ export default function GoshuinBook() {
         <View style={{ alignItems: 'flex-end' }}>
           <CountUp value={count} variant="display" tone="shu" style={{ lineHeight: 44 }} />
           <AppText variant="small" tone="inkFaint">/ {PREFECTURE_TOTAL}</AppText>
-          <Gap h={space.sm} />
-          {/* タップで地方ごとの内訳へ */}
-          <CoverageGauge visitedCodes={visited} total={PREFECTURE_TOTAL} />
         </View>
       </Row>
 
-      {/* Coverage map — which prefectures you've reached */}
+      {/* Coverage map — which prefectures you've reached.
+          ゲージは絶対配置にする。行の中に入れると見出しと地図が下へ押し出されるため。
+          位置は地図の右端・中ほど（この高さのSVGは海しか無いので絵に重ならない）。 */}
       <Gap h={space.lg} />
       <View style={{ alignItems: 'center' }}>
         <JapanSvgMap visited={visited} width={Math.min(width - space.lg * 2, 380)} okinawaInset />
+        <View style={styles.gaugeSlot} pointerEvents="box-none">
+          <CoverageGauge visitedCodes={visited} total={PREFECTURE_TOTAL} />
+        </View>
       </View>
       <Gap h={space.xs} />
       <Row style={{ justifyContent: 'center', gap: space.lg }}>
@@ -101,6 +103,8 @@ function LegendDot({ color, label, palette, border }: any) {
 }
 
 const styles = StyleSheet.create({
+  // 地図の右端・上下中ほど。行の高さに影響させないため絶対配置
+  gaugeSlot: { position: 'absolute', right: 0, top: '26%' },
   rankBand: { justifyContent: 'space-between', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: space.md },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: space.xl },
   cell: { width: '30%', alignItems: 'center' },

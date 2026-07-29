@@ -32,8 +32,11 @@ export const REGIONS: Region[] = [
   { key: 'kyushu', label: '九州・沖縄', codes: [40, 41, 42, 43, 44, 45, 46, 47] },
 ];
 
-/** 緑系で統一した濃淡（上から順に少しずつ変える） */
-const GREENS = ['#4E8C00', '#5CA000', '#69AF00', '#78BC1B', '#87C93A', '#96D659', '#A5E378', '#B4EF97'];
+/** 全国のゲージ。一番上なので最も濃い */
+const GREEN_TOP = '#2F5E00';
+
+/** 地方のゲージ。上から下へ順に薄くしていく */
+const GREENS = ['#3F7500', '#4E8C00', '#5CA000', '#69AF00', '#7ABE24', '#8CCB47', '#9FD86B', '#B2E58F'];
 
 export function CoverageGauge({
   visitedCodes,
@@ -118,8 +121,15 @@ export function CoverageGauge({
     <>
       {/* --- 通常時の縦ゲージ --- */}
       <Pressable onPress={openPanel} hitSlop={14} style={{ alignItems: 'center' }}>
-        <View ref={barRef} style={[styles.track, { height: LEN, backgroundColor: palette.fill }]}>
-          <View style={[styles.fill, { height: `${Math.max(3, overall * 100)}%`, backgroundColor: palette.matcha }]} />
+        {/* 溝は白地に白だと消えてしまうので、必ず見える色と縁をつける */}
+        <View
+          ref={barRef}
+          style={[
+            styles.track,
+            { height: LEN, backgroundColor: palette.rule, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.ruleStrong },
+          ]}
+        >
+          <View style={[styles.fill, { height: `${Math.max(3, overall * 100)}%`, backgroundColor: GREEN_TOP }]} />
         </View>
         <Gap h={6} />
         <AppText variant="small" tone="inkFaint" style={{ fontSize: 9, letterSpacing: 1.2 }}>
@@ -147,7 +157,7 @@ export function CoverageGauge({
             }}
           >
             <View style={[styles.track, { height: LEN, backgroundColor: 'rgba(255,255,255,0.16)' }]}>
-              <View style={[styles.fill, { height: `${Math.max(3, overall * 100)}%`, backgroundColor: GREENS[2] }]} />
+              <View style={[styles.fill, { height: `${Math.max(3, overall * 100)}%`, backgroundColor: GREEN_TOP }]} />
             </View>
           </Animated.View>
 
@@ -210,11 +220,6 @@ export function CoverageGauge({
             );
           })}
 
-          <Animated.View style={{ position: 'absolute', left: 0, right: 0, bottom: 46, opacity: veil }}>
-            <AppText variant="small" center style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>
-              {t('goshuin.tapToClose')}
-            </AppText>
-          </Animated.View>
         </Pressable>
       </Modal>
     </>
