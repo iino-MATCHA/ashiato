@@ -14,6 +14,8 @@ import { fetchStepSocial, toggleLike, addComment, type StepSocial } from '@/lib/
 import { useKeyboardInset, scrollInputIntoView } from '@/lib/useKeyboardInset';
 import { useI18n } from '@/lib/i18n';
 import { translateText } from '@/lib/translate';
+import { SignInPrompt } from '@/components/SignInPrompt';
+import { useSession } from '@/lib/useSession';
 import { transportLabel, type TransportMode } from '@/lib/mock';
 
 const transportIcon: Record<TransportMode, any> = {
@@ -34,6 +36,9 @@ export default function StepDetail() {
   // null にしない。取得前や取得失敗でも空の状態を持っておくことで、
   // 投稿した分をその場で足せる（＝必ず即時反映される）。
   const [social, setSocial] = useState<StepSocial>({ likes: 0, likedByMe: false, comments: [] });
+  // ゲストは読める。いいね・コメントを押した瞬間に促す
+  const { guest } = useSession();
+  const [askSignIn, setAskSignIn] = useState<null | 'like' | 'comment'>(null);
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -75,15 +80,17 @@ export default function StepDetail() {
   const coverH = Math.min(height * 0.3, 240);
 
   const like = async () => {
+    if (guest) return setAskSignIn('like');
     const prev = social;
     setMsg(null);
     setSocial({ ...social, likedByMe: !social.likedByMe, likes: social.likes + (social.likedByMe ? -1 : 1) });
     const ok = await toggleLike(step.id, trip.id, social.likedByMe);
-    if (!ok) { setSocial(prev); setMsg('Sign in to like this stop.'); return; }
+    if (!ok) { setSocial(prev); setMsg(t('guest.why.like')); return; }
     loadSocial();
   };
 
   const post = async () => {
+    if (guest) return setAskSignIn('comment');
     const body = draft.trim();
     if (!body || posting) return;
     setMsg(null);
@@ -102,7 +109,7 @@ export default function StepDetail() {
       // 失敗したら足した分を取り消して、書いた内容は入力欄に戻す
       setSocial((cur) => ({ ...cur, comments: cur.comments.filter((c) => c.id !== tempId) }));
       setDraft(body);
-      setMsg('Could not post. Please sign in and try again.');
+      setMsg(t('guest.why.comment'));
       return;
     }
     // 仮の行をサーバーが返した本物に差し替える（再取得の成否に依存しない）
@@ -230,6 +237,7 @@ export default function StepDetail() {
           </>
         )}
       </ScrollView>
+      <SignInPrompt visible={askSignIn !== null} onClose={() => setAskSignIn(null)} reason={askSignIn ?? 'save'} />
     </SafeAreaView>
   );
 }

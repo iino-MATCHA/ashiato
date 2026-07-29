@@ -1,31 +1,26 @@
-import { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { Tabs, Redirect } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useI18n } from '@/lib/i18n';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { useSession } from '@/lib/useSession';
 
 export default function TabsLayout() {
   const { palette } = useTheme();
   const { t } = useI18n();
 
   /**
-   * タブの中の画面を直接開いた（＝リロードした）ときの入口。
+   * ゲスト（未ログイン）でもタブの中に入れる。
    *
-   * 以前は `/` の認証ゲートだけがセッションを見ていたので、`/map` を
-   * リロードすると素通りして空のまま出ていた。ここでも見て、
-   * セッションがあればそのまま、無ければ `/` へ返す。
-   * セッションは localStorage に残っているので、読み直せばログインは続く。
+   * ここで弾いてログイン画面に落とすと、他の旅人の記録を見ることすらできず、
+   * 何のアプリなのか分からないまま登録を求めることになる。公開の旅は
+   * RLS が未ログインでも読ませるので、見せる側は素通しでよい。
+   * 保存が要る操作だけ、その場で SignInPrompt を出して止める。
+   *
+   * 読み込み中は判定を待つ（一瞬ゲスト扱いの画面が出るのを避ける）。
    */
-  const [signedIn, setSignedIn] = useState<boolean | null>(!isSupabaseConfigured ? true : null);
-  useEffect(() => {
-    if (!isSupabaseConfigured) return;
-    let alive = true;
-    supabase.auth.getSession().then(({ data }) => alive && setSignedIn(!!data.session));
-    return () => { alive = false; };
-  }, []);
+  const { signedIn } = useSession();
 
   if (signedIn === null) {
     return (
@@ -34,7 +29,6 @@ export default function TabsLayout() {
       </View>
     );
   }
-  if (!signedIn) return <Redirect href="/" />;
 
   return (
     <Tabs

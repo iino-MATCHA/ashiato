@@ -12,12 +12,13 @@ import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
 import { useRippleNav } from '@/lib/transition';
-import { supabase } from '@/lib/supabase';
 import { setLegTransport } from '@/lib/api';
 import { bump } from '@/lib/refresh';
 import { transportLabel, type Step, type TransportMode } from '@/lib/mock';
 import { useI18n } from '@/lib/i18n';
 import { AutoTripModal } from '@/components/AutoTripModal';
+import { SignInPrompt } from '@/components/SignInPrompt';
+import { useSession } from '@/lib/useSession';
 
 const transportIcon: Record<TransportMode, any> = {
   car: 'car-outline', train: 'subway-outline', shinkansen: 'train-outline',
@@ -44,16 +45,12 @@ export default function TripDetail() {
   const [blocked, setBlocked] = useState(false);
   // 写真から立ち寄り先を足すモーダル
   const [fromPhotos, setFromPhotos] = useState(false);
+  // 未ログイン閲覧（共有リンク経由）を許すので、案内を出し分ける
+  const { signedIn, guest } = useSession();
+  const [askSignIn, setAskSignIn] = useState<null | 'save' | 'order'>(null);
   const [notice, setNotice] = useState<{ title: string; body: string } | null>(null);
   const [modes, setModes] = useState<TransportMode[]>([]);
   const scrollRef = useRef<ScrollView | null>(null);
-  // 未ログイン閲覧（共有リンク経由）を許すので、編集を止めたときの案内を出し分ける
-  const [signedIn, setSignedIn] = useState<boolean | null>(null);
-  useEffect(() => {
-    let alive = true;
-    supabase.auth.getSession().then(({ data }) => { if (alive) setSignedIn(!!data.session); });
-    return () => { alive = false; };
-  }, []);
 
   const steps = trip?.steps ?? [];
   const n = steps.length;
@@ -137,7 +134,7 @@ export default function TripDetail() {
           {!isFellow && (
             <>
               <Glass onPress={() => router.push(`/trip/${trip.id}/share`)} icon="share-outline" palette={palette} />
-              <Glass onPress={() => router.push(`/trip/${trip.id}/bind` as any)} icon="book-outline" palette={palette} />
+              <Glass onPress={() => (guest ? setAskSignIn('order') : router.push(`/trip/${trip.id}/bind` as any))} icon="book-outline" palette={palette} />
               <Glass onPress={() => (canEdit ? router.push(`/trip/${trip.id}/edit`) : setBlocked(true))} icon="settings-outline" palette={palette} />
               {/* 写真を選ぶだけで立ち寄り先を足す。手入力の「＋」は下のドックに残す */}
               <Glass onPress={() => (canEdit ? setFromPhotos(true) : setBlocked(true))} icon="images-outline" palette={palette} />
@@ -281,6 +278,7 @@ export default function TripDetail() {
 
       {/* 写真から立ち寄り先を足す。閉じたらこの旅に留まる（useTrip が拾い直す） */}
       <AutoTripModal visible={fromPhotos} tripId={trip.id} onClose={() => setFromPhotos(false)} />
+      <SignInPrompt visible={askSignIn !== null} onClose={() => setAskSignIn(null)} reason={askSignIn ?? 'save'} />
     </SafeAreaView>
   );
 }

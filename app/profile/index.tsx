@@ -1,6 +1,6 @@
 import { View, Pressable, Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Screen, Row, Rule, Gap, Eyebrow, Button } from '@/components/ui';
@@ -15,11 +15,14 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { fetchUnreadCount, fetchFriends, fetchFriendRequests, fetchMyAdminRole, type UserSummary } from '@/lib/api';
 import { friends as mockFriends } from '@/lib/mock';
 import { useI18n } from '@/lib/i18n';
+import { useSession } from '@/lib/useSession';
 import { CountUp } from '@/components/CountUp';
 
 export default function ProfilePage() {
   const { palette } = useTheme();
   const { profile, signOut } = useProfile();
+  // プロフィールは本人のものしか無い。ゲストはログインへ返す
+  const { signedIn } = useSession();
   const { t } = useI18n();
   const { trips } = useTrips();
   const { codes: visited } = useVisitedPrefectures();
@@ -45,6 +48,8 @@ export default function ProfilePage() {
   const myTrips = trips.filter((t) => !t.sample);
   const totalStops = myTrips.reduce((s, t) => s + t.steps.length, 0);
   const totalKm = myTrips.reduce((s, t) => s + t.distanceKm, 0);
+
+  if (signedIn === false) return <Redirect href="/(auth)/login" />;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top']}>

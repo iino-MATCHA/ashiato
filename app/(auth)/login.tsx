@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Pressable, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText, Row, Rule, Gap } from '@/components/ui';
 import { Splash } from '@/components/Splash';
@@ -42,7 +42,9 @@ export default function Login() {
   const { palette } = useTheme();
   const { t } = useI18n();
   const [splash, setSplash] = useState(shouldSplash);
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  // SignInPrompt から「アカウントを作る」で来たときは新規登録で開く
+  const { signup } = useLocalSearchParams<{ signup?: string }>();
+  const [mode, setMode] = useState<'signin' | 'signup'>(signup === '1' ? 'signup' : 'signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);

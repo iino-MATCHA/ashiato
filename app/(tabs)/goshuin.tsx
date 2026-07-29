@@ -14,6 +14,8 @@ import { WashiBackground } from '@/components/WashiBackground';
 import { CoverageGauge } from '@/components/CoverageGauge';
 import { CountUp } from '@/components/CountUp';
 import { useI18n } from '@/lib/i18n';
+import { SignInPrompt } from '@/components/SignInPrompt';
+import { useSession } from '@/lib/useSession';
 
 export default function GoshuinBook() {
   const { palette } = useTheme();
@@ -23,6 +25,9 @@ export default function GoshuinBook() {
   const visitedSet = new Set(visited);
   const count = visited.length;
   const [rankOpen, setRankOpen] = useState(false);
+  // ゲストは 0/47 の白紙が出る。集めるにはログインが要る、と伝える
+  const { guest } = useSession();
+  const [askSignIn, setAskSignIn] = useState(false);
 
   return (
     <Screen contentContainerStyle={{ paddingBottom: space.xxl }} background={<WashiBackground />}>
@@ -53,6 +58,22 @@ export default function GoshuinBook() {
         <LegendDot color={palette.fill} label={t('goshuin.notYet')} palette={palette} border={palette.ruleStrong} />
       </Row>
 
+      {/* ゲストの帳面は真っ白なので、なぜ空なのかをここで言う */}
+      {guest && (
+        <>
+          <Gap h={space.lg} />
+          <Pressable onPress={() => setAskSignIn(true)} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+            <Row style={[styles.guestBand, { borderColor: palette.rule }]}>
+              <Ionicons name="footsteps-outline" size={18} color={palette.matcha} />
+              <AppText variant="small" tone="inkSoft" style={{ flex: 1, lineHeight: 20 }}>
+                {t('guest.goshuinBody')}
+              </AppText>
+              <Ionicons name="chevron-forward" size={16} color={palette.inkFaint} />
+            </Row>
+          </Pressable>
+        </>
+      )}
+
       <Gap h={space.lg} />
       <Pressable onPress={() => setRankOpen(true)} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
         <Row style={[styles.rankBand, { borderColor: palette.ruleStrong }]}>
@@ -67,7 +88,12 @@ export default function GoshuinBook() {
 
       {/* ランクのすぐ下に置く。スタンプを見終わってからでは気づかれにくい */}
       <Gap h={space.md} />
-      <Button label={t('goshuin.share')} tone="matcha" onPress={() => router.push('/goshuin/share')} />
+      <Button
+        label={t('goshuin.share')}
+        tone="matcha"
+        onPress={() => (guest ? setAskSignIn(true) : router.push('/goshuin/share'))}
+      />
+      <SignInPrompt visible={askSignIn} onClose={() => setAskSignIn(false)} reason="collect" />
 
       <Gap h={space.xl} />
       <View style={styles.grid}>
@@ -105,6 +131,7 @@ function LegendDot({ color, label, palette, border }: any) {
 const styles = StyleSheet.create({
   // 地図の右端・上下中ほど。行の高さに影響させないため絶対配置
   gaugeSlot: { position: 'absolute', right: 0, top: '26%' },
+  guestBand: { gap: space.sm, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: space.md },
   rankBand: { justifyContent: 'space-between', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: space.md },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: space.xl },
   cell: { width: '30%', alignItems: 'center' },

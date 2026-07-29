@@ -285,6 +285,8 @@ export function Landing() {
   const demoH = Math.round(Math.min(560, Math.max(300, (typeof window !== 'undefined' ? window.innerWidth : 900) * 0.52)));
 
   const go = () => router.push('/(auth)/login');
+  // 登録せずに中を見せる。何のアプリなのか分からないまま登録を求めない
+  const browse = () => router.push('/(tabs)/explore');
 
   const Card = ({ p, i }: { p: any; i: number }) => (
     <div className="mCard" key={`${p.src}-${i}`}>
@@ -307,11 +309,12 @@ export function Landing() {
         </div>
         <div className="heroVeil" />
         <div className="heroInner">
-          <div className="heroKicker rv in">A S H I A T O</div>
+          <div className="heroKicker rv in">M Y &nbsp;J A P A N</div>
           <h1 className="heroTitle mincho rv d1">{t('lp.tagline')}</h1>
           <p className="heroSub rv d2">{t('lp.sub')}</p>
           <div className="rv d3" style={{ marginTop: 34, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button className="cta" onClick={go}>{t('lp.cta')} →</button>
+            <button className="cta ctaGhost" onClick={browse}>{t('lp.browse')}</button>
             <button className="cta ctaGhost" onClick={go}>{t('lp.haveAccount')}</button>
           </div>
         </div>
@@ -463,8 +466,9 @@ export function Landing() {
       <section className="dark closing">
         <div className="wrap rv">
           <h2 className="mincho">{t('lp.closing')}</h2>
-          <div style={{ marginTop: 34 }}>
+          <div style={{ marginTop: 34, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button className="cta" onClick={go}>{t('lp.cta')} →</button>
+            <button className="cta ctaGhost" onClick={browse}>{t('lp.browse')}</button>
           </div>
         </div>
       </section>

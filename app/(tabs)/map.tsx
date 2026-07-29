@@ -14,6 +14,8 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { deleteTrip } from '@/lib/api';
 import { CountUp } from '@/components/CountUp';
 import { AutoTripModal } from '@/components/AutoTripModal';
+import { SignInPrompt } from '@/components/SignInPrompt';
+import { useSession } from '@/lib/useSession';
 import { useRippleNav } from '@/lib/transition';
 
 import { useI18n, t } from '@/lib/i18n';
@@ -33,6 +35,9 @@ export default function Home() {
   const [menuTrip, setMenuTrip] = useState<Trip | null>(null);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   const [autoOpen, setAutoOpen] = useState(false);
+  // ゲストは見るだけ。保存が要る操作を押したらその場で促す
+  const { guest } = useSession();
+  const [askSignIn, setAskSignIn] = useState(false);
   const pct = Math.round((visited.length / PREFECTURE_TOTAL) * 100);
   let ordered = [...trips]
     .filter((t) => !deletedIds.has(t.id))
@@ -63,18 +68,25 @@ export default function Home() {
         <View style={{ paddingHorizontal: space.lg }}>
           {/* Profile row — links to the profile page */}
           <Gap h={space.md} />
-          <Pressable onPress={() => router.push('/profile')} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
+          <Pressable
+            onPress={() => (guest ? setAskSignIn(true) : router.push('/profile'))}
+            style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
+          >
             <Row style={{ gap: space.md, alignItems: 'center' }}>
               <View style={[styles.avatar, { backgroundColor: palette.fill, borderColor: palette.matcha, borderWidth: 2, overflow: 'hidden' }]}>
-                {profile.avatarUrl ? (
+                {!guest && profile.avatarUrl ? (
                   <Image source={{ uri: profile.avatarUrl }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
                 ) : (
                   <Ionicons name="person" size={22} color={palette.matcha} />
                 )}
               </View>
               <View style={{ flex: 1 }}>
-                <AppText variant="bodyStrong" tone="ink">{profile.name}</AppText>
-                <AppText variant="small" tone="inkFaint">@{profile.username}</AppText>
+                <AppText variant="bodyStrong" tone="ink">
+                  {guest ? t('guest.mapTitle') : profile.name}
+                </AppText>
+                <AppText variant="small" tone="inkFaint">
+                  {guest ? t('guest.signUp') + ' →' : '@' + profile.username}
+                </AppText>
               </View>
               <Ionicons name="chevron-forward" size={18} color={palette.inkFaint} />
             </Row>
@@ -85,7 +97,7 @@ export default function Home() {
           <Gap h={space.lg} />
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <AppText variant="h2" tone="ink">{t('home.yourTrips')}</AppText>
-            <Pressable onPress={() => router.push('/trip/new')} hitSlop={8}>
+            <Pressable onPress={() => (guest ? setAskSignIn(true) : router.push('/trip/new'))} hitSlop={8}>
               <Row style={{ gap: 5, alignItems: 'center' }}>
                 <Ionicons name="add-circle" size={22} color={palette.matcha} />
                 <AppText variant="bodyStrong" tone="matcha">New</AppText>
@@ -106,7 +118,7 @@ export default function Home() {
               箱で囲わず、細い罫と面だけで区切る */}
           <Gap h={space.lg} />
           <Pressable
-            onPress={() => setAutoOpen(true)}
+            onPress={() => (guest ? setAskSignIn(true) : setAutoOpen(true))}
             style={({ pressed }) => [styles.autoRow, { backgroundColor: palette.fill }, pressed && { opacity: 0.7 }]}
           >
             <View style={[styles.autoIcon, { backgroundColor: palette.matcha }]}>
@@ -125,6 +137,22 @@ export default function Home() {
           </Pressable>
 
           <Gap h={space.lg} />
+          {guest && (
+            <>
+              {/* ゲストの一覧は空なので、代わりに行き先を示す */}
+              <View style={[styles.guestNote, { borderColor: palette.rule }]}>
+                <AppText variant="small" tone="inkSoft" style={{ lineHeight: 21 }}>{t('guest.mapBody')}</AppText>
+                <Gap h={space.md} />
+                <Pressable onPress={() => router.push('/(tabs)/explore')} hitSlop={8}>
+                  <Row style={{ gap: 6, alignItems: 'center' }}>
+                    <Ionicons name="compass-outline" size={16} color={palette.matcha} />
+                    <AppText variant="small" tone="matcha">{t('guest.seeOthers')} →</AppText>
+                  </Row>
+                </Pressable>
+              </View>
+              <Gap h={space.lg} />
+            </>
+          )}
           {ordered.map((t) => (
             <TripCard key={t.id} trip={t} palette={palette} onEdit={() => setMenuTrip(t)} />
           ))}
@@ -133,6 +161,7 @@ export default function Home() {
 
       {/* 写真から旅を起こす（一覧の先頭のカードから） */}
       <AutoTripModal visible={autoOpen} onClose={() => setAutoOpen(false)} />
+      <SignInPrompt visible={askSignIn} onClose={() => setAskSignIn(false)} reason="save" />
 
       {/* Trip actions (own, non-sample trips) */}
       <Modal visible={!!menuTrip} transparent animationType="fade" onRequestClose={() => setMenuTrip(null)}>
@@ -242,4 +271,5 @@ const styles = StyleSheet.create({
   autoRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: 12 },
   autoIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   newTag: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
+  guestNote: { borderWidth: hairline, borderRadius: 12, padding: space.md },
 });
