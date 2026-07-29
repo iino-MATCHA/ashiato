@@ -37,12 +37,13 @@ export default function Home() {
   let ordered = [...trips]
     .filter((t) => !deletedIds.has(t.id))
     .sort((a, b) => (a.status === 'ongoing' ? -1 : b.status === 'ongoing' ? 1 : 0));
-  // keep the official sample pinned at the top (read-only, from the DB demo user)
-  if (isSupabaseConfigured) {
+  /**
+   * サンプルの旅は「まだ何も無い人」への見本なので、
+   * 自分の旅が1件でもできたら出さない（自分の記録の上に他人の旅が居座らない）。
+   */
+  if (isSupabaseConfigured && ordered.length === 0) {
     const sample = publicTrips.find((t) => t.authorId !== 'me' && t.title === 'Japan Grand Tour');
-    if (sample && !ordered.some((t) => t.id === sample.id)) {
-      ordered = [{ ...sample, sample: true }, ...ordered];
-    }
+    if (sample) ordered = [{ ...sample, sample: true }];
   }
 
   const onDelete = async () => {

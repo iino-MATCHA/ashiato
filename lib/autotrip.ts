@@ -13,7 +13,7 @@
  */
 import { readPhotoMeta, type PhotoMeta } from './exif';
 import {
-  createTrip, createStep, nearestMunicipality,
+  createTrip, createStep, nearestMunicipality, resortTripStops,
   haversineKm, type NearestPlace,
 } from './api';
 
@@ -63,6 +63,13 @@ interface Cluster {
   place?: NearestPlace | null;
 }
 
+interface Planned {
+  stops: Cluster[];
+  startDate: string;
+  endDate: string;
+  skipped: number;
+}
+
 /**
  * 写真から旅を1件作る。
  * onProgress は画面のローディング表示に流す。
@@ -71,6 +78,56 @@ export async function createTripFromPhotos(
   files: Blob[],
   onProgress?: (p: AutoTripProgress) => void
 ): Promise<AutoTripResult> {
+  const plan = await planFromPhotos(files, onProgress);
+  if ('failure' in plan) return plan;
+  const { stops, startDate, endDate, skipped } = plan;
+
+  // ---- 題をつける ------------------------------------------------------
+  onProgress?.({ phase: 'naming', done: 0, total: 1 });
+  const title = titleFromPlaces(stops.map((c) => placeLabel(c.place!)), startDate);
+  onProgress?.({ phase: 'naming', done: 1, total: 1 });
+
+  const tripId = await createTrip({
+    title,
+    // 写真から起こした旅は既定で公開にする（Exploreに並び、共有もそのままできる）。
+    // 見せたくない旅は /trip/[id]/edit で private に落とせる
+    visibility: 'public',
+    startDate,
+    endDate,
+    status: 'completed', // 過去に撮った写真から起こすので、進行中にはしない
+  });
+  if (!tripId) return { tripId: null, failure: 'save-failed', stops: 0, photos: 0, skipped };
+
+  const photos = await writeStops(tripId, stops, onProgress);
+  return { tripId, failure: null, stops: stops.length, photos, skipped };
+}
+
+/**
+ * すでにある旅へ、写真から立ち寄り先を足す。
+ *
+ * 旅の題も期間も触らない（足すだけ）。写真の日付が既存の立ち寄り先より
+ * 前でも構わないように、書き終えたら旅全体を時系列で並べ直す。
+ */
+export async function addStopsFromPhotos(
+  tripId: string,
+  files: Blob[],
+  onProgress?: (p: AutoTripProgress) => void
+): Promise<AutoTripResult> {
+  const plan = await planFromPhotos(files, onProgress);
+  if ('failure' in plan) return plan;
+  const { stops, skipped } = plan;
+
+  const photos = await writeStops(tripId, stops, onProgress);
+  // 足した写真が古い日付でも、並びが崩れないようにする
+  await resortTripStops(tripId);
+  return { tripId, failure: null, stops: stops.length, photos, skipped };
+}
+
+/** 写真 → 立ち寄り先の候補。保存はしない。 */
+async function planFromPhotos(
+  files: Blob[],
+  onProgress?: (p: AutoTripProgress) => void
+): Promise<Planned | AutoTripResult> {
   const empty: AutoTripResult = { tripId: null, failure: null, stops: 0, photos: 0, skipped: 0 };
   if (!files.length) return { ...empty, failure: 'no-photos' };
 
@@ -147,26 +204,21 @@ export async function createTripFromPhotos(
   // 上限を超えたぶんは黙って落とさない。落ちた写真は skipped に足して画面に出す
   const stops = kept.slice(0, MAX_STOPS);
   for (const dropped of kept.slice(MAX_STOPS)) skipped += dropped.shots.length;
-  const startDate = day(stops[0].from);
-  const endDate = day(stops[stops.length - 1].to);
 
-  // ---- 4. 題をつける ---------------------------------------------------
-  onProgress?.({ phase: 'naming', done: 0, total: 1 });
-  const title = titleFromPlaces(stops.map((c) => placeLabel(c.place!)), startDate);
-  onProgress?.({ phase: 'naming', done: 1, total: 1 });
+  return {
+    stops,
+    startDate: day(stops[0].from),
+    endDate: day(stops[stops.length - 1].to),
+    skipped,
+  };
+}
 
-  // ---- 5. 保存 ---------------------------------------------------------
-  const tripId = await createTrip({
-    title,
-    // 写真から起こした旅は既定で公開にする（Exploreに並び、共有もそのままできる）。
-    // 見せたくない旅は /trip/[id]/edit で private に落とせる
-    visibility: 'public',
-    startDate,
-    endDate,
-    status: 'completed', // 過去に撮った写真から起こすので、進行中にはしない
-  });
-  if (!tripId) return { ...empty, failure: 'save-failed', skipped };
-
+/** 立ち寄り先を旅へ書き込む。返るのはぶら下げられた写真の枚数。 */
+async function writeStops(
+  tripId: string,
+  stops: Cluster[],
+  onProgress?: (p: AutoTripProgress) => void
+): Promise<number> {
   let photos = 0;
   for (let i = 0; i < stops.length; i++) {
     const c = stops[i];
@@ -189,8 +241,7 @@ export async function createTripFromPhotos(
     photos += blobs.length - res.photoFailed;
     onProgress?.({ phase: 'saving', done: i + 1, total: stops.length });
   }
-
-  return { tripId, failure: null, stops: stops.length, photos, skipped };
+  return photos;
 }
 
 // ---------------------------------------------------------------- 小物

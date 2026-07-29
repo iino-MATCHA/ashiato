@@ -100,7 +100,7 @@ export function Landing() {
                   <View style={{ flex: 1, backgroundColor: '#D5CDBE' }} />
                 </Row>
                 <View style={{ flex: 2.6, padding: 10, justifyContent: 'center' }}>
-                  <AppText style={{ fontFamily: fonts.gothicMedium, fontSize: 7, letterSpacing: 2, color: '#A5A19A' }}>ASHIATO</AppText>
+                  <AppText style={{ fontFamily: fonts.gothicMedium, fontSize: 7, letterSpacing: 2, color: '#A5A19A' }}>MY JAPAN</AppText>
                   <AppText style={{ fontFamily: fonts.minchoBold, fontSize: 15, color: '#1B1815' }}>{t('lp.journalMockTitle')}</AppText>
                   <AppText style={{ fontFamily: fonts.gothicRegular, fontSize: 8, color: '#6B6862' }}>2026.05.02 – 05.06</AppText>
                 </View>
@@ -151,7 +151,7 @@ export function Landing() {
           </View>
 
           <Gap h={space.xl} />
-          <AppText variant="small" tone="inkFaint" center>ASHIATO by MATCHA</AppText>
+          <AppText variant="small" tone="inkFaint" center>MY JAPAN by MATCHA</AppText>
         </View>
       </ScrollView>
     </SafeAreaView>

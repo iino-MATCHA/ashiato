@@ -41,7 +41,7 @@ export async function exportJapanCard(meta: JapanCardMeta): Promise<string | nul
     ctx.fillStyle = PALETTE.matcha;
     ctx.font = `500 ${W * 0.029}px ${SANS}`;
     (ctx as any).letterSpacing = `${W * 0.029 * 0.28}px`;
-    ctx.fillText('MY JAPAN · ASHIATO', M, M + W * 0.03);
+    ctx.fillText('MY JAPAN', M, M + W * 0.03);
     (ctx as any).letterSpacing = '0px';
 
     const pctSize = W * 0.15;

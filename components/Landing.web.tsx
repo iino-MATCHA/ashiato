@@ -449,7 +449,7 @@ export function Landing() {
                   {paper.slice(1, 4).map((p) => <div key={p.src}><img src={p.src} alt="" loading="lazy" /></div>)}
                 </div>
                 <div className="paperFoot">
-                  <div style={{ fontSize: 7, letterSpacing: 2.4, color: '#A5A19A' }}>ASHIATO</div>
+                  <div style={{ fontSize: 7, letterSpacing: 2.4, color: '#A5A19A' }}>MY JAPAN</div>
                   <div className="mincho" style={{ fontSize: 15, marginTop: 2 }}>{t('lp.journalMockTitle')}</div>
                   <div style={{ fontSize: 8, color: '#6B6862', marginTop: 2 }}>2026.05.02 – 05.06</div>
                 </div>
@@ -469,7 +469,7 @@ export function Landing() {
         </div>
       </section>
 
-      <footer>ASHIATO BY MATCHA</footer>
+      <footer>MY JAPAN BY MATCHA</footer>
     </div>
   );
 }

@@ -30,7 +30,7 @@ export default function BookNew() {
           <View style={[styles.cover, { backgroundColor: palette.ai }]}>
             <View style={[styles.spine, { backgroundColor: 'rgba(0,0,0,0.15)' }]} />
             <View style={{ padding: space.lg, justifyContent: 'space-between', flex: 1 }}>
-              <AppText variant="eyebrow" style={{ color: 'rgba(255,255,255,0.7)' }}>ASHIATO BOOK</AppText>
+              <AppText variant="eyebrow" style={{ color: 'rgba(255,255,255,0.7)' }}>MY JAPAN BOOK</AppText>
               <View>
                 <AppText style={styles.coverTitle}>{trip.title}</AppText>
                 <Gap h={space.xs} />

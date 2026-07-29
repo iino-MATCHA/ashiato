@@ -17,6 +17,7 @@ import { setLegTransport } from '@/lib/api';
 import { bump } from '@/lib/refresh';
 import { transportLabel, type Step, type TransportMode } from '@/lib/mock';
 import { useI18n } from '@/lib/i18n';
+import { AutoTripModal } from '@/components/AutoTripModal';
 
 const transportIcon: Record<TransportMode, any> = {
   car: 'car-outline', train: 'subway-outline', shinkansen: 'train-outline',
@@ -41,6 +42,8 @@ export default function TripDetail() {
   const [active, setActive] = useState(0);
   const [picker, setPicker] = useState<number | null>(null);
   const [blocked, setBlocked] = useState(false);
+  // 写真から立ち寄り先を足すモーダル
+  const [fromPhotos, setFromPhotos] = useState(false);
   const [notice, setNotice] = useState<{ title: string; body: string } | null>(null);
   const [modes, setModes] = useState<TransportMode[]>([]);
   const scrollRef = useRef<ScrollView | null>(null);
@@ -136,6 +139,8 @@ export default function TripDetail() {
               <Glass onPress={() => router.push(`/trip/${trip.id}/share`)} icon="share-outline" palette={palette} />
               <Glass onPress={() => router.push(`/trip/${trip.id}/bind` as any)} icon="book-outline" palette={palette} />
               <Glass onPress={() => (canEdit ? router.push(`/trip/${trip.id}/edit`) : setBlocked(true))} icon="settings-outline" palette={palette} />
+              {/* 写真を選ぶだけで立ち寄り先を足す。手入力の「＋」は下のドックに残す */}
+              <Glass onPress={() => (canEdit ? setFromPhotos(true) : setBlocked(true))} icon="images-outline" palette={palette} />
             </>
           )}
         </View>
@@ -273,6 +278,9 @@ export default function TripDetail() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* 写真から立ち寄り先を足す。閉じたらこの旅に留まる（useTrip が拾い直す） */}
+      <AutoTripModal visible={fromPhotos} tripId={trip.id} onClose={() => setFromPhotos(false)} />
     </SafeAreaView>
   );
 }

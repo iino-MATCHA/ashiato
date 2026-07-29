@@ -481,6 +481,18 @@ export async function createStep(input: {
   return { id: log.id, photoFailed };
 }
 
+/**
+ * 立ち寄り先を時系列に並べ直す。
+ * 追加は常に末尾なので、古い日付のものを足したあとはこれを呼ぶ。
+ * 区間の距離も新しい並びで測り直される（移動手段は触らない）。
+ */
+export async function resortTripStops(tripId: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
+  const { error } = await supabase.rpc('resort_trip_stops', { p_trip: tripId });
+  if (!error) bump('trips');
+  return !error;
+}
+
 /** 1つ前の地点の座標（logs 自身に無ければ市区町村マスタから）。 */
 async function previousStopCoords(
   tripId: string,

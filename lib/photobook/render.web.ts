@@ -114,7 +114,7 @@ async function paintCover(ctx: CanvasRenderingContext2D, p: Extract<Page, { kind
   ctx.fillStyle = FAINT;
   ctx.font = `500 ${PW * 0.02}px ${SANS}`;
   (ctx as any).letterSpacing = `${PW * 0.02 * 0.35}px`;
-  ctx.fillText('ASHIATO', M, bottom + M * 0.95);
+  ctx.fillText('MY JAPAN', M, bottom + M * 0.95);
   (ctx as any).letterSpacing = '0px';
 
   ctx.fillStyle = INK;

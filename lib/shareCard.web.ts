@@ -90,7 +90,7 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
     ctx.fillStyle = PALETTE.inkFaint;
     ctx.font = `500 ${t.eyebrow.size}px ${SANS}`;
     (ctx as any).letterSpacing = `${t.eyebrow.size * 0.4}px`;
-    ctx.fillText('ASHIATO', t.eyebrow.x, t.eyebrow.y);
+    ctx.fillText('MY JAPAN', t.eyebrow.x, t.eyebrow.y);
     (ctx as any).letterSpacing = '0px';
 
     ctx.font = `400 ${t.dates.size}px ${SANS}`;

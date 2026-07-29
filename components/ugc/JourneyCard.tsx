@@ -83,7 +83,7 @@ export function JourneyCard(props: JourneyCardProps) {
         fontFamily={fonts.gothicMedium} fontSize={text.eyebrow.size}
         fill={PALETTE.inkFaint} letterSpacing={text.eyebrow.size * 0.4}
       >
-        ASHIATO
+        MY JAPAN
       </SvgText>
       <SvgText
         x={text.dates.x} y={text.dates.y} textAnchor="end"

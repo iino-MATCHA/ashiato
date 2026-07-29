@@ -15,20 +15,28 @@ import { PhotoPicker } from '@/components/PhotoPicker';
 import { space, fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useI18n } from '@/lib/i18n';
-import { createTripFromPhotos, type AutoTripProgress, type AutoTripResult } from '@/lib/autotrip';
+import { createTripFromPhotos, addStopsFromPhotos, type AutoTripProgress, type AutoTripResult } from '@/lib/autotrip';
 
 type Phase = 'ask' | 'working' | 'done' | 'failed';
 
 export function AutoTripModal({
   visible,
   onClose,
+  tripId,
 }: {
   visible: boolean;
   /** 閉じたあとの行き先は呼び出し側が決める（オンボーディングなら /map へ） */
   onClose: () => void;
+  /**
+   * 渡すと「その旅に立ち寄り先を足す」モードになる。
+   * 旅の題も期間も触らず、写真の日付どおりに差し込む。
+   * 渡さなければ、新しい旅を1件作る。
+   */
+  tripId?: string;
 }) {
   const { palette } = useTheme();
   const { t } = useI18n();
+  const adding = !!tripId;
   const [phase, setPhase] = useState<Phase>('ask');
   const [progress, setProgress] = useState<AutoTripProgress>({ phase: 'reading', done: 0, total: 0 });
   const [result, setResult] = useState<AutoTripResult | null>(null);
@@ -45,7 +53,9 @@ export function AutoTripModal({
     running.current = true;
     setPhase('working');
     setProgress({ phase: 'reading', done: 0, total: files.length });
-    const res = await createTripFromPhotos(files, setProgress);
+    const res = tripId
+      ? await addStopsFromPhotos(tripId, files, setProgress)
+      : await createTripFromPhotos(files, setProgress);
     running.current = false;
     setResult(res);
     setPhase(res.failure ? 'failed' : 'done');
@@ -56,7 +66,8 @@ export function AutoTripModal({
     setPhase('ask');
     setResult(null);
     onClose();
-    if (id) router.push(`/trip/${id}`);
+    // 足しただけのときは、いま見ている旅にそのまま留まる
+    if (id && !adding) router.push(`/trip/${id}`);
   };
 
   const dismissable = phase === 'ask' || phase === 'failed';
@@ -77,9 +88,13 @@ export function AutoTripModal({
                 <AppText variant="eyebrow" tone="matcha">{t('auto.eyebrow')}</AppText>
               </Row>
               <Gap h={space.md} />
-              <AppText style={[styles.title, { color: palette.ink }]}>{t('auto.askTitle')}</AppText>
+              <AppText style={[styles.title, { color: palette.ink }]}>
+                {t(adding ? 'auto.addTitle' : 'auto.askTitle')}
+              </AppText>
               <Gap h={space.md} />
-              <AppText variant="small" tone="inkSoft" style={{ lineHeight: 22 }}>{t('auto.askBody')}</AppText>
+              <AppText variant="small" tone="inkSoft" style={{ lineHeight: 22 }}>
+                {t(adding ? 'auto.addBody' : 'auto.askBody')}
+              </AppText>
 
               <Gap h={space.lg} />
               {/* 実物の <input type=file> を敷いているので、Pressable では包まない */}
@@ -129,7 +144,9 @@ export function AutoTripModal({
             <View style={{ alignItems: 'center' }}>
               <Ionicons name="map-outline" size={38} color={palette.matcha} />
               <Gap h={space.lg} />
-              <AppText style={[styles.title, { color: palette.ink, textAlign: 'center' }]}>{t('auto.doneTitle')}</AppText>
+              <AppText style={[styles.title, { color: palette.ink, textAlign: 'center' }]}>
+                {t(adding ? 'auto.addDoneTitle' : 'auto.doneTitle')}
+              </AppText>
               <Gap h={space.md} />
               <AppText variant="small" tone="inkSoft" center style={{ lineHeight: 21 }}>
                 {t('auto.doneBody', { stops: result.stops, photos: result.photos })}
@@ -144,11 +161,16 @@ export function AutoTripModal({
               )}
               <Gap h={space.xl} />
               <View style={{ alignSelf: 'stretch' }}>
-                <Button label={t('auto.see')} tone="matcha" onPress={openTrip} />
-                <Gap h={space.md} />
-                <Pressable onPress={close} hitSlop={8}>
-                  <AppText variant="small" tone="inkFaint" center>{t('auto.later')}</AppText>
-                </Pressable>
+                <Button label={t(adding ? 'common.close' : 'auto.see')} tone="matcha" onPress={openTrip} />
+                {/* 足しただけのときは、閉じる以外に行き先が無い */}
+                {!adding && (
+                  <>
+                    <Gap h={space.md} />
+                    <Pressable onPress={close} hitSlop={8}>
+                      <AppText variant="small" tone="inkFaint" center>{t('auto.later')}</AppText>
+                    </Pressable>
+                  </>
+                )}
               </View>
             </View>
           )}
