@@ -2,6 +2,11 @@ import { ScrollViewStyleReset } from 'expo-router/html';
 import type { PropsWithChildren } from 'react';
 
 /**
+ * 【注意】web.output が "single" の間、このファイルは使われない。
+ * Expo Router が +html.tsx を読むのは静的レンダリング(output: "static")のときだけで、
+ * いまは既定のテンプレートから index.html が生成される。
+ * タイトル・ファビコン・OGPは scripts/inject-head.mjs が書き出し後に差し込んでいる。
+ *
  * Web-only HTML shell. Ensures the app fills the visual viewport on mobile
  * (dynamic viewport height so the bottom tab bar is never cut off) and that
  * layout is full-width and doesn't scroll horizontally.

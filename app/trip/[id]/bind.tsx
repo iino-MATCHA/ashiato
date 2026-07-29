@@ -6,7 +6,7 @@
  * までを作り、需要（メールアドレスと配送先）だけ集める。
  * 既存のジャーナルPDF（/trip/[id]/book）は残し、一番下から見本として辿れる。
  */
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Image, Pressable, ScrollView, StyleSheet, Modal, TextInput,
   useWindowDimensions, type NativeSyntheticEvent, type NativeScrollEvent,
@@ -16,13 +16,13 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Eyebrow, Button } from '@/components/ui';
-import { Stamp } from '@/components/Stamp';
 import { WashiBackground } from '@/components/WashiBackground';
 import { space, fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
 import { useI18n } from '@/lib/i18n';
-import { PREFECTURE_ID_BY_SLUG, PREFECTURE_KANJI_BY_ID, slugForName } from '@/lib/prefectures';
+import { planBook } from '@/lib/photobook/plan';
+import { renderPage, PAGE_SIZE } from '@/lib/photobook/render';
 
 export default function TripBind() {
   const { palette } = useTheme();
@@ -32,13 +32,44 @@ export default function TripBind() {
   const { trip } = useTrip(id);
 
   const [spread, setSpread] = useState(0);
-  const [plan, setPlan] = useState<'premium' | 'regular' | null>(null);
+  const [chosen, setChosen] = useState<'premium' | 'regular' | null>(null);
   const [email, setEmail] = useState('');
   const [country, setCountry] = useState<'jp' | 'overseas'>('jp');
   const [sent, setSent] = useState(false);
   const scrollRef = useRef<ScrollView | null>(null);
 
-  if (!trip) {
+  // プレビューは実際のPDFのページをそのまま使う（見本と本番で見え方を変えない）
+  const book = useMemo(() => (trip ? planBook(trip) : null), [trip]);
+  const [pages, setPages] = useState<(string | null)[]>([]);
+  useEffect(() => {
+    if (!book) return;
+    let alive = true;
+    (async () => {
+      const out: (string | null)[] = [];
+      for (let i = 0; i < Math.min(book.pages.length, 8); i++) {
+        const url = await renderPage(book, i);
+        if (!alive) return;
+        out.push(url);
+        setPages([...out]);
+      }
+    })();
+    return () => { alive = false; };
+  }, [book]);
+
+  const pageW = Math.min(width - space.lg * 2, 460);
+  const spreadH = (pageW / 2) * (PAGE_SIZE.height / PAGE_SIZE.width);
+
+  // 2ページずつを1つの見開きにする
+  const spreads: (string | null)[][] = [];
+  for (let i = 0; i < pages.length; i += 2) spreads.push([pages[i], pages[i + 1] ?? null]);
+  if (!spreads.length) spreads.push([null, null]);
+
+  const onSpreadScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const i = Math.round(e.nativeEvent.contentOffset.x / pageW);
+    if (i !== spread) setSpread(Math.max(0, Math.min(spreads.length - 1, i)));
+  };
+
+  if (!trip || !book) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi, alignItems: 'center', justifyContent: 'center' }}>
         <AppText variant="small" tone="inkFaint">{t('common.loading')}</AppText>
@@ -46,23 +77,7 @@ export default function TripBind() {
     );
   }
 
-  // 見開きは「左に写真、右は奉書紙の白紙（御朱印をもらう面）」の組で作る
-  const photos = trip.steps.map((s) => s.images[0]).filter(Boolean);
-  const spreads = (photos.length ? photos : ['']).slice(0, 6).map((src, i) => {
-    const step = trip.steps[i];
-    const code = PREFECTURE_ID_BY_SLUG[slugForName(step?.prefectureName ?? '')] ?? 0;
-    return { src, place: step?.placeName || step?.title || '', code };
-  });
-
-  const pageW = Math.min(width - space.lg * 2, 420);
-  const spreadH = pageW * 0.62;
-
-  const onSpreadScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const i = Math.round(e.nativeEvent.contentOffset.x / pageW);
-    if (i !== spread) setSpread(Math.max(0, Math.min(spreads.length - 1, i)));
-  };
-
-  const openPlan = (p: 'premium' | 'regular') => { setSent(false); setPlan(p); };
+  const openPlan = (p: 'premium' | 'regular') => { setSent(false); setChosen(p); };
 
   const submit = () => {
     // 決済が繋がるまでは、需要の記録として控えるだけ（送信先は未接続）
@@ -93,44 +108,19 @@ export default function TripBind() {
           decelerationRate="fast"
           contentContainerStyle={{ paddingHorizontal: (width - pageW) / 2 }}
         >
-          {spreads.map((s, i) => (
+          {spreads.map((pair, i) => (
             <View key={i} style={{ width: pageW }}>
               <View style={[styles.spread, { height: spreadH, borderColor: palette.ruleStrong }]}>
-                {/* 左: 写真の面 */}
-                <View style={styles.leaf}>
-                  {s.src ? (
-                    <Image source={{ uri: s.src }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
-                  ) : (
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: palette.fill }]} />
-                  )}
-                  <View style={styles.leafCap}>
-                    <AppText style={styles.leafCapText} numberOfLines={1}>{s.place}</AppText>
+                {pair.map((src, j) => (
+                  <View key={j} style={styles.leaf}>
+                    {src ? (
+                      <Image source={{ uri: src }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
+                    ) : (
+                      <View style={[StyleSheet.absoluteFill, { backgroundColor: palette.fill }]} />
+                    )}
+                    {j === 0 && <View style={styles.gutter} />}
                   </View>
-                </View>
-
-                {/* 綴じ（谷折り） */}
-                <View style={styles.gutter} />
-
-                {/* 右: 奉書紙の白紙。御朱印はここに直接いただく */}
-                <View style={styles.leaf}>
-                  <WashiBackground />
-                  <View style={styles.blankLeaf}>
-                    {s.code ? (
-                      <View style={{ opacity: 0.16 }}>
-                        <Stamp
-                          goshuin={{ id: `pv${i}`, prefectureId: s.code, prefectureName: '', kanji: PREFECTURE_KANJI_BY_ID[s.code] ?? '', acquired: true } as any}
-                          size={Math.min(96, spreadH * 0.5)}
-                          rotate={-4}
-                        />
-                      </View>
-                    ) : null}
-                    <View style={styles.blankHint}>
-                      <AppText style={{ fontFamily: fonts.brush, fontSize: 11, color: '#8C8478' }}>
-                        御朱印
-                      </AppText>
-                    </View>
-                  </View>
-                </View>
+                ))}
               </View>
             </View>
           ))}
@@ -228,8 +218,8 @@ export default function TripBind() {
       </ScrollView>
 
       {/* ⑤ 仮予約 ---------------------------------------------------- */}
-      <Modal visible={plan !== null} transparent animationType="fade" onRequestClose={() => setPlan(null)}>
-        <Pressable style={styles.backdrop} onPress={() => setPlan(null)}>
+      <Modal visible={chosen !== null} transparent animationType="fade" onRequestClose={() => setChosen(null)}>
+        <Pressable style={styles.backdrop} onPress={() => setChosen(null)}>
           <Pressable style={[styles.sheet, { backgroundColor: palette.washi }]} onPress={() => {}}>
             {sent ? (
               <View style={{ alignItems: 'center', paddingVertical: space.lg }}>
@@ -237,7 +227,7 @@ export default function TripBind() {
                 <Gap h={space.sm} />
                 <AppText variant="h3" tone="ink" center>{t('bind.thanks')}</AppText>
                 <Gap h={space.lg} />
-                <Button label={t('common.close')} tone="matcha" onPress={() => setPlan(null)} />
+                <Button label={t('common.close')} tone="matcha" onPress={() => setChosen(null)} />
               </View>
             ) : (
               <>
