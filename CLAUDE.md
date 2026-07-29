@@ -3,7 +3,7 @@
 日本を旅した記録を残し、都道府県ごとに御朱印を集め、旅をジャーナル(PDF)にするアプリ。
 運営は株式会社MATCHA。Expo(React Native) + expo-router + Supabase、Web(Vercel)が主戦場。
 
-- 本番: https://ashiato-nine.vercel.app
+- 本番: https://www.my-japan-matcha.com （apex は www へ転送。OGP・認証の戻り先はすべて www 側）
 - リポジトリ: https://github.com/iino-MATCHA/ashiato （`iino-MATCHA` の M A T C H A は大文字）
 - Supabase project ref: `tcyclvfinguwudztfgsb`
 
@@ -92,21 +92,48 @@
 
 ```
 app/(tabs)/        ホーム(map) / 御朱印(goshuin) / 発見(explore)
-app/trip/[id]/     旅の地図・共有カード・ジャーナル(book)・編集・stop
+app/trip/[id]/     旅の地図・共有カード・ジャーナル(book)・編集・stop・製本(bind)
+app/cart.tsx       ① 注文かご
+app/checkout.tsx   ② 連絡先・お届け先・送料・決済（1画面）
+app/order/[id].tsx ③ ご購入ありがとうございました
 app/admin/         管理コンソール（Japan / Prefectures / Spots / Manage）
 lib/i18n.ts        辞書と t()。localizeMatchaUrl もここ
 lib/api.ts         Supabaseアクセス層（ほぼ全てのクエリ）
 lib/photobook/     台割(plan) と 紙面描画(render.web)
 lib/ugc/           シェアカードの座標計算（緯度経度→日本地図SVG）
 components/map/    Mapbox（.web / .native で分割）
-supabase/migrations/  0001〜0013。適用済み
+supabase/migrations/  0001〜0014。適用済み
 ```
+
+---
+
+## 製本の購入（0014）
+
+```
+bind「かごに入れる」→ 全ページを焼いて Storage へ → cart_items に1行
+  ↓
+/cart          削除だけできる。冊数は増やせない
+  ↓
+/checkout      配送先を選ぶと送料が即確定（shipping_fee_for と同じ規則）
+  ↓ checkout_cart()   かご→orders + order_items + books(status='ordered')、かごは空に
+                      この時点で admin_notifications に order_placed を1件
+  ↓ mark_order_paid() ここを通ったときだけ paid。order_paid を1件（二度目は無視）
+/order/[id]    控えを出して、地図へ戻るか注文履歴へ
+```
+
+- **かごに入れた時点で全ページを画像として保存する**。旅をあとから編集しても
+  届く本は変わらない。印刷所に渡すのは `order_items.page_urls`
+- 金額はクライアントから受け取らない。`checkout_cart()` がDBの単価から組み直す
+- Stripe は未接続。`EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` が入るまで注文は
+  `pending` のまま止まり、決済画面にその旨を出す（黙って成功にしない）。
+  鍵を入れたら `app/checkout.tsx` の `if (STRIPE_KEY)` の場所に決済を挟む
 
 ---
 
 ## 未着手・残件
 
-- 印刷版の製本（PDFはできている。決済と入稿が未着手）
+- Stripe の接続（かご〜注文〜通知は動いている。カード決済だけ未接続）
+- 印刷所への入稿（`order_items.page_urls` を渡す先が未定）
 - 記事→アプリの導線（MATCHAの記事に「足跡に保存」を埋める）— 集客の本体
 - 「MATCHA 200」を制覇の軸にする案（47都道府県だと天井が低い）
 - 管理画面とプライバシーポリシーは英語のまま（意図的）

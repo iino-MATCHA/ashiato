@@ -11,7 +11,9 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
 const FILE = 'dist/index.html';
-const ORIGIN = 'https://ashiato-nine.vercel.app';
+// 本番ドメイン。Vercel のプレビュー等で変えたいときは SITE_ORIGIN を渡す。
+// apex は www へ 301 されるので、正規のホストは www 側。
+const ORIGIN = (process.env.SITE_ORIGIN || 'https://www.my-japan-matcha.com').replace(/\/$/, '');
 
 const TITLE = '足跡 Ashiato — 日本の旅を、かたちに残そう';
 const DESC =

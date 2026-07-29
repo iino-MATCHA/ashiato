@@ -61,12 +61,12 @@ export default function Root({ children }: PropsWithChildren) {
         <meta property="og:site_name" content="Ashiato" />
         <meta property="og:title" content="足跡 Ashiato — 日本の旅を、かたちに残そう" />
         <meta property="og:description" content="Record your Japan trip, collect a goshuin for every prefecture, and keep it as a journal." />
-        <meta property="og:image" content="https://ashiato-nine.vercel.app/og.png" />
-        <meta property="og:url" content="https://ashiato-nine.vercel.app/" />
+        <meta property="og:image" content="https://www.my-japan-matcha.com/og.png" />
+        <meta property="og:url" content="https://www.my-japan-matcha.com/" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="足跡 Ashiato" />
         <meta name="twitter:description" content="Turn your Japan trip into a keepsake." />
-        <meta name="twitter:image" content="https://ashiato-nine.vercel.app/og.png" />
+        <meta name="twitter:image" content="https://www.my-japan-matcha.com/og.png" />
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: css }} />
       </head>

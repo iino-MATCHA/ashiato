@@ -4,9 +4,10 @@
  * 掴んでから、Prefectures タブで個別の県に降りていく。
  */
 import { useMemo } from 'react';
-import { View } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { router } from 'expo-router';
-import { AppText, Row, Gap, Eyebrow } from '@/components/ui';
+import { Ionicons } from '@expo/vector-icons';
+import { AppText, Row, Rule, Gap, Eyebrow } from '@/components/ui';
 import { AdminShell, Panel, TableRow, Tiles } from '@/components/admin/AdminShell';
 import { BarList, MonthBars, StackedBar, formatNumber } from '@/components/admin/Charts';
 import { JapanSvgMap } from '@/components/JapanSvgMap';
@@ -23,7 +24,8 @@ const TRANSPORT_LABEL: Record<string, string> = {
 
 export default function AdminJapan() {
   const { palette } = useTheme();
-  const { role, stats, analytics } = useAdmin();
+  const { role, stats, analytics, notifications, markRead } = useAdmin();
+  const unread = notifications.filter((n) => !n.readAt);
 
   const byPref = analytics?.prefecture?.by_prefecture ?? [];
   const overall = analytics?.stay?.overall ?? null;
@@ -46,6 +48,52 @@ export default function AdminJapan() {
 
   return (
     <AdminShell title="Japan overview" role={role}>
+      {/* 決済が完了するとここに積まれる。数字ではなく件名を出して、
+          何が売れたのかを開かずに掴めるようにする。 */}
+      {notifications.length > 0 && (
+        <>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Eyebrow tone={unread.length ? 'shu' : 'matcha'}>
+              {unread.length ? `New orders (${unread.length})` : 'Orders'}
+            </Eyebrow>
+            {unread.length > 0 && (
+              <Pressable onPress={() => markRead()} hitSlop={8}>
+                <AppText variant="small" tone="inkFaint">Mark all read</AppText>
+              </Pressable>
+            )}
+          </Row>
+          <Gap h={space.md} />
+          <Panel>
+            {notifications.slice(0, 6).map((n, i) => (
+              <View key={n.id}>
+                {i > 0 && <Rule />}
+                <Pressable
+                  onPress={() => markRead(n.id)}
+                  style={{ paddingVertical: space.sm, opacity: n.readAt ? 0.55 : 1 }}
+                >
+                  <Row style={{ gap: space.sm, alignItems: 'flex-start' }}>
+                    <Ionicons
+                      name={n.readAt ? 'ellipse-outline' : 'ellipse'}
+                      size={9}
+                      color={n.readAt ? palette.inkFaint : palette.shu}
+                      style={{ marginTop: 6 }}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <AppText variant="bodyStrong" tone="ink">{n.title}</AppText>
+                      {!!n.body && <AppText variant="small" tone="inkSoft">{n.body}</AppText>}
+                      <AppText variant="small" tone="inkFaint" style={{ fontSize: 11 }}>
+                        {n.createdAt.slice(0, 16).replace('T', ' ')}
+                      </AppText>
+                    </View>
+                  </Row>
+                </Pressable>
+              </View>
+            ))}
+          </Panel>
+          <Gap h={space.xl} />
+        </>
+      )}
+
       <Eyebrow tone="matcha">Platform</Eyebrow>
       <Gap h={space.md} />
       <Tiles

@@ -1,14 +1,16 @@
 /**
  * 製本の選択画面。/trip の本アイコンから開く。
  *
- * 決済はまだ繋いでいないので、
- *   プレビュー → この一冊の説明 → プラン比較 → 送料の注記 → 仮予約
- * までを作り、需要（メールアドレスと配送先）だけ集める。
+ *   プレビュー → この一冊の説明 → プラン比較 → 送料の注記 → かごへ
+ *
+ * 「かごに入れる」を押した時点で全ページを焼いて保存する（lib/api の addToCart）。
+ * 少し待たせるが、そのぶん注文の中身はここで確定し、あとから旅を編集されても
+ * 届く本は変わらない。
  * 既存のジャーナルPDF（/trip/[id]/book）は残し、一番下から見本として辿れる。
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  View, Image, Pressable, ScrollView, StyleSheet, Modal, TextInput,
+  View, Pressable, ScrollView, StyleSheet, Modal,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,11 +21,12 @@ import { AppText, Row, Rule, Gap, Eyebrow, Button } from '@/components/ui';
 import { WashiBackground } from '@/components/WashiBackground';
 import { space, fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { useTrip } from '@/lib/useData';
+import { useTrip, useCart } from '@/lib/useData';
 import { useI18n } from '@/lib/i18n';
-import { planBook } from '@/lib/photobook/plan';
+import { planBook, MIN_PHOTOS } from '@/lib/photobook/plan';
 import { renderPage, PAGE_SIZE } from '@/lib/photobook/render';
 import { BookPreview } from '@/components/BookPreview';
+import { addToCart, PLAN_PRICE, type BookPlanKey } from '@/lib/api';
 
 export default function TripBind() {
   const { palette } = useTheme();
@@ -31,11 +34,11 @@ export default function TripBind() {
   const { width } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { trip } = useTrip(id);
+  const { items: cart } = useCart();
 
-  const [chosen, setChosen] = useState<'premium' | 'regular' | null>(null);
-  const [email, setEmail] = useState('');
-  const [country, setCountry] = useState<'jp' | 'overseas'>('jp');
-  const [sent, setSent] = useState(false);
+  // ページを焼いている間の進捗。null なら何もしていない。
+  const [adding, setAdding] = useState<{ plan: BookPlanKey; done: number; total: number } | null>(null);
+  const [failed, setFailed] = useState(false);
   const scrollRef = useRef<ScrollView | null>(null);
 
   // プレビューは実際のPDFのページをそのまま使う（見本と本番で見え方を変えない）。
@@ -64,12 +67,30 @@ export default function TripBind() {
     );
   }
 
-  const openPlan = (p: 'premium' | 'regular') => { setSent(false); setChosen(p); };
+  const inCart = cart.find((c) => c.tripId === trip.id) ?? null;
+  const tooFewPhotos = book.totalPhotos < MIN_PHOTOS;
 
-  const submit = () => {
-    // 決済が繋がるまでは、需要の記録として控えるだけ（送信先は未接続）
-    if (!email.trim()) return;
-    setSent(true);
+  const add = async (plan: BookPlanKey) => {
+    if (adding || tooFewPhotos) return;
+    setFailed(false);
+    setAdding({ plan, done: 0, total: book.pages.length });
+    try {
+      const item = await addToCart({
+        tripId: trip.id,
+        plan,
+        title: trip.title,
+        photoCount: book.totalPhotos,
+        pageCount: book.pages.length,
+        renderPage: getPage,
+        onProgress: (done, total) => setAdding({ plan, done, total }),
+      });
+      setAdding(null);
+      if (!item) { setFailed(true); return; }
+      router.push('/cart' as any);
+    } catch {
+      setAdding(null);
+      setFailed(true);
+    }
   };
 
   return (
@@ -120,25 +141,44 @@ export default function TripBind() {
           <PlanCard
             tier={t('bind.premiumTier')}
             name={t('bind.premiumName')}
-            price="8,500"
+            price={PLAN_PRICE.premium.toLocaleString('en-US')}
             badges={[t('bind.badgePopular'), t('bind.badgeCraft')]}
             features={[t('bind.premiumF1'), t('bind.premiumF2'), t('bind.premiumF3')]}
             accent
             palette={palette}
             t={t}
-            onPress={() => openPlan('premium')}
+            inCart={inCart?.plan === 'premium'}
+            disabled={tooFewPhotos || !!adding}
+            onPress={() => (inCart?.plan === 'premium' ? router.push('/cart' as any) : add('premium'))}
           />
           <Gap h={space.md} />
           <PlanCard
             tier={t('bind.regularTier')}
             name={t('bind.regularName')}
-            price="3,900"
+            price={PLAN_PRICE.regular.toLocaleString('en-US')}
             badges={[]}
             features={[t('bind.regularF1'), t('bind.regularF2'), t('bind.regularF3')]}
             palette={palette}
             t={t}
-            onPress={() => openPlan('regular')}
+            inCart={inCart?.plan === 'regular'}
+            disabled={tooFewPhotos || !!adding}
+            onPress={() => (inCart?.plan === 'regular' ? router.push('/cart' as any) : add('regular'))}
           />
+
+          {tooFewPhotos && (
+            <>
+              <Gap h={space.md} />
+              <AppText variant="small" tone="shu">
+                {t('bind.needPhotos')}（{book.totalPhotos}/{MIN_PHOTOS}）
+              </AppText>
+            </>
+          )}
+          {failed && (
+            <>
+              <Gap h={space.md} />
+              <AppText variant="small" tone="shu">{t('bind.addFailed')}</AppText>
+            </>
+          )}
 
           {/* ④ 送料の注記 --------------------------------------------- */}
           <Gap h={space.lg} />
@@ -169,67 +209,40 @@ export default function TripBind() {
         </View>
       </ScrollView>
 
-      {/* ⑤ 仮予約 ---------------------------------------------------- */}
-      <Modal visible={chosen !== null} transparent animationType="fade" onRequestClose={() => setChosen(null)}>
-        <Pressable style={styles.backdrop} onPress={() => setChosen(null)}>
-          <Pressable style={[styles.sheet, { backgroundColor: palette.washi }]} onPress={() => {}}>
-            {sent ? (
-              <View style={{ alignItems: 'center', paddingVertical: space.lg }}>
-                <Ionicons name="checkmark-circle" size={38} color={palette.matcha} />
-                <Gap h={space.sm} />
-                <AppText variant="h3" tone="ink" center>{t('bind.thanks')}</AppText>
-                <Gap h={space.lg} />
-                <Button label={t('common.close')} tone="matcha" onPress={() => setChosen(null)} />
-              </View>
-            ) : (
-              <>
-                <AppText variant="h3" tone="ink">{t('bind.modalTitle')}</AppText>
-                <Gap h={space.xs} />
-                <AppText variant="small" tone="inkSoft" style={{ lineHeight: 21 }}>{t('bind.modalBody')}</AppText>
-
-                <Gap h={space.lg} />
-                <AppText variant="small" tone="inkSoft">{t('bind.email')}</AppText>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="you@example.com"
-                  placeholderTextColor={palette.inkFaint}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  style={[styles.input, { color: palette.ink }]}
-                />
-                <Rule strong />
-
-                <Gap h={space.lg} />
-                <AppText variant="small" tone="inkSoft">{t('bind.country')}</AppText>
-                <Gap h={space.sm} />
-                <Row style={{ gap: space.sm }}>
-                  {([['jp', t('bind.countryJp')], ['overseas', t('bind.countryOverseas')]] as const).map(([k, label]) => {
-                    const on = country === k;
-                    return (
-                      <Pressable
-                        key={k}
-                        onPress={() => setCountry(k as 'jp' | 'overseas')}
-                        style={[styles.segment, { borderColor: on ? palette.matcha : palette.ruleStrong }, on && { backgroundColor: palette.matcha }]}
-                      >
-                        <AppText variant="small" style={{ color: on ? '#fff' : palette.inkSoft }}>{label}</AppText>
-                      </Pressable>
-                    );
-                  })}
-                </Row>
-
-                <Gap h={space.lg} />
-                <Button label={t('bind.notifyMe')} tone="matcha" onPress={submit} disabled={!email.trim()} />
-              </>
-            )}
-          </Pressable>
-        </Pressable>
+      {/* ⑤ かごへ入れている間 ------------------------------------------
+          全ページを焼いて保存するので数秒かかる。何をしているのかと
+          どこまで進んだのかを出して、戻る操作を塞ぐ。 */}
+      {/* visible={false} でも中身がDOMに残り、製本ページへ戻ったときに
+          「0 / 0」の幕が被る。焼いている間だけ組み立てる。 */}
+      {adding !== null && (
+      <Modal visible transparent animationType="fade" onRequestClose={() => {}}>
+        <View style={styles.backdrop}>
+          <View style={[styles.sheet, { backgroundColor: palette.washi, alignItems: 'center' }]}>
+            <Ionicons name="book-outline" size={30} color={palette.matcha} />
+            <Gap h={space.md} />
+            <AppText variant="h3" tone="ink" center>{t('bind.preparing')}</AppText>
+            <Gap h={space.md} />
+            <View style={[styles.bar, { backgroundColor: palette.rule }]}>
+              <View
+                style={{
+                  height: '100%',
+                  borderRadius: 999,
+                  backgroundColor: palette.matcha,
+                  width: `${Math.round((adding.done / Math.max(1, adding.total)) * 100)}%`,
+                }}
+              />
+            </View>
+            <Gap h={space.sm} />
+            <AppText variant="small" tone="inkFaint">{adding.done} / {adding.total}</AppText>
+          </View>
+        </View>
       </Modal>
+      )}
     </SafeAreaView>
   );
 }
 
-function PlanCard({ tier, name, price, badges, features, accent, palette, t, onPress }: any) {
+function PlanCard({ tier, name, price, badges, features, accent, palette, t, onPress, inCart, disabled }: any) {
   return (
     <View style={[styles.plan, { borderColor: accent ? palette.matcha : palette.rule, backgroundColor: palette.paper }]}>
       {accent && <View style={[styles.planEdge, { backgroundColor: palette.matcha }]} />}
@@ -263,7 +276,21 @@ function PlanCard({ tier, name, price, badges, features, accent, palette, t, onP
         ))}
 
         <Gap h={space.md} />
-        <Button label={t('bind.cta')} tone={accent ? 'matcha' : 'ink'} variant={accent ? undefined : 'outline'} onPress={onPress} />
+        {inCart && (
+          <>
+            <Row style={{ gap: 6, alignItems: 'center', paddingBottom: space.sm }}>
+              <Ionicons name="checkmark-circle" size={15} color={palette.matcha} />
+              <AppText variant="small" tone="matcha">{t('bind.inCart')}</AppText>
+            </Row>
+          </>
+        )}
+        <Button
+          label={inCart ? t('bind.goToCart') : t('bind.addToCart')}
+          tone={accent || inCart ? 'matcha' : 'ink'}
+          variant={accent || inCart ? undefined : 'outline'}
+          disabled={disabled}
+          onPress={onPress}
+        />
       </View>
     </View>
   );
@@ -279,6 +306,5 @@ const styles = StyleSheet.create({
   sampleIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: space.lg },
   sheet: { width: '100%', maxWidth: 380, borderRadius: 16, padding: space.lg },
-  input: { fontFamily: fonts.minchoMedium, fontSize: 17, paddingVertical: space.sm },
-  segment: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 999, borderWidth: hairline * 2 },
+  bar: { width: '100%', height: 4, borderRadius: 999, overflow: 'hidden' },
 });

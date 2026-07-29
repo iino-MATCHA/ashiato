@@ -12,7 +12,8 @@ import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Eyebrow } from '@/components/ui';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { useTrips } from '@/lib/useData';
+import { useTrips, useOrders, useCart } from '@/lib/useData';
+import { yen } from '@/lib/money';
 import { useI18n } from '@/lib/i18n';
 import { planBook, MIN_PHOTOS } from '@/lib/photobook/plan';
 import { renderPdf, type RenderProgress } from '@/lib/photobook/render';
@@ -22,6 +23,8 @@ export default function Orders() {
   const { palette } = useTheme();
   const { t } = useI18n();
   const { trips } = useTrips();
+  const { orders } = useOrders();
+  const { items: cart } = useCart();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [progress, setProgress] = useState('');
 
@@ -49,6 +52,26 @@ export default function Orders() {
       <Header title={t('settings.orders')} />
       <Rule />
       <ScrollView contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxl }} showsVerticalScrollIndicator={false}>
+
+        {/* かごに入れたまま離れた人の戻り道。空のときは出さない。 */}
+        {cart.length > 0 && (
+          <>
+            <Pressable onPress={() => router.push('/cart' as any)}>
+              <Row style={{ gap: space.md, alignItems: 'center', paddingBottom: space.md }}>
+                <Ionicons name="bag-outline" size={19} color={palette.matcha} />
+                <View style={{ flex: 1 }}>
+                  <AppText variant="bodyStrong" tone="ink">{t('cart.header')}</AppText>
+                  <AppText variant="small" tone="inkFaint">
+                    {cart.length} · {yen(cart.reduce((s, c) => s + c.unitPrice, 0))}
+                  </AppText>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={palette.inkFaint} />
+              </Row>
+            </Pressable>
+            <Rule />
+            <Gap h={space.lg} />
+          </>
+        )}
 
         {/* --- 手元のジャーナル --- */}
         <Eyebrow tone="matcha">{t('orders.journals')}</Eyebrow>
@@ -105,10 +128,54 @@ export default function Orders() {
         <Gap h={space.xl} />
         <Eyebrow tone="matcha">{t('orders.printed')}</Eyebrow>
         <Gap h={space.md} />
-        <Row style={[styles.empty, { borderColor: palette.rule }]}>
-          <Ionicons name="cube-outline" size={20} color={palette.inkFaint} />
-          <AppText variant="small" tone="inkFaint" style={{ flex: 1 }}>{t('orders.printedEmpty')}</AppText>
-        </Row>
+
+        {orders.length === 0 ? (
+          <Row style={[styles.empty, { borderColor: palette.rule }]}>
+            <Ionicons name="cube-outline" size={20} color={palette.inkFaint} />
+            <AppText variant="small" tone="inkFaint" style={{ flex: 1 }}>{t('orders.printedNone')}</AppText>
+          </Row>
+        ) : (
+          <>
+            <Rule />
+            {orders.map((o) => (
+              <Pressable key={o.id} onPress={() => router.push(`/order/${o.id}` as any)}>
+                <View style={{ paddingVertical: space.md }}>
+                  <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <AppText variant="small" tone="inkFaint" style={{ fontSize: 11, letterSpacing: 0.8 }}>
+                      {o.createdAt.slice(0, 10).replace(/-/g, '.')} · {o.id.slice(0, 8).toUpperCase()}
+                    </AppText>
+                    <AppText variant="small" tone={o.status === 'pending' ? 'shu' : 'matcha'}>
+                      {t(`orders.status.${o.status}`)}
+                    </AppText>
+                  </Row>
+                  <Gap h={space.sm} />
+                  {o.items.map((i) => (
+                    <Row key={i.id} style={{ gap: space.md, paddingVertical: 4 }}>
+                      <View style={styles.orderThumbWrap}>
+                        {i.coverPhotoUrl ? (
+                          <Image source={{ uri: i.coverPhotoUrl }} style={styles.orderThumb} resizeMode="cover" />
+                        ) : (
+                          <View style={[styles.orderThumb, { backgroundColor: palette.fill }]} />
+                        )}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <AppText variant="small" tone="ink" numberOfLines={1}>{i.title}</AppText>
+                        <AppText variant="small" tone="inkFaint" style={{ fontSize: 11 }}>
+                          {t(i.plan === 'premium' ? 'bind.premiumName' : 'bind.regularName')} · {i.pageCount} {t('cart.pages')}
+                        </AppText>
+                      </View>
+                    </Row>
+                  ))}
+                  <Gap h={space.sm} />
+                  <Row style={{ justifyContent: 'flex-end' }}>
+                    <AppText variant="small" tone="inkSoft">{yen(o.amount)}</AppText>
+                  </Row>
+                </View>
+                <Rule />
+              </Pressable>
+            ))}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -119,4 +186,6 @@ const styles = StyleSheet.create({
   thumbWrap: { borderRadius: 8, overflow: 'hidden' },
   thumb: { width: 52, height: 52, borderRadius: 8 },
   empty: { gap: space.sm, alignItems: 'center', borderWidth: hairline, borderStyle: 'dashed', borderRadius: 10, padding: space.md },
+  orderThumbWrap: { borderRadius: 3, overflow: 'hidden' },
+  orderThumb: { width: 30, height: 42, borderRadius: 3 },
 });

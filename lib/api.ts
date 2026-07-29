@@ -967,6 +967,249 @@ export async function updateStep(logId: string, input: { title?: string; note?: 
   return true;
 }
 
+// ---------------------------------------------------------------- 製本の購入
+/**
+ * かご → 決済 → 完了。
+ *
+ * かごへ入れるときに、その本の全ページを画像として Storage へ焼く。
+ * 旅はあとから編集できるので、注文したものと届くものがずれないよう、
+ * 注文の中身は「そのときのページ画像の列」で固定する。
+ */
+export type BookPlanKey = 'premium' | 'regular';
+
+export const PLAN_PRICE: Record<BookPlanKey, number> = { premium: 8500, regular: 3900 };
+
+/** 送料。サーバ側の shipping_fee_for() と同じ決め方（表示用の写し）。 */
+export const FREE_SHIPPING_OVER = 12000;
+export function shippingFeeFor(country: 'jp' | 'overseas', subtotal: number): number {
+  if (country !== 'jp') return 3500;
+  return subtotal >= FREE_SHIPPING_OVER ? 0 : 800;
+}
+
+export interface CartItem {
+  id: string;
+  tripId: string;
+  plan: BookPlanKey;
+  title: string;
+  coverPhotoUrl: string | null;
+  pageCount: number;
+  photoCount: number;
+  pageUrls: string[];
+  unitPrice: number;
+}
+
+function toCartItem(r: any): CartItem {
+  return {
+    id: r.id,
+    tripId: r.trip_id,
+    plan: r.plan,
+    title: r.title,
+    coverPhotoUrl: r.cover_photo_url ?? null,
+    pageCount: r.page_count ?? 0,
+    photoCount: r.photo_count ?? 0,
+    pageUrls: Array.isArray(r.page_urls) ? r.page_urls : [],
+    unitPrice: r.unit_price_jpy ?? 0,
+  };
+}
+
+async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+  const res = await fetch(dataUrl);
+  return res.blob();
+}
+
+/**
+ * ページ画像を1枚アップロードして公開URLを返す。
+ * 写真と違って縮小はしない（そのまま印刷に回る解像度で入っている）。
+ * パスは決め打ちなので、同じ旅・同じ仕様で入れ直すと上書きされる。
+ */
+async function uploadBookPage(uid: string, tripId: string, plan: BookPlanKey, index: number, blob: Blob): Promise<string> {
+  const path = `${uid}/books/${tripId}-${plan}/p${String(index).padStart(3, '0')}.jpg`;
+  const { error } = await supabase.storage.from('photos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+  if (error) throw new Error(error.message);
+  return publicUrl(path);
+}
+
+/**
+ * かごへ入れる。全ページを焼いてから1件だけ書く。
+ * 途中で失敗したら何も入れない（半端な注文をDBに残さない）。
+ * onProgress は「何枚目まで焼けたか」。
+ */
+export async function addToCart(input: {
+  tripId: string;
+  plan: BookPlanKey;
+  title: string;
+  coverPhotoUrl?: string | null;
+  photoCount?: number;
+  /** i ページ目の画像（data URL）を返す。null なら白紙として扱う。 */
+  renderPage: (i: number) => Promise<string | null>;
+  pageCount: number;
+  onProgress?: (done: number, total: number) => void;
+}): Promise<CartItem | null> {
+  const uid = await currentUserId();
+  if (!uid) return null;
+
+  const pageUrls: string[] = [];
+  for (let i = 0; i < input.pageCount; i++) {
+    const dataUrl = await input.renderPage(i);
+    if (dataUrl) pageUrls.push(await uploadBookPage(uid, input.tripId, input.plan, i, await dataUrlToBlob(dataUrl)));
+    input.onProgress?.(i + 1, input.pageCount);
+  }
+
+  const { data, error } = await supabase
+    .from('cart_items')
+    .upsert(
+      {
+        user_id: uid,
+        trip_id: input.tripId,
+        plan: input.plan,
+        title: input.title,
+        cover_photo_url: input.coverPhotoUrl ?? pageUrls[0] ?? null,
+        page_count: input.pageCount,
+        photo_count: input.photoCount ?? 0,
+        page_urls: pageUrls,
+        unit_price_jpy: PLAN_PRICE[input.plan],
+      },
+      { onConflict: 'user_id,trip_id,plan' }
+    )
+    .select('*')
+    .single();
+  if (error || !data) return null;
+  bump('cart');
+  return toCartItem(data);
+}
+
+export async function fetchCart(): Promise<CartItem[]> {
+  if (!isSupabaseConfigured) return [];
+  const uid = await currentUserId();
+  if (!uid) return [];
+  const { data } = await supabase
+    .from('cart_items')
+    .select('*')
+    .eq('user_id', uid)
+    .order('created_at', { ascending: true });
+  return (data ?? []).map(toCartItem);
+}
+
+export async function removeCartItem(id: string): Promise<boolean> {
+  const { error } = await supabase.from('cart_items').delete().eq('id', id);
+  if (!error) bump('cart');
+  return !error;
+}
+
+export interface ShippingInput {
+  email: string;
+  name: string;
+  country: 'jp' | 'overseas';
+  postalCode: string;
+  address1: string;
+  address2?: string;
+  phone?: string;
+}
+
+/** かごを注文へ移す。返るのは注文ID（この時点ではまだ未払い）。 */
+export async function checkoutCart(input: ShippingInput): Promise<string | null> {
+  const { data, error } = await supabase.rpc('checkout_cart', {
+    p_email: input.email.trim(),
+    p_name: input.name.trim(),
+    p_country: input.country,
+    p_address: {
+      postal_code: input.postalCode.trim(),
+      address1: input.address1.trim(),
+      address2: (input.address2 ?? '').trim(),
+      phone: (input.phone ?? '').trim(),
+    },
+  });
+  if (error) throw new Error(error.message);
+  bump('cart');
+  return (data as string) ?? null;
+}
+
+/** 決済完了。ここを通ったときだけ paid になり、/admin へ通知が積まれる。 */
+export async function markOrderPaid(orderId: string, paymentIntent?: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('mark_order_paid', {
+    p_order: orderId,
+    p_payment_intent: paymentIntent ?? null,
+  });
+  if (!error) bump('orders');
+  return !error && data === true;
+}
+
+export interface OrderItemRow {
+  id: string;
+  tripId: string | null;
+  plan: string;
+  title: string;
+  coverPhotoUrl: string | null;
+  pageCount: number;
+  unitPrice: number;
+}
+
+export interface OrderRow {
+  id: string;
+  status: string;
+  amount: number;
+  subtotal: number;
+  shippingFee: number;
+  country: string;
+  createdAt: string;
+  paidAt: string | null;
+  items: OrderItemRow[];
+}
+
+export async function fetchMyOrders(): Promise<OrderRow[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase.rpc('my_orders');
+  if (error || !data) return [];
+  return (data as any[]).map((o) => ({
+    id: o.id,
+    status: o.status,
+    amount: o.amount_jpy ?? 0,
+    subtotal: o.subtotal_jpy ?? 0,
+    shippingFee: o.shipping_fee_jpy ?? 0,
+    country: o.country ?? 'jp',
+    createdAt: o.created_at,
+    paidAt: o.paid_at ?? null,
+    items: (o.items ?? []).map((i: any) => ({
+      id: i.id,
+      tripId: i.trip_id ?? null,
+      plan: i.plan,
+      title: i.title,
+      coverPhotoUrl: i.cover_photo_url ?? null,
+      pageCount: i.page_count ?? 0,
+      unitPrice: i.unit_price_jpy ?? 0,
+    })),
+  }));
+}
+
+export interface AdminNotification {
+  id: string;
+  kind: string;
+  title: string;
+  body: string | null;
+  orderId: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export async function fetchAdminNotifications(): Promise<AdminNotification[]> {
+  const { data, error } = await supabase.rpc('admin_notifications_list', { p_limit: 50 });
+  if (error || !data) return [];
+  return (data as any[]).map((n) => ({
+    id: n.id,
+    kind: n.kind,
+    title: n.title,
+    body: n.body ?? null,
+    orderId: n.order_id ?? null,
+    readAt: n.read_at ?? null,
+    createdAt: n.created_at,
+  }));
+}
+
+export async function markAdminNotificationsRead(id?: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('admin_notifications_mark_read', { p_id: id ?? null });
+  return !error && data === true;
+}
+
 /** 記録→カウント→ユーザー：訪問済み都道府県コード(1..47)。RPC my_visited_prefectures を使用。 */
 export async function fetchVisitedPrefectureCodes(): Promise<number[]> {
   const { data, error } = await supabase.rpc('my_visited_prefectures');

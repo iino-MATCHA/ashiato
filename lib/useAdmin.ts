@@ -5,7 +5,10 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { isSupabaseConfigured } from './supabase';
-import { fetchMyAdminRole, fetchAdminStats, fetchAdminOrders, fetchAdmins, fetchAnalytics } from './api';
+import {
+  fetchMyAdminRole, fetchAdminStats, fetchAdminOrders, fetchAdmins, fetchAnalytics,
+  fetchAdminNotifications, markAdminNotificationsRead, type AdminNotification,
+} from './api';
 
 export interface AdminData {
   role: string | null | 'loading';
@@ -13,9 +16,12 @@ export interface AdminData {
   orders: any[] | null;
   admins: { username: string; name: string; role: string }[];
   analytics: Awaited<ReturnType<typeof fetchAnalytics>> | null;
+  /** 決済完了などの通知。新しい順。 */
+  notifications: AdminNotification[];
 }
 
-let cache: AdminData = { role: 'loading', stats: null, orders: null, admins: [], analytics: null };
+const EMPTY: AdminData = { role: 'loading', stats: null, orders: null, admins: [], analytics: null, notifications: [] };
+let cache: AdminData = EMPTY;
 let inflight: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 
@@ -33,14 +39,14 @@ async function loadAll(force: boolean) {
   inflight = (async () => {
     const role = await fetchMyAdminRole();
     if (!role) {
-      cache = { role: null, stats: null, orders: null, admins: [], analytics: null };
+      cache = { ...EMPTY, role: null };
       emit();
       return;
     }
-    const [stats, orders, admins, analytics] = await Promise.all([
-      fetchAdminStats(), fetchAdminOrders(), fetchAdmins(), fetchAnalytics(),
+    const [stats, orders, admins, analytics, notifications] = await Promise.all([
+      fetchAdminStats(), fetchAdminOrders(), fetchAdmins(), fetchAnalytics(), fetchAdminNotifications(),
     ]);
-    cache = { role, stats, orders, admins, analytics };
+    cache = { role, stats, orders, admins, analytics, notifications };
     emit();
   })().finally(() => { inflight = null; });
   return inflight;
@@ -55,5 +61,18 @@ export function useAdmin() {
     return () => { listeners.delete(l); };
   }, []);
   const reload = useCallback(() => loadAll(true), []);
-  return { ...data, reload };
+  /** 既読にする（idを省くと未読すべて）。押した瞬間に画面へ反映してから取り直す。 */
+  const markRead = useCallback(async (id?: string) => {
+    const now = new Date().toISOString();
+    cache = {
+      ...cache,
+      notifications: cache.notifications.map((n) =>
+        (id ? n.id === id : true) && !n.readAt ? { ...n, readAt: now } : n
+      ),
+    };
+    emit();
+    await markAdminNotificationsRead(id);
+    loadAll(true);
+  }, []);
+  return { ...data, reload, markRead };
 }

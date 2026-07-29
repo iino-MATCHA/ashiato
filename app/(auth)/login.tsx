@@ -10,7 +10,19 @@ import { useTheme } from '@/lib/useTheme';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 import { useI18n } from '@/lib/i18n';
-const redirectTo = typeof window !== 'undefined' ? window.location.origin : undefined;
+/**
+ * 認証から戻ってくる先。
+ * apex(my-japan-matcha.com) は www へ 301 されるため、そのまま origin を渡すと
+ * トークンを載せたURLが一度転送を挟む。確認メールのリンクも apex のまま届く。
+ * 正規のホストへ揃えてから渡す。ローカルや他ドメインではその origin をそのまま使う。
+ */
+const CANONICAL = 'https://www.my-japan-matcha.com';
+const redirectTo =
+  typeof window === 'undefined'
+    ? undefined
+    : /(^|\.)my-japan-matcha\.com$/.test(window.location.hostname)
+      ? CANONICAL
+      : window.location.origin;
 
 // show the intro only once per install
 let splashShown = false;

@@ -71,7 +71,7 @@ const CSS = `
 .lp .dark .lead { color:rgba(255,255,255,.72); }
 .lp .warm { background:linear-gradient(180deg,#FBFAF7 0%,#F4F1E8 100%); }
 /* 説明が続くので、このセクションだけ下の余白を詰める */
-.lp section.tight { padding-bottom:clamp(40px,6vw,72px); }
+.lp section.tight { padding-bottom:clamp(16px,2.4vw,32px); }
 .lp section.tight .feats { margin-top:28px; }
 
 /* --- 無限マーキー --- */
