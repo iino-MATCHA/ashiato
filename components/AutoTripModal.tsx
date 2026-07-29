@@ -75,7 +75,7 @@ export function AutoTripModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => dismissable && close()}>
       <Pressable style={styles.backdrop} onPress={() => dismissable && close()}>
-        <Pressable style={[styles.sheet, { backgroundColor: palette.washi }]} onPress={() => {}}>
+        <Pressable style={[styles.sheet, { backgroundColor: palette.paper, borderColor: palette.rule }]} onPress={() => {}}>
 
           {phase === 'ask' && (
             <>
@@ -92,7 +92,7 @@ export function AutoTripModal({
                 {t(adding ? 'auto.addTitle' : 'auto.askTitle')}
               </AppText>
               <Gap h={space.md} />
-              <AppText variant="small" tone="inkSoft" style={{ lineHeight: 22 }}>
+              <AppText variant="small" tone="ink" style={{ lineHeight: 22, opacity: 0.86 }}>
                 {t(adding ? 'auto.addBody' : 'auto.askBody')}
               </AppText>
 
@@ -148,7 +148,7 @@ export function AutoTripModal({
                 {t(adding ? 'auto.addDoneTitle' : 'auto.doneTitle')}
               </AppText>
               <Gap h={space.md} />
-              <AppText variant="small" tone="inkSoft" center style={{ lineHeight: 21 }}>
+              <AppText variant="small" tone="ink" center style={{ lineHeight: 21, opacity: 0.86 }}>
                 {t('auto.doneBody', { stops: result.stops, photos: result.photos })}
               </AppText>
               {result.skipped > 0 && (
@@ -181,7 +181,7 @@ export function AutoTripModal({
               <Gap h={space.lg} />
               <AppText variant="h3" tone="ink" center>{t(`auto.fail.${result?.failure ?? 'save-failed'}`)}</AppText>
               <Gap h={space.md} />
-              <AppText variant="small" tone="inkSoft" center style={{ lineHeight: 21 }}>{t('auto.failHint')}</AppText>
+              <AppText variant="small" tone="ink" center style={{ lineHeight: 21, opacity: 0.86 }}>{t('auto.failHint')}</AppText>
               <Gap h={space.xl} />
               <View style={{ alignSelf: 'stretch' }}>
                 <PhotoPicker onPick={run} multiple style={styles.pickWrap}>
@@ -257,8 +257,13 @@ function barWidth(p: AutoTripProgress): number {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: space.lg },
-  sheet: { width: '100%', maxWidth: 380, borderRadius: 18, padding: space.lg },
+  // 中央のモーダルなので、背景は思い切って落とす。半端に暗いと
+  // シートの縁が地図やLPに溶けて、どこからが本文か分からなくなる
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: space.lg },
+  sheet: {
+    width: '100%', maxWidth: 380, borderRadius: 18, padding: space.lg, borderWidth: hairline,
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 12,
+  },
   title: { fontFamily: fonts.minchoBold, fontSize: 26, lineHeight: 36 },
   pickWrap: { borderRadius: 10 },
   pick: { height: 50, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },

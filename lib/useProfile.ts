@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { clearCache } from './localCache';
 import { me } from './mock';
 
 export interface Profile {
@@ -75,6 +76,8 @@ export function useProfile() {
 
   const update = (next: Profile) => saveProfile(next);
   const signOut = async () => {
+    // 端末に残した一覧も消す。共有端末で次の人に前の旅が見えないように
+    clearCache();
     if (isSupabaseConfigured) {
       try { await supabase.auth.signOut(); } catch {}
     }

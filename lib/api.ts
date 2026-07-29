@@ -47,96 +47,128 @@ async function fetchMunicipalities(codes: number[]): Promise<Map<number, Muni>> 
   return map;
 }
 
-export async function fetchTrip(id: string): Promise<Trip | null> {
-  const { data: trip, error } = await supabase
-    .from('trips')
-    .select('id, owner_id, title, description, status, visibility, start_date, end_date')
-    .eq('id', id)
-    .single();
-  if (error || !trip) return null;
+const TRIP_COLS = 'id, owner_id, title, description, status, visibility, start_date, end_date';
+const LOG_COLS = 'id, trip_id, title, note, municipality_code, prefecture_code, lat, lng, logged_at, sort_order';
+
+/**
+ * 旅の行から Trip[] を組み立てる。
+ *
+ * **旅の件数に関わらず問い合わせは6回で済ませる。** 以前は旅ごとに
+ * fetchTrip() を呼んでいたので、1件あたり6回 × 件数だけ往復していた。
+ * Exploreの19件で130回を超え、地下鉄のような遅い回線では開くまでに
+ * 分単位かかっていた。まとめて引いてメモリ側で突き合わせる。
+ */
+async function assembleTrips(tripRows: any[]): Promise<Trip[]> {
+  if (!tripRows.length) return [];
+  const tripIds = tripRows.map((t) => t.id);
+  const ownerIds = Array.from(new Set(tripRows.map((t) => t.owner_id).filter(Boolean)));
 
   // getSession はローカル読み取り（通信なし）。未ログインでも公開旅はRLSが通す
   const uid = await currentUserId();
 
-  const [{ data: logs }, { data: transports }, { data: members }, { data: ownerProfile }] = await Promise.all([
-    supabase
-      .from('logs')
-      .select('id, title, note, municipality_code, prefecture_code, lat, lng, logged_at, sort_order')
-      .eq('trip_id', id)
-      .order('sort_order', { ascending: true }),
-    supabase.from('transports').select('to_log_id, mode, distance_km').eq('trip_id', id),
+  const [{ data: logs }, { data: transports }, { data: members }, { data: owners }] = await Promise.all([
+    supabase.from('logs').select(LOG_COLS).in('trip_id', tripIds).order('sort_order', { ascending: true }),
+    supabase.from('transports').select('trip_id, to_log_id, mode, distance_km').in('trip_id', tripIds),
     // trip_members has two FKs to profiles (user_id / invited_by) — qualify which one
-    supabase.from('trip_members').select('user_id, profiles!trip_members_user_id_fkey(display_name)').eq('trip_id', id),
-    // sample判定（ashiato_demo の旅）と表示用にオーナーの username を引く
-    supabase.from('profiles').select('username').eq('id', trip.owner_id).maybeSingle(),
+    supabase.from('trip_members').select('trip_id, user_id, profiles!trip_members_user_id_fkey(display_name)').in('trip_id', tripIds),
+    ownerIds.length
+      ? supabase.from('profiles').select('id, username').in('id', ownerIds)
+      : Promise.resolve({ data: [] as any[] }),
   ]);
 
   const logRows = logs ?? [];
   const logIds = logRows.map((l: any) => l.id);
-  const muniCodes = logRows.map((l: any) => l.municipality_code).filter(Boolean);
 
   const [{ data: photos }, munis] = await Promise.all([
     logIds.length
       ? supabase.from('photos').select('log_id, storage_path, sort_order').in('log_id', logIds).order('sort_order', { ascending: true })
       : Promise.resolve({ data: [] as any[] }),
-    fetchMunicipalities(muniCodes),
+    fetchMunicipalities(logRows.map((l: any) => l.municipality_code).filter(Boolean)),
   ]);
 
   const photosByLog = new Map<string, string[]>();
-  (photos ?? []).forEach((p: any) => {
-    const arr = photosByLog.get(p.log_id) ?? [];
-    arr.push(publicUrl(p.storage_path));
-    photosByLog.set(p.log_id, arr);
+  (photos ?? []).forEach((ph: any) => {
+    const arr = photosByLog.get(ph.log_id) ?? [];
+    arr.push(publicUrl(ph.storage_path));
+    photosByLog.set(ph.log_id, arr);
   });
-  const transportByTo = new Map<string, string>();
-  (transports ?? []).forEach((t: any) => transportByTo.set(t.to_log_id, t.mode));
 
-  const steps: Step[] = logRows.map((l: any) => {
-    const m = l.municipality_code ? munis.get(l.municipality_code) : undefined;
+  const logsByTrip = new Map<string, any[]>();
+  logRows.forEach((l: any) => {
+    const arr = logsByTrip.get(l.trip_id) ?? [];
+    arr.push(l);
+    logsByTrip.set(l.trip_id, arr);
+  });
+
+  const transportByTo = new Map<string, { mode: string; km: number }>();
+  (transports ?? []).forEach((tr: any) =>
+    transportByTo.set(tr.to_log_id, { mode: tr.mode, km: Number(tr.distance_km) || 0 })
+  );
+
+  const membersByTrip = new Map<string, string[]>();
+  (members ?? []).forEach((m: any) => {
+    const arr = membersByTrip.get(m.trip_id) ?? [];
+    arr.push(m.profiles?.display_name ?? 'Traveller');
+    membersByTrip.set(m.trip_id, arr);
+  });
+
+  const usernameById = new Map<string, string>();
+  (owners ?? []).forEach((o: any) => usernameById.set(o.id, o.username));
+
+  return tripRows.map((trip: any) => {
+    const rows = logsByTrip.get(trip.id) ?? [];
+    const steps: Step[] = rows.map((l: any) => {
+      const m = l.municipality_code ? munis.get(l.municipality_code) : undefined;
+      return {
+        id: l.id,
+        title: l.title ?? m?.municipality_en ?? 'Untitled',
+        placeName: m?.municipality_en ?? '',
+        prefectureName: m?.prefecture_en ?? '',
+        note: l.note ?? '',
+        loggedAt: (l.logged_at ?? '').slice(0, 10),
+        lng: Number(l.lng ?? m?.longitude) || 0,
+        lat: Number(l.lat ?? m?.latitude) || 0,
+        images: photosByLog.get(l.id) ?? [],
+        transport: toTransport(transportByTo.get(l.id)?.mode),
+      };
+    });
+
+    const prefectures = Array.from(new Set(steps.map((st) => st.prefectureName).filter(Boolean)));
+
+    // 区間の距離。保存済みの値があればそれを使い、無い（0の）区間は
+    // 前の地点との大円距離で補う。これが無いと総距離がいつまでも 0 km になる。
+    let distanceKm = 0;
+    for (let i = 1; i < steps.length; i++) {
+      const stored = transportByTo.get(steps[i].id)?.km ?? 0;
+      distanceKm += stored > 0 ? stored : haversineKm(steps[i - 1], steps[i]);
+    }
+
+    const ownerUsername = usernameById.get(trip.owner_id);
     return {
-      id: l.id,
-      title: l.title ?? m?.municipality_en ?? 'Untitled',
-      placeName: m?.municipality_en ?? '',
-      prefectureName: m?.prefecture_en ?? '',
-      note: l.note ?? '',
-      loggedAt: (l.logged_at ?? '').slice(0, 10),
-      lng: Number(l.lng ?? m?.longitude) || 0,
-      lat: Number(l.lat ?? m?.latitude) || 0,
-      images: photosByLog.get(l.id) ?? [],
-      transport: toTransport(transportByTo.get(l.id)),
+      id: trip.id,
+      title: trip.title,
+      subtitle: prefectures.join(' · '),
+      status: (trip.status as Trip['status']) ?? 'completed',
+      startDate: trip.start_date ?? '',
+      endDate: trip.end_date ?? '',
+      prefectures,
+      members: membersByTrip.get(trip.id) ?? [],
+      distanceKm: Math.round(distanceKm),
+      // 'me' when the signed-in user owns it → controls edit permissions app-wide
+      authorId: uid && trip.owner_id === uid ? 'me' : trip.owner_id,
+      ownerUsername,
+      sample: ownerUsername === 'ashiato_demo',
+      visibility: (trip.visibility as Trip['visibility']) ?? 'private',
+      steps,
     };
   });
+}
 
-  const prefectures = Array.from(new Set(steps.map((s) => s.prefectureName).filter(Boolean)));
-
-  // 区間の距離。保存済みの値があればそれを使い、無い（0の）区間は
-  // 前の地点との大円距離で補う。これが無いと総距離がいつまでも 0 km になる。
-  const distanceByTo = new Map<string, number>();
-  (transports ?? []).forEach((t: any) => distanceByTo.set(t.to_log_id, Number(t.distance_km) || 0));
-  let distanceKm = 0;
-  for (let i = 1; i < steps.length; i++) {
-    const stored = distanceByTo.get(steps[i].id) ?? 0;
-    distanceKm += stored > 0 ? stored : haversineKm(steps[i - 1], steps[i]);
-  }
-  distanceKm = Math.round(distanceKm);
-
-  return {
-    id: trip.id,
-    title: trip.title,
-    subtitle: prefectures.join(' · '),
-    status: (trip.status as Trip['status']) ?? 'completed',
-    startDate: trip.start_date ?? '',
-    endDate: trip.end_date ?? '',
-    prefectures,
-    members: (members ?? []).map((m: any) => m.profiles?.display_name ?? 'Traveller'),
-    distanceKm,
-    // 'me' when the signed-in user owns it → controls edit permissions app-wide
-    authorId: uid && trip.owner_id === uid ? 'me' : trip.owner_id,
-    ownerUsername: ownerProfile?.username ?? undefined,
-    sample: ownerProfile?.username === 'ashiato_demo',
-    visibility: (trip.visibility as Trip['visibility']) ?? 'private',
-    steps,
-  };
+export async function fetchTrip(id: string): Promise<Trip | null> {
+  const { data, error } = await supabase.from('trips').select(TRIP_COLS).eq('id', id).maybeSingle();
+  if (error || !data) return null;
+  const [trip] = await assembleTrips([data]);
+  return trip ?? null;
 }
 
 /**
@@ -147,26 +179,27 @@ export async function fetchTrips(): Promise<Trip[]> {
   const uid = await currentUserId();
   if (!uid) return [];
   const [{ data: owned }, { data: memberOf }] = await Promise.all([
-    supabase.from('trips').select('id, start_date').eq('owner_id', uid),
+    supabase.from('trips').select('id').eq('owner_id', uid),
     supabase.from('trip_members').select('trip_id').eq('user_id', uid),
   ]);
   const ids = new Set<string>((owned ?? []).map((t: any) => t.id));
   (memberOf ?? []).forEach((m: any) => ids.add(m.trip_id));
   if (!ids.size) return [];
-  const trips = await Promise.all(Array.from(ids).map((id) => fetchTrip(id)));
-  return (trips.filter(Boolean) as Trip[]).sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? ''));
+  const { data } = await supabase.from('trips').select(TRIP_COLS).in('id', Array.from(ids));
+  const trips = await assembleTrips(data ?? []);
+  return trips.sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? ''));
 }
 
 /** Public trips for the Explore feed. */
 export async function fetchPublicTrips(): Promise<Trip[]> {
   const { data, error } = await supabase
     .from('trips')
-    .select('id')
+    .select(TRIP_COLS)
     .eq('visibility', 'public')
-    .order('start_date', { ascending: false });
+    .order('start_date', { ascending: false })
+    .limit(40);
   if (error || !data) return [];
-  const trips = await Promise.all(data.map((t: any) => fetchTrip(t.id)));
-  return trips.filter(Boolean) as Trip[];
+  return assembleTrips(data);
 }
 
 // 御朱印は「訪問した都道府県」から導く（RPC my_visited_prefectures）。
@@ -318,14 +351,37 @@ export async function saveVisitedPrefectures(codes: number[]): Promise<boolean> 
   return true;
 }
 
+/** これより大きい画像は、そのまま送らない（下の理由参照）。 */
+const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
+
 /**
- * 画像を縮小圧縮（Web）。createImageBitmap が使えない形式（HEIC等の一部）でも
- * <img> デコードにフォールバックして必ずJPEG化を試みる。最終手段は元blob。
+ * 制御をUIへ返す。
+ * 画像の処理は重いので、まとめて回すと画面が固まる。1枚ごとに挟む。
  */
-async function compressImage(blob: Blob, maxDim = 1280, quality = 0.72): Promise<Blob> {
+export function yieldToUi(): Promise<void> {
+  return new Promise((res) => setTimeout(res, 0));
+}
+
+/**
+ * 画像を縮小圧縮（Web）。
+ *
+ * 重要なのは「必ず小さくしてから送る」こと。
+ * 4800万画素クラスの写真をそのまま canvas に載せると、端末によっては
+ * toBlob が黙って null を返す（キャンバスの面積上限）。以前はその場合に
+ * 元のblobをそのまま返していたので、10MB超のファイルを送ろうとして
+ * 電波の弱い場所では必ず失敗していた。
+ *
+ * そこで:
+ *   1. createImageBitmap の resizeWidth/Height で**デコードの時点で縮める**。
+ *      巨大な画像をメモリに広げないので、上限にも当たらず速い
+ *   2. 使えない環境では <img> デコード → canvas（従来どおり）
+ *   3. どちらも駄目なら、元が十分小さいときだけ素通し。
+ *      大きいままなら null を返して「失敗」として扱う（黙って送らない）
+ */
+async function compressImage(blob: Blob, maxDim = 1280, quality = 0.72): Promise<Blob | null> {
   if (typeof document === 'undefined') return blob;
 
-  const toJpeg = (w: number, h: number, paint: (ctx: CanvasRenderingContext2D, cw: number, ch: number) => void): Promise<Blob | null> => {
+  const encode = (source: CanvasImageSource, w: number, h: number): Promise<Blob | null> => {
     const scale = Math.min(1, maxDim / Math.max(w, h));
     const cw = Math.max(1, Math.round(w * scale));
     const ch = Math.max(1, Math.round(h * scale));
@@ -334,35 +390,61 @@ async function compressImage(blob: Blob, maxDim = 1280, quality = 0.72): Promise
     canvas.height = ch;
     const ctx = canvas.getContext('2d');
     if (!ctx) return Promise.resolve(null);
-    paint(ctx, cw, ch);
+    try {
+      ctx.drawImage(source, 0, 0, cw, ch);
+    } catch {
+      return Promise.resolve(null);
+    }
     return new Promise((res) => canvas.toBlob(res, 'image/jpeg', quality));
   };
 
-  // 1) createImageBitmap（最速）
+  // 1) デコードしながら縮める。ここを通ればメモリも時間も一番軽い
   if (typeof createImageBitmap !== 'undefined') {
     try {
-      const bmp = await createImageBitmap(blob);
-      const out = await toJpeg(bmp.width, bmp.height, (ctx, cw, ch) => ctx.drawImage(bmp, 0, 0, cw, ch));
+      const probe = await createImageBitmap(blob);
+      const w = probe.width;
+      const h = probe.height;
+      probe.close?.();
+      const scale = Math.min(1, maxDim / Math.max(w, h));
+      const bmp = scale < 1
+        ? await createImageBitmap(blob, {
+            resizeWidth: Math.round(w * scale),
+            resizeHeight: Math.round(h * scale),
+            resizeQuality: 'high',
+          })
+        : await createImageBitmap(blob);
+      const out = await encode(bmp, bmp.width, bmp.height);
+      bmp.close?.();
       if (out) return out;
     } catch {}
   }
-  // 2) <img> decode フォールバック（Safari の HEIC などをカバー）
+
+  // 2) <img> デコード（Safari の HEIC などをカバー）
+  let url: string | null = null;
   try {
-    const url = URL.createObjectURL(blob);
+    url = URL.createObjectURL(blob);
     const img = document.createElement('img');
     img.src = url;
     if (img.decode) await img.decode();
     else await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
-    const out = await toJpeg(img.naturalWidth, img.naturalHeight, (ctx, cw, ch) => ctx.drawImage(img, 0, 0, cw, ch));
-    URL.revokeObjectURL(url);
+    const out = await encode(img, img.naturalWidth, img.naturalHeight);
     if (out) return out;
-  } catch {}
-  return blob;
+  } catch {
+  } finally {
+    if (url) URL.revokeObjectURL(url);
+  }
+
+  // 3) 縮められなかった。小さいものだけ素通しし、大きいものは送らない
+  return blob.size <= MAX_UPLOAD_BYTES ? blob : null;
 }
 
-/** Storage にアップロードして storage_path を返す。key は衝突回避用の識別子。 */
+/**
+ * Storage にアップロードして storage_path を返す。key は衝突回避用の識別子。
+ * 縮小できなかった大きい画像は送らずに null を返す（呼び出し側が失敗として数える）。
+ */
 export async function uploadPhoto(uid: string, tripId: string, fileOrBlob: Blob, key = 'p'): Promise<string | null> {
   const compressed = await compressImage(fileOrBlob);
+  if (!compressed) return null;
   const rand = Math.random().toString(36).slice(2, 9);
   const path = `${uid}/${tripId}/${key}-${rand}.jpg`;
   const { error } = await supabase.storage.from('photos').upload(path, compressed, { upsert: true, contentType: 'image/jpeg' });
@@ -434,6 +516,8 @@ export async function createStep(input: {
   /** 実際の座標が分かっている場合（写真のEXIFなど）。無ければ市区町村の代表点を使う。 */
   lat?: number;
   lng?: number;
+  /** 写真を1枚処理し終えるたびに呼ばれる（画面の進捗表示用）。 */
+  onPhoto?: (done: number, total: number) => void;
 }): Promise<{ id: string | null; photoFailed: number }> {
   const uid = await currentUserId();
   if (!uid) return { id: null, photoFailed: 0 };
@@ -475,6 +559,10 @@ export async function createStep(input: {
     } catch {
       photoFailed++; // keep the stop even if a photo fails
     }
+    input.onPhoto?.(i + 1, blobs.length);
+    // 1枚ごとに制御を返す。画像のデコードは重いので、これを挟まないと
+    // 画面が固まり、写真ピッカーの「決定」まで押せなくなる端末がある
+    await yieldToUi();
   }
   bump('visited');
   bump('trips');
@@ -826,10 +914,9 @@ export async function fetchUserProfile(id: string): Promise<UserSummary | null> 
 
 /** 指定ユーザーの旅（RLSが公開範囲を自動判定：public＋友達ならfriendsも）。 */
 export async function fetchTripsByOwner(ownerId: string): Promise<Trip[]> {
-  const { data } = await supabase.from('trips').select('id').eq('owner_id', ownerId).order('start_date', { ascending: false });
+  const { data } = await supabase.from('trips').select(TRIP_COLS).eq('owner_id', ownerId).order('start_date', { ascending: false });
   if (!data) return [];
-  const trips = await Promise.all(data.map((t: any) => fetchTrip(t.id)));
-  return trips.filter(Boolean) as Trip[];
+  return assembleTrips(data);
 }
 
 /** 友達（または本人）の訪問都道府県コード。RPCがRLS相当の判定を行う。 */

@@ -13,7 +13,7 @@
  */
 import { readPhotoMeta, type PhotoMeta } from './exif';
 import {
-  createTrip, createStep, nearestMunicipality, resortTripStops,
+  createTrip, createStep, nearestMunicipality, resortTripStops, yieldToUi,
   haversineKm, type NearestPlace,
 } from './api';
 
@@ -23,6 +23,12 @@ const SAME_PLACE_KM = 12;
 const SAME_VISIT_HOURS = 8;
 /** 1つの旅として扱う上限。これを超えて離れた日付は切り捨てず、旅を長くする。 */
 const MAX_STOPS = 30;
+/**
+ * 一度に扱う写真の上限。
+ * これを超えると端末側の写真ピッカーが固まって「決定」すら押せなくなることが
+ * ある（実機で確認）。超えたぶんは黙って捨てず、完了画面に枚数を出す。
+ */
+const MAX_PHOTOS = 60;
 
 export type AutoTripPhase = 'reading' | 'placing' | 'naming' | 'saving';
 
@@ -131,15 +137,20 @@ async function planFromPhotos(
   const empty: AutoTripResult = { tripId: null, failure: null, stops: 0, photos: 0, skipped: 0 };
   if (!files.length) return { ...empty, failure: 'no-photos' };
 
+  const use = files.slice(0, MAX_PHOTOS);
+  let overflow = files.length - use.length;
+
   // ---- 1. EXIF を読む -------------------------------------------------
   const shots: Shot[] = [];
-  for (let i = 0; i < files.length; i++) {
-    shots.push({ file: files[i], meta: await readPhotoMeta(files[i]) });
-    onProgress?.({ phase: 'reading', done: i + 1, total: files.length });
+  for (let i = 0; i < use.length; i++) {
+    shots.push({ file: use[i], meta: await readPhotoMeta(use[i]) });
+    onProgress?.({ phase: 'reading', done: i + 1, total: use.length });
+    // 1枚ごとに制御を返す。まとめて回すと画面が固まって進捗も出ない
+    await yieldToUi();
   }
 
   const located = shots.filter((s) => s.meta.lat != null && s.meta.lng != null);
-  if (!located.length) return { ...empty, failure: 'no-location', skipped: shots.length };
+  if (!located.length) return { ...empty, failure: 'no-location', skipped: shots.length + overflow };
 
   // ---- 2. まとまりに割る ----------------------------------------------
   // 撮った順に並べ、前の写真から離れたか時間が空いたら新しい立ち寄り先にする。
@@ -167,7 +178,7 @@ async function planFromPhotos(
   }
 
   // 位置の無い写真は、時間が一番近いまとまりへ入れる（捨てない）
-  let skipped = 0;
+  let skipped = overflow;
   for (const s of shots) {
     if (s.meta.lat != null && s.meta.lng != null) continue;
     if (!s.meta.takenAt) { skipped++; continue; }
@@ -199,7 +210,7 @@ async function planFromPhotos(
     }
     kept.push(c);
   }
-  if (!kept.length) return { ...empty, failure: 'not-japan', skipped: shots.length };
+  if (!kept.length) return { ...empty, failure: 'not-japan', skipped: shots.length + overflow };
 
   // 上限を超えたぶんは黙って落とさない。落ちた写真は skipped に足して画面に出す
   const stops = kept.slice(0, MAX_STOPS);
@@ -219,6 +230,10 @@ async function writeStops(
   stops: Cluster[],
   onProgress?: (p: AutoTripProgress) => void
 ): Promise<number> {
+  // 進捗は写真の枚数で数える。立ち寄り先の数で数えると、
+  // 3か所30枚のときにゲージがほとんど動かず、止まって見える
+  const totalPhotos = stops.reduce((n, c) => n + c.shots.length, 0);
+  let done = 0;
   let photos = 0;
   for (let i = 0; i < stops.length; i++) {
     const c = stops[i];
@@ -237,9 +252,11 @@ async function writeStops(
       lat: c.lat,
       lng: c.lng,
       photoBlobs: blobs,
+      onPhoto: (n) => onProgress?.({ phase: 'saving', done: done + n, total: totalPhotos }),
     });
+    done += blobs.length;
     photos += blobs.length - res.photoFailed;
-    onProgress?.({ phase: 'saving', done: i + 1, total: stops.length });
+    onProgress?.({ phase: 'saving', done, total: totalPhotos });
   }
   return photos;
 }

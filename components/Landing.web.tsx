@@ -195,6 +195,24 @@ const CSS = `
 .lp .closing h2 { white-space:pre-line; }
 .lp footer { padding:38px 22px 52px; text-align:center; color:#9B978F; font-size:11px; letter-spacing:2.6px; }
 
+/* --- スマホ ---------------------------------------------------------
+   デモの地図とその上のカードが画面を占めすぎて、肝心の「何ができるのか」
+   （その下の3点）が1画面目に入らなくなっていた。上の余白と地図の高さ、
+   カードの大きさを詰めて、説明が同じ画面に入るようにする。 */
+@media (max-width: 560px) {
+  .lp section { padding-top:clamp(44px,9vw,72px); }
+  .lp .lead { margin-top:12px; }
+  .lp .demo { margin-top:24px; }
+  .lp .demoTitle { top:14px; left:14px; padding:6px 10px; }
+  .lp .demoTitle span { font-size:10px; }
+  .lp .demoTitle b { font-size:15px; }
+  .lp .demoCard { left:14px; bottom:14px; width:min(62%,232px); }
+  .lp .demoCard .ph { height:96px; }
+  .lp .demoCard .bd { padding:10px 12px 13px; }
+  .lp .demoCard .tt { font-size:16px; }
+  .lp .points { margin-top:22px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lp .rv { opacity:1; transform:none; transition:none; }
   .lp .heroGrid img, .lp .mRow .marquee, .lp .scrollHint { animation:none; }
@@ -282,7 +300,15 @@ export function Landing() {
   const bookW = Math.min(420, Math.max(260, (typeof window !== 'undefined' ? window.innerWidth : 900) - 56));
 
   // TripMap は実寸の高さが要るので、画面幅から決める
-  const demoH = Math.round(Math.min(560, Math.max(300, (typeof window !== 'undefined' ? window.innerWidth : 900) * 0.52)));
+  /**
+   * 埋め込む地図の高さ。
+   * スマホでは低くする ―― 300pxあると、その下の「何ができるのか」の説明が
+   * 1画面目から押し出されてしまう（実機で確認）。
+   */
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 900;
+  const demoH = vw < 560
+    ? Math.round(Math.max(200, Math.min(240, vw * 0.58)))
+    : Math.round(Math.min(560, Math.max(300, vw * 0.52)));
 
   const go = () => router.push('/(auth)/login');
   // 登録せずに中を見せる。何のアプリなのか分からないまま登録を求めない

@@ -34,13 +34,13 @@ export function SignInPrompt({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={[styles.sheet, { backgroundColor: palette.washi }]} onPress={() => {}}>
+        <Pressable style={[styles.sheet, { backgroundColor: palette.paper, borderColor: palette.rule }]} onPress={() => {}}>
           <View style={{ alignItems: 'center' }}>
             <Ionicons name="footsteps-outline" size={34} color={palette.matcha} />
             <Gap h={space.md} />
             <AppText style={[styles.title, { color: palette.ink }]} center>{t('guest.promptTitle')}</AppText>
             <Gap h={space.sm} />
-            <AppText variant="small" tone="inkSoft" center style={{ lineHeight: 21 }}>
+            <AppText variant="small" tone="ink" center style={{ lineHeight: 21, opacity: 0.86 }}>
               {t(`guest.why.${reason ?? 'save'}`)}
             </AppText>
           </View>
@@ -60,7 +60,10 @@ export function SignInPrompt({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: space.lg },
-  sheet: { width: '100%', maxWidth: 360, borderRadius: 18, padding: space.lg },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: space.lg },
+  sheet: {
+    width: '100%', maxWidth: 360, borderRadius: 18, padding: space.lg, borderWidth: StyleSheet.hairlineWidth,
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 12,
+  },
   title: { fontFamily: fonts.minchoBold, fontSize: 24, lineHeight: 33 },
 });
