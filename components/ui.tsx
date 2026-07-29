@@ -128,12 +128,15 @@ interface ScreenProps extends ScrollViewProps {
   scroll?: boolean;
   edges?: readonly Edge[];
   pad?: boolean;
+  /** 画面全体に敷く背景（和紙の質感など）。内容の下に固定で描かれる */
+  background?: React.ReactNode;
 }
 
 export function Screen({
   scroll = true,
   edges = ['top'],
   pad = true,
+  background,
   children,
   contentContainerStyle,
   style,
@@ -150,6 +153,7 @@ export function Screen({
       edges={edges}
       style={[{ flex: 1, backgroundColor: palette.washi }, style]}
     >
+      {background}
       {scroll ? (
         <ScrollView
           contentContainerStyle={[

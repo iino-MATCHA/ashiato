@@ -75,6 +75,9 @@ const en: Dict = {
   'goshuin.share': 'Create a shareable card',
   'goshuin.visited': 'Visited',
   'goshuin.notYet': 'Not yet',
+  'goshuin.byRegion': 'BY REGION',
+  'goshuin.allJapan': 'ALL JAPAN',
+  'goshuin.tapToClose': 'Tap anywhere to close',
   'common.translate': 'Translate',
   'common.showOriginal': 'Show original',
   'common.translating': 'Translating…',
@@ -160,6 +163,10 @@ const en: Dict = {
   'lp.bookEyebrow': 'GOSHUIN BOOK — COMING SOON',
   'lp.bookCaption': 'A printed, accordion-fold book of your journey. Like a goshuin book, but yours.',
   'lp.closing': 'Where you walk becomes a map.',
+  'lp.marqueeTitle': 'Real trips.\nReal places.',
+  'lp.howTitle': 'Walk. Stamp. Keep.',
+  'lp.bookTitle': 'A goshuin book\nof your own.',
+  'lp.journalTitle': 'Every trip becomes\na journal.',
 };
 
 const ja: Dict = {
@@ -208,6 +215,9 @@ const ja: Dict = {
   'goshuin.share': 'シェア用カードを作る',
   'goshuin.visited': '訪問済み',
   'goshuin.notYet': 'まだ',
+  'goshuin.byRegion': '地方別',
+  'goshuin.allJapan': '日本全国',
+  'goshuin.tapToClose': 'どこかをタップで戻る',
   'common.translate': '翻訳する',
   'common.showOriginal': '原文を表示',
   'common.translating': '翻訳中…',
@@ -293,6 +303,10 @@ const ja: Dict = {
   'lp.bookEyebrow': '御朱印帳の製本 — 準備中',
   'lp.bookCaption': '蛇腹折りの製本。御朱印帳のような、あなただけの一冊。',
   'lp.closing': '歩いた場所が、地図になる。',
+  'lp.marqueeTitle': '本物の旅が、\nここにある。',
+  'lp.howTitle': '歩いて、押して、残す。',
+  'lp.bookTitle': '自分だけの、\n御朱印帳を。',
+  'lp.journalTitle': '旅は、そのまま\nジャーナルになる。',
 };
 
 const ko: Dict = {
@@ -341,6 +355,9 @@ const ko: Dict = {
   'goshuin.share': '공유 카드 만들기',
   'goshuin.visited': '방문함',
   'goshuin.notYet': '아직',
+  'goshuin.byRegion': '지방별',
+  'goshuin.allJapan': '일본 전국',
+  'goshuin.tapToClose': '아무 곳이나 탭하면 닫힘',
   'common.translate': '번역하기',
   'common.showOriginal': '원문 보기',
   'common.translating': '번역 중…',
@@ -426,6 +443,10 @@ const ko: Dict = {
   'lp.bookEyebrow': '고슈인북 제본 — 준비 중',
   'lp.bookCaption': '병풍식으로 접히는 인쇄본. 고슈인북 같은, 당신만의 한 권.',
   'lp.closing': '걸어온 곳이 지도가 됩니다.',
+  'lp.marqueeTitle': '진짜 여행,\n진짜 장소.',
+  'lp.howTitle': '걷고, 찍고, 남긴다.',
+  'lp.bookTitle': '나만의\n고슈인북.',
+  'lp.journalTitle': '모든 여행이\n저널이 됩니다.',
 };
 
 const zhHans: Dict = {
@@ -474,6 +495,9 @@ const zhHans: Dict = {
   'goshuin.share': '生成分享卡片',
   'goshuin.visited': '已到访',
   'goshuin.notYet': '尚未',
+  'goshuin.byRegion': '按地区',
+  'goshuin.allJapan': '日本全国',
+  'goshuin.tapToClose': '点击任意处返回',
   'common.translate': '翻译',
   'common.showOriginal': '显示原文',
   'common.translating': '翻译中…',
@@ -559,6 +583,10 @@ const zhHans: Dict = {
   'lp.bookEyebrow': '御朱印帐印刷版 — 即将推出',
   'lp.bookCaption': '风琴折页的印刷书。像御朱印帐一样，属于你的一本。',
   'lp.closing': '走过的地方，会变成地图。',
+  'lp.marqueeTitle': '真实的旅程，\n真实的地方。',
+  'lp.howTitle': '行走、盖章、留存。',
+  'lp.bookTitle': '属于你自己的\n御朱印帐。',
+  'lp.journalTitle': '每段旅程都会\n变成手账。',
 };
 
 const zhHant: Dict = {
@@ -607,6 +635,9 @@ const zhHant: Dict = {
   'goshuin.share': '建立分享卡片',
   'goshuin.visited': '已造訪',
   'goshuin.notYet': '尚未',
+  'goshuin.byRegion': '按地區',
+  'goshuin.allJapan': '日本全國',
+  'goshuin.tapToClose': '點擊任意處返回',
   'common.translate': '翻譯',
   'common.showOriginal': '顯示原文',
   'common.translating': '翻譯中…',
@@ -692,6 +723,10 @@ const zhHant: Dict = {
   'lp.bookEyebrow': '御朱印帳印刷版 — 即將推出',
   'lp.bookCaption': '風琴摺頁的印刷書。像御朱印帳一樣，屬於你的一本。',
   'lp.closing': '走過的地方，會變成地圖。',
+  'lp.marqueeTitle': '真實的旅程，\n真實的地方。',
+  'lp.howTitle': '行走、蓋章、留存。',
+  'lp.bookTitle': '屬於你自己的\n御朱印帳。',
+  'lp.journalTitle': '每段旅程都會\n變成手帳。',
 };
 
 const DICTS: Record<Locale, Dict> = { en, ja, ko, 'zh-Hans': zhHans, 'zh-Hant': zhHant };
@@ -710,8 +745,35 @@ function isLocale(v: any): v is Locale {
   return v === 'en' || v === 'ja' || v === 'ko' || v === 'zh-Hans' || v === 'zh-Hant';
 }
 
-/** 起動時の復元。localStorage → DB の順（DBが勝つ）。 */
+/** ブラウザ／端末の言語から既定のロケールを決める。 */
+function detectLocale(): Locale {
+  try {
+    const langs: string[] =
+      typeof navigator !== 'undefined'
+        ? ((navigator as any).languages?.length ? (navigator as any).languages : [navigator.language]).filter(Boolean)
+        : [];
+    for (const raw of langs) {
+      const l = String(raw).toLowerCase();
+      if (l.startsWith('ja')) return 'ja';
+      if (l.startsWith('ko')) return 'ko';
+      if (l.startsWith('zh')) {
+        // 繁体字は zh-TW / zh-HK / zh-MO / zh-Hant
+        return /hant|tw|hk|mo/.test(l) ? 'zh-Hant' : 'zh-Hans';
+      }
+      if (l.startsWith('en')) return 'en';
+    }
+  } catch {}
+  return 'en';
+}
+
+/**
+ * 起動時の復元。
+ * 明示的に選ばれた設定（localStorage → DB）があればそれを、無ければブラウザの言語。
+ */
 async function restore() {
+  // まずブラウザ言語を既定に
+  current = detectLocale();
+  emit();
   try {
     if (typeof window !== 'undefined') {
       const v = window.localStorage?.getItem(STORAGE_KEY);

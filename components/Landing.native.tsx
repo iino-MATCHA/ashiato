@@ -13,7 +13,7 @@ import { JapanSvgMap } from '@/components/JapanSvgMap';
 import { Stamp } from '@/components/Stamp';
 import { space, fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
-import { useI18n, LOCALES } from '@/lib/i18n';
+import { useI18n } from '@/lib/i18n';
 
 /** ヒーローの地図で塗っておく県（東京→九州の大胆な旅のイメージ） */
 const DEMO_VISITED = [13, 22, 26, 27, 34, 40, 43, 46];
@@ -21,7 +21,7 @@ const DEMO_VISITED = [13, 22, 26, 27, 34, 40, 43, 46];
 export function Landing() {
   const { palette } = useTheme();
   const { width } = useWindowDimensions();
-  const { t, locale, setLocale } = useI18n();
+  const { t } = useI18n();
   const contentW = Math.min(width - space.lg * 2, 560);
   const mapW = Math.min(contentW, 340);
 
@@ -29,17 +29,6 @@ export function Landing() {
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', paddingBottom: space.xxl }}>
         <View style={{ width: contentW }}>
-
-          {/* 言語 */}
-          <Gap h={space.md} />
-          <Row style={{ justifyContent: 'flex-end', flexWrap: 'wrap', gap: 6 }}>
-            {LOCALES.map((l) => (
-              <Pressable key={l.key} onPress={() => setLocale(l.key)}
-                style={[styles.langPill, { borderColor: locale === l.key ? palette.matcha : palette.rule }, locale === l.key && { backgroundColor: palette.matcha }]}>
-                <AppText variant="small" style={{ fontSize: 11, color: locale === l.key ? '#fff' : palette.inkFaint }}>{l.label}</AppText>
-              </Pressable>
-            ))}
-          </Row>
 
           {/* ヒーロー */}
           <Gap h={space.xl} />

@@ -10,6 +10,8 @@ import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { goshuinList, PREFECTURE_TOTAL } from '@/lib/mock';
 import { useVisitedPrefectures } from '@/lib/useData';
+import { WashiBackground } from '@/components/WashiBackground';
+import { CoverageGauge } from '@/components/CoverageGauge';
 import { useI18n } from '@/lib/i18n';
 
 export default function GoshuinBook() {
@@ -22,7 +24,7 @@ export default function GoshuinBook() {
   const [rankOpen, setRankOpen] = useState(false);
 
   return (
-    <Screen contentContainerStyle={{ paddingBottom: space.xxl }}>
+    <Screen contentContainerStyle={{ paddingBottom: space.xxl }} background={<WashiBackground />}>
       <Gap h={space.md} />
       <AppText variant="eyebrow" tone="shu">GOSHUIN · COLLECTION</AppText>
       <Gap h={space.sm} />
@@ -31,6 +33,9 @@ export default function GoshuinBook() {
         <View style={{ alignItems: 'flex-end' }}>
           <AppText variant="display" tone="shu" style={{ lineHeight: 44 }}>{count}</AppText>
           <AppText variant="small" tone="inkFaint">/ {PREFECTURE_TOTAL}</AppText>
+          <Gap h={space.sm} />
+          {/* タップで地方ごとの内訳へ */}
+          <CoverageGauge visitedCodes={visited} total={PREFECTURE_TOTAL} />
         </View>
       </Row>
 
