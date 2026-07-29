@@ -15,6 +15,7 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { fetchUnreadCount, fetchFriends, fetchFriendRequests, fetchMyAdminRole, type UserSummary } from '@/lib/api';
 import { friends as mockFriends } from '@/lib/mock';
 import { useI18n } from '@/lib/i18n';
+import { CountUp } from '@/components/CountUp';
 
 export default function ProfilePage() {
   const { palette } = useTheme();
@@ -79,11 +80,11 @@ export default function ProfilePage() {
 
         <Gap h={space.xl} />
         <Row style={{ alignItems: 'stretch' }}>
-          <Stat value={String(myTrips.length)} label="Trips" palette={palette} />
+          <Stat value={myTrips.length} label="Trips" palette={palette} />
           <Rule vertical />
-          <Stat value={String(totalStops)} label="Stops" palette={palette} />
+          <Stat value={totalStops} label="Stops" palette={palette} />
           <Rule vertical />
-          <Stat value={String(visited.length)} label="Goshuin" palette={palette} />
+          <Stat value={visited.length} label="Goshuin" palette={palette} />
         </Row>
         <Gap h={space.lg} />
         <Row style={[styles.distance, { borderColor: palette.rule }]}>
@@ -177,7 +178,8 @@ export default function ProfilePage() {
 function Stat({ value, label, palette }: any) {
   return (
     <View style={{ flex: 1, alignItems: 'center', paddingVertical: space.sm }}>
-      <AppText variant="h1" tone="ink">{value}</AppText>
+      {/* 実績の数字は0から回す */}
+      <CountUp value={Number(value) || 0} variant="h1" tone="ink" />
       <AppText variant="eyebrow" tone="inkFaint">{label}</AppText>
     </View>
   );

@@ -11,6 +11,7 @@ import { useTheme } from '@/lib/useTheme';
 import { useVisitedPrefectures } from '@/lib/useData';
 import { PREFECTURE_TOTAL } from '@/lib/mock';
 import { exportJapanCard } from '@/lib/japanCard';
+import { CountUp } from '@/components/CountUp';
 
 import { useI18n } from '@/lib/i18n';
 export default function GoshuinShare() {
@@ -80,9 +81,12 @@ export default function GoshuinShare() {
           </AppText>
           <Gap h={space.xs} />
           <Row style={{ alignItems: 'baseline', gap: 5 }}>
-            <AppText style={{ fontFamily: fonts.minchoBold, fontSize: f.pct, lineHeight: f.pct * 1.06 }} tone="ink">
-              {pct}%
-            </AppText>
+            <CountUp
+              value={pct}
+              format={(n: number) => `${n}%`}
+              style={{ fontFamily: fonts.minchoBold, fontSize: f.pct, lineHeight: f.pct * 1.06 }}
+              tone="ink"
+            />
             <AppText style={{ fontFamily: fonts.gothicRegular, fontSize: f.pctUnit }} tone="inkFaint">of Japan</AppText>
           </Row>
 

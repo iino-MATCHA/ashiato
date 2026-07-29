@@ -12,6 +12,7 @@ import { goshuinList, PREFECTURE_TOTAL } from '@/lib/mock';
 import { useVisitedPrefectures } from '@/lib/useData';
 import { WashiBackground } from '@/components/WashiBackground';
 import { CoverageGauge } from '@/components/CoverageGauge';
+import { CountUp } from '@/components/CountUp';
 import { useI18n } from '@/lib/i18n';
 
 export default function GoshuinBook() {
@@ -31,7 +32,7 @@ export default function GoshuinBook() {
       <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <AppText variant="h1" tone="ink">{t('goshuin.heading1')}{'\n'}{t('goshuin.heading2')}</AppText>
         <View style={{ alignItems: 'flex-end' }}>
-          <AppText variant="display" tone="shu" style={{ lineHeight: 44 }}>{count}</AppText>
+          <CountUp value={count} variant="display" tone="shu" style={{ lineHeight: 44 }} />
           <AppText variant="small" tone="inkFaint">/ {PREFECTURE_TOTAL}</AppText>
           <Gap h={space.sm} />
           {/* タップで地方ごとの内訳へ */}

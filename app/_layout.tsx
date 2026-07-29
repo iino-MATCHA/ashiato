@@ -18,6 +18,7 @@ import {
 import { YujiSyuku_400Regular } from '@expo-google-fonts/yuji-syuku';
 import { useTheme } from '@/lib/useTheme';
 import { TransitionProvider } from '@/lib/transition';
+import { StampPressProvider } from '@/lib/stampPress';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -43,6 +44,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+        <StampPressProvider>
         <TransitionProvider>
           <Stack
             screenOptions={{
@@ -64,6 +66,7 @@ export default function RootLayout() {
             />
           </Stack>
         </TransitionProvider>
+        </StampPressProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

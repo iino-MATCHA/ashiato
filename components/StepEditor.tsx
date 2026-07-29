@@ -14,6 +14,8 @@ import { searchPlaces, resolvePlace, createStep, updateStep, type PlaceHit } fro
 import type { Step } from '@/lib/mock';
 
 import { useI18n } from '@/lib/i18n';
+import { useStampPress } from '@/lib/stampPress';
+import { fetchUserPrefectures } from '@/lib/api';
 interface SelectedPlace {
   title: string;
   subtitle: string;
@@ -24,6 +26,7 @@ interface SelectedPlace {
 export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
   const { palette } = useTheme();
   const { t } = useI18n();
+  const { pressStamp } = useStampPress();
   const editing = Boolean(step);
 
   const [query, setQuery] = useState('');
@@ -93,6 +96,10 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
     }
     if (tripId && place?.municipalityCode && place.prefectureCode && isSupabaseConfigured) {
       setSaving(true);
+      // createStep 後に判定すると必ず「既訪」になるので、先に控えておく
+      const before = await fetchUserPrefectures();
+      const isNewPrefecture = !!place.prefectureCode && !before.includes(place.prefectureCode);
+
       const res = await createStep({
         tripId,
         title: title.trim() || place.title,
@@ -111,6 +118,13 @@ export function StepEditor({ step, tripId }: { step?: Step; tripId?: string }) {
       if (res.photoFailed > 0) {
         setSaveMsg(`Saved, but ${res.photoFailed} photo(s) failed to upload.`);
         setTimeout(() => router.back(), 1500);
+        return;
+      }
+      // その県が初めてなら、御朱印が押される演出を見せてから戻る
+      if (isNewPrefecture && place.prefectureCode) {
+        const code = place.prefectureCode;
+        router.back();
+        setTimeout(() => pressStamp(code), 260);
         return;
       }
     }

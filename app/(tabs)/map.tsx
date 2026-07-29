@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -12,6 +12,7 @@ import { useTrips, usePublicTrips, useVisitedPrefectures } from '@/lib/useData';
 import { useProfile } from '@/lib/useProfile';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { deleteTrip } from '@/lib/api';
+import { CountUp } from '@/components/CountUp';
 import { useRippleNav } from '@/lib/transition';
 
 import { useI18n, t } from '@/lib/i18n';
@@ -92,9 +93,9 @@ export default function Home() {
           {/* slim inline stats */}
           <Gap h={space.sm} />
           <Row style={{ gap: space.lg }}>
-            <InlineStat value={`${pct}%`} label={t('home.ofJapan')} palette={palette} />
-            <InlineStat value={String(visited.length)} label={t('home.goshuin')} palette={palette} />
-            <InlineStat value={String(trips.filter((t) => !t.sample).length)} label={t('home.trips')} palette={palette} />
+            <InlineStat value={pct} suffix="%" label={t('home.ofJapan')} palette={palette} />
+            <InlineStat value={visited.length} label={t('home.goshuin')} palette={palette} />
+            <InlineStat value={trips.filter((tr) => !tr.sample).length} label={t('home.trips')} palette={palette} />
           </Row>
 
           <Gap h={space.lg} />
@@ -133,15 +134,23 @@ function isOnTheRoad(trip: Trip): boolean {
 }
 
 function TripCard({ trip, palette, onEdit }: { trip: Trip; palette: any; onEdit: () => void }) {
-  const { navigate } = useRippleNav();
+  const { navigate, navigatePhoto } = useRippleNav();
   const cover = trip.steps[0]?.images[0];
   const ongoing = isOnTheRoad(trip);
   const mine = trip.authorId === 'me' || !trip.authorId;
   const editable = !trip.sample && mine; // sample & others' trips can't be edited/deleted
   const href = `/trip/${trip.id}${editable ? '' : '?readonly=1'}`;
+  // カバー写真の画面上の位置を測り、そのまま地図のピンへ飛ばす
+  const coverRef = useRef<View | null>(null);
+  const open = (e: any) => {
+    if (!cover || !coverRef.current) return navigate(href, e);
+    coverRef.current.measureInWindow((x, y, width, height) => {
+      navigatePhoto(href, cover, { x, y, width, height }, e);
+    });
+  };
   return (
-    <Pressable onPress={(e) => navigate(href, e)} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
-      <View style={styles.cover}>
+    <Pressable onPress={open} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
+      <View style={styles.cover} ref={coverRef}>
         {cover && <Image source={{ uri: cover }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />}
         <View style={styles.coverShade} />
         {ongoing && (
@@ -179,10 +188,11 @@ function TripCard({ trip, palette, onEdit }: { trip: Trip; palette: any; onEdit:
   );
 }
 
-function InlineStat({ value, label, palette }: any) {
+function InlineStat({ value, label, suffix, palette }: any) {
   return (
     <Row style={{ alignItems: 'baseline', gap: 4 }}>
-      <AppText variant="h3" tone="ink">{value}</AppText>
+      {/* 数値は0から回して見せる */}
+      <CountUp value={value} variant="h3" tone="ink" format={(n: number) => `${n.toLocaleString()}${suffix ?? ''}`} />
       <AppText variant="small" tone="inkFaint">{label}</AppText>
     </Row>
   );
