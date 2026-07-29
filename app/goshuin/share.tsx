@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, Pressable, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { useVisitedPrefectures } from '@/lib/useData';
 import { PREFECTURE_TOTAL } from '@/lib/mock';
 import { exportJapanCard } from '@/lib/japanCard';
 import { shareImage, type ShareTarget } from '@/lib/shareImage';
+import { captureCard } from '@/lib/cardShot';
 import { CountUp } from '@/components/CountUp';
 
 import { useI18n } from '@/lib/i18n';
@@ -23,6 +24,8 @@ export default function GoshuinShare() {
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<ShareTarget | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // ネイティブはこのビューを写し取って画像にする
+  const cardRef = useRef<View | null>(null);
   const count = visited.length;
   const pct = Math.round((count / PREFECTURE_TOTAL) * 100);
 
@@ -50,12 +53,15 @@ export default function GoshuinShare() {
     visitedCodes: visited,
   });
 
-  /** カードを描き直して、画像ごとSNSへ渡す。 */
+  /**
+   * カードを画像にして、そのままSNSへ渡す。
+   * Web は Canvas で 1080px に描き直し、ネイティブは画面のカードを写し取る。
+   */
   const share = async (to: ShareTarget) => {
     if (busy) return;
     setBusy(to);
     setNotice(null);
-    const dataUrl = await exportJapanCard(cardMeta());
+    const dataUrl = (await captureCard(cardRef)) ?? (await exportJapanCard(cardMeta()));
     const text = `I've visited ${count}/47 prefectures of Japan (${pct}%) — ${rankFor(count)} on My Japan #myjapan`;
     const res = dataUrl
       ? await shareImage(to, dataUrl, text, `my-japan-${count}of${PREFECTURE_TOTAL}.png`)
@@ -84,12 +90,12 @@ export default function GoshuinShare() {
       <Header title={t('share.cardHeader')} />
       <Rule />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.lg }}>
-        <View style={[styles.card, { width: cardW, height: cardH, backgroundColor: palette.paper, borderColor: palette.rule }]}>
+        <View ref={cardRef} collapsable={false} style={[styles.card, { width: cardW, height: cardH, backgroundColor: palette.paper, borderColor: palette.rule }]}>
           <AppText
             style={{ fontFamily: fonts.gothicMedium, fontSize: f.eyebrow, letterSpacing: f.eyebrow * 0.28 }}
             tone="matcha"
           >
-            MY JAPAN · ASHIATO
+            MY JAPAN
           </AppText>
           <Gap h={space.xs} />
           <Row style={{ alignItems: 'baseline', gap: 5 }}>

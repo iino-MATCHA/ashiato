@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, Pressable, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
@@ -11,6 +11,7 @@ import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
 import { exportShareCard } from '@/lib/shareCard';
 import { shareImage, type ShareTarget } from '@/lib/shareImage';
+import { captureCard } from '@/lib/cardShot';
 import { PREFECTURE_ID_BY_SLUG, slugForName } from '@/lib/prefectures';
 
 import { useI18n } from '@/lib/i18n';
@@ -39,6 +40,8 @@ export default function TripShare() {
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<ShareTarget | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // ネイティブはこのビューを写し取って画像にする
+  const cardRef = useRef<View | null>(null);
 
   if (!trip) {
     return (
@@ -85,12 +88,15 @@ export default function TripShare() {
     link.click();
   };
 
-  /** カードを描き直して、画像ごとSNSへ渡す。 */
+  /**
+   * カードを画像にして、そのままSNSへ渡す。
+   * Web は Canvas で 1080px に描き直し、ネイティブは画面のカードを写し取る。
+   */
   const send = async (to: ShareTarget) => {
     if (busy) return;
     setBusy(to);
     setNotice(null);
-    const dataUrl = await exportShareCard(cardMeta);
+    const dataUrl = (await captureCard(cardRef)) ?? (await exportShareCard(cardMeta));
     const text = `${trip.title} — ${prefs} prefectures, ${km} km with My Japan #myjapan`;
     const res = dataUrl
       ? await shareImage(to, dataUrl, text, `my-japan-${trip.id}.png`)
@@ -106,7 +112,7 @@ export default function TripShare() {
       <Header title={t('share.header')} />
       <Rule />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.lg }}>
-        <View style={styles.card}>
+        <View ref={cardRef} collapsable={false} style={styles.card}>
           <JourneyCard width={cardW} {...cardMeta} />
         </View>
 

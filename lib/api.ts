@@ -11,7 +11,7 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { prefectureCodeForQuery } from './prefectures';
 import { bump } from './refresh';
-import type { Trip, Step, Goshuin, TransportMode } from './mock';
+import type { Trip, Step, TransportMode } from './mock';
 
 const PHOTO_BUCKET = 'photos';
 
@@ -44,16 +44,6 @@ async function fetchMunicipalities(codes: number[]): Promise<Map<number, Muni>> 
     .select('municipality_code, prefecture_code, prefecture_en, municipality_en, latitude, longitude')
     .in('municipality_code', unique);
   (data ?? []).forEach((m: any) => map.set(m.municipality_code, m as Muni));
-  return map;
-}
-
-/** Prefecture_master: code(1..47) -> 英語名 */
-async function fetchPrefectureNames(): Promise<Map<number, string>> {
-  const map = new Map<number, string>();
-  const { data } = await supabase
-    .from('Prefecture_master')
-    .select('prefecture_code, prefecture_en');
-  (data ?? []).forEach((p: any) => map.set(p.prefecture_code, p.prefecture_en));
   return map;
 }
 
@@ -179,26 +169,8 @@ export async function fetchPublicTrips(): Promise<Trip[]> {
   return trips.filter(Boolean) as Trip[];
 }
 
-export async function fetchGoshuin(): Promise<Goshuin[]> {
-  const [{ data: masters }, { data: mine }, prefNames] = await Promise.all([
-    supabase.from('goshuin_masters').select('id, name, rarity, prefecture_code').eq('is_active', true),
-    supabase.from('user_goshuin').select('goshuin_master_id, acquired_at'),
-    fetchPrefectureNames(),
-  ]);
-  const acquiredMap = new Map<string, string>();
-  (mine ?? []).forEach((g: any) => acquiredMap.set(g.goshuin_master_id, g.acquired_at));
-
-  return (masters ?? []).map((m: any) => ({
-    id: m.id,
-    prefectureId: m.prefecture_code,
-    prefectureName: prefNames.get(m.prefecture_code) ?? '',
-    name: m.name,
-    rarity: m.rarity,
-    acquired: acquiredMap.has(m.id),
-    acquiredAt: acquiredMap.get(m.id)?.slice(0, 10),
-    kanji: (m.name ?? '·').slice(0, 1),
-  }));
-}
+// 御朱印は「訪問した都道府県」から導く（RPC my_visited_prefectures）。
+// マスタを引いていた fetchGoshuin は 0017 でテーブルごと廃止した。
 
 // ---------------------------------------------------------------- check-in search
 export interface PlaceHit {
@@ -211,12 +183,37 @@ export interface PlaceHit {
   lng?: number;
 }
 
-/** 検索バー用: tourism_area_master と municipalities_master を横断検索。都道府県では検索しない。 */
+const MUNI_COLS =
+  'municipality_code, municipality_en, municipality_ja, prefecture_en, prefecture_code, latitude, longitude';
+
+function toMuniHit(m: any): PlaceHit {
+  return {
+    key: `m:${m.municipality_code}`,
+    title: m.municipality_en || m.municipality_ja,
+    subtitle: m.prefecture_en ?? '',
+    municipalityCode: m.municipality_code,
+    prefectureCode: m.prefecture_code,
+    lat: m.latitude,
+    lng: m.longitude,
+  };
+}
+
+/**
+ * 検索バー用: tourism_area_master と municipalities_master を横断検索。
+ *
+ * 都道府県名でも引けるようにする。ただし**都道府県そのものは候補に出さない** ――
+ * 「東京都」に立ち寄ったという記録は粗すぎて地図にも御朱印にも使えないので、
+ * 都道府県名が入力されたときは、その中の市区町村を並べて選ばせる。
+ */
 export async function searchPlaces(q: string): Promise<PlaceHit[]> {
   const term = q.trim();
   if (!isSupabaseConfigured || term.length < 1) return [];
   const like = `%${term}%`;
-  const [{ data: areas }, { data: munis }] = await Promise.all([
+
+  // 「Tokyo」「東京」「東京都」のように都道府県を指していないか先に見る
+  const prefCode = prefectureCodeForQuery(term);
+
+  const [{ data: areas }, { data: munis }, inPref] = await Promise.all([
     supabase
       .from('tourism_area_master')
       .select('tourism_area_id, name_en, name_ja, municipality_en, municipality_code')
@@ -224,31 +221,39 @@ export async function searchPlaces(q: string): Promise<PlaceHit[]> {
       .limit(8),
     supabase
       .from('municipalities_master')
-      .select('municipality_code, municipality_en, municipality_ja, prefecture_en, prefecture_code, latitude, longitude')
+      .select(MUNI_COLS)
       .or(`municipality_en.ilike.${like},municipality_ja.ilike.${like}`)
       .limit(8),
+    prefCode
+      ? supabase
+          .from('municipalities_master')
+          .select(MUNI_COLS)
+          .eq('prefecture_code', prefCode)
+          .order('municipality_code', { ascending: true })
+          .limit(30)
+      : Promise.resolve({ data: [] as any[] }),
   ]);
 
   const hits: PlaceHit[] = [];
+  const seen = new Set<string>();
+  const push = (h: PlaceHit) => {
+    if (seen.has(h.key)) return;
+    seen.add(h.key);
+    hits.push(h);
+  };
+
   (areas ?? []).forEach((a: any) =>
-    hits.push({
+    push({
       key: `a:${a.tourism_area_id}`,
       title: a.name_en || a.name_ja,
       subtitle: a.municipality_en ?? '',
       municipalityCode: a.municipality_code,
     })
   );
-  (munis ?? []).forEach((m: any) =>
-    hits.push({
-      key: `m:${m.municipality_code}`,
-      title: m.municipality_en || m.municipality_ja,
-      subtitle: m.prefecture_en ?? '',
-      municipalityCode: m.municipality_code,
-      prefectureCode: m.prefecture_code,
-      lat: m.latitude,
-      lng: m.longitude,
-    })
-  );
+  (munis ?? []).forEach((m: any) => push(toMuniHit(m)));
+  // 都道府県名で引いたぶんは最後に。名前が直接当たったものを先に見せる
+  ((inPref as any).data ?? []).forEach((m: any) => push(toMuniHit(m)));
+
   return hits;
 }
 
@@ -1031,33 +1036,6 @@ export async function nearestMunicipality(lat: number, lng: number): Promise<Nea
     lng: Number(r.longitude),
     distanceKm: Number(r.distance_km),
   };
-}
-
-/**
- * 旅の題をAIにつけてもらう。
- *
- * Gemini の鍵はブラウザに置かない。Edge Function(trip-title)が中継し、
- * 鍵はプロジェクトのシークレットに置いてある。送るのは地名と日付だけで、
- * 写真そのものは渡さない。
- *
- * 鍵切れ・障害・未設定のときは null を返す。呼び出し側が地名から題を組む。
- */
-export async function suggestTripTitle(input: {
-  places: string[];
-  start?: string;
-  end?: string;
-  days?: number;
-  locale?: string;
-}): Promise<string | null> {
-  if (!isSupabaseConfigured) return null;
-  try {
-    const { data, error } = await supabase.functions.invoke('trip-title', { body: input });
-    if (error) return null;
-    const title = (data as any)?.title;
-    return typeof title === 'string' && title.trim() ? title.trim() : null;
-  } catch {
-    return null;
-  }
 }
 
 // ---------------------------------------------------------------- 製本の購入

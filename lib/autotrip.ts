@@ -5,18 +5,17 @@
  *   1. 各写真のEXIFから撮影日時と位置を読む（lib/exif）
  *   2. 時間と距離でまとまりに割る = 立ち寄り先
  *   3. まとまりの中心から市区町村を引く（RPC nearest_municipality）
- *   4. 地名と日付だけをAIへ渡して旅の題をもらう（写真は送らない）
+ *   4. 行った場所の名前から旅の題を組む
  *   5. 旅 → 立ち寄り先の順に作り、写真をぶら下げる
  *
  * 手入力の導線とデータの形は変えない。作られる旅は /trip で普通に編集できる。
- * 立ち寄り先の題は市区町村名のまま。AIが名づけるのは旅の題だけ。
+ * 立ち寄り先の題も旅の題も、実際に行った場所の名前から作る（AIは使わない）。
  */
 import { readPhotoMeta, type PhotoMeta } from './exif';
 import {
-  createTrip, createStep, nearestMunicipality, suggestTripTitle,
+  createTrip, createStep, nearestMunicipality,
   haversineKm, type NearestPlace,
 } from './api';
-import { getLocale } from './i18n';
 
 /** 同じ立ち寄り先とみなす距離。市区町村の広さに合わせた。 */
 const SAME_PLACE_KM = 12;
@@ -48,8 +47,6 @@ export interface AutoTripResult {
   photos: number;
   /** 位置が無くて置けなかった写真の数 */
   skipped: number;
-  /** AIが題をつけたか（false なら地名から組んだ） */
-  aiTitle: boolean;
 }
 
 interface Shot {
@@ -74,7 +71,7 @@ export async function createTripFromPhotos(
   files: Blob[],
   onProgress?: (p: AutoTripProgress) => void
 ): Promise<AutoTripResult> {
-  const empty: AutoTripResult = { tripId: null, failure: null, stops: 0, photos: 0, skipped: 0, aiTitle: false };
+  const empty: AutoTripResult = { tripId: null, failure: null, stops: 0, photos: 0, skipped: 0 };
   if (!files.length) return { ...empty, failure: 'no-photos' };
 
   // ---- 1. EXIF を読む -------------------------------------------------
@@ -155,16 +152,15 @@ export async function createTripFromPhotos(
 
   // ---- 4. 題をつける ---------------------------------------------------
   onProgress?.({ phase: 'naming', done: 0, total: 1 });
-  const places = stops.map((c) => placeLabel(c.place!));
-  const days = Math.max(1, Math.round((stops[stops.length - 1].to.getTime() - stops[0].from.getTime()) / 86_400_000) + 1);
-  const ai = await suggestTripTitle({ places, start: startDate, end: endDate, days, locale: getLocale() });
-  const title = ai || fallbackTitle(places, startDate);
+  const title = titleFromPlaces(stops.map((c) => placeLabel(c.place!)), startDate);
   onProgress?.({ phase: 'naming', done: 1, total: 1 });
 
   // ---- 5. 保存 ---------------------------------------------------------
   const tripId = await createTrip({
     title,
-    visibility: 'private',
+    // 写真から起こした旅は既定で公開にする（Exploreに並び、共有もそのままできる）。
+    // 見せたくない旅は /trip/[id]/edit で private に落とせる
+    visibility: 'public',
     startDate,
     endDate,
     status: 'completed', // 過去に撮った写真から起こすので、進行中にはしない
@@ -194,7 +190,7 @@ export async function createTripFromPhotos(
     onProgress?.({ phase: 'saving', done: i + 1, total: stops.length });
   }
 
-  return { tripId, failure: null, stops: stops.length, photos, skipped, aiTitle: !!ai };
+  return { tripId, failure: null, stops: stops.length, photos, skipped };
 }
 
 // ---------------------------------------------------------------- 小物
@@ -222,13 +218,22 @@ function guessTransport(km: number): string {
   return 'plane';
 }
 
-/** AIが使えないときの題。地名と季節から組む。 */
-function fallbackTitle(places: string[], startDate: string): string {
-  const heads = Array.from(new Set(places.map((p) => p.split(',')[0].trim()))).slice(0, 3);
+/**
+ * 旅の題。行った場所の名前をそのまま並べる。
+ *
+ * 手で作った旅と同じ調子にしたいので、余計な形容はつけない。
+ * 4か所以上あると題として長すぎるので、頭の3つと残りの数にまとめる。
+ * 気に入らなければ /trip/[id]/edit で書き換えられる。
+ */
+function titleFromPlaces(places: string[], startDate: string): string {
+  const heads = Array.from(new Set(places.map((p) => p.split(',')[0].trim()))).filter(Boolean);
   const month = Number(startDate.slice(5, 7));
   const season =
     month <= 2 || month === 12 ? 'Winter' : month <= 5 ? 'Spring' : month <= 8 ? 'Summer' : 'Autumn';
+
   if (!heads.length) return `${season} in Japan`;
-  if (heads.length === 1) return `${season} in ${heads[0]}`;
-  return `${heads.slice(0, -1).join(', ')} & ${heads[heads.length - 1]}`;
+  if (heads.length === 1) return heads[0];
+  if (heads.length === 2) return `${heads[0]} & ${heads[1]}`;
+  if (heads.length === 3) return `${heads[0]}, ${heads[1]} & ${heads[2]}`;
+  return `${heads.slice(0, 3).join(', ')} +${heads.length - 3}`;
 }

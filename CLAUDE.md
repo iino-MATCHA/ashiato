@@ -1,6 +1,8 @@
-# 足跡 (Ashiato) — 開発メモ
+# My Japan — 開発メモ
 
 日本を旅した記録を残し、都道府県ごとに御朱印を集め、旅をジャーナル(PDF)にするアプリ。
+表に出る名前は **My Japan**。リポジトリ名・DBのユーザー名(`ashiato_demo`)・
+Storageのパス・bundle id は `ashiato` のまま（変えると既存データと繋がらない）。
 運営は株式会社MATCHA。Expo(React Native) + expo-router + Supabase、Web(Vercel)が主戦場。
 
 - 本番: https://www.my-japan-matcha.com （apex は www へ転送。OGP・認証の戻り先はすべて www 側）
@@ -25,7 +27,8 @@
 - **配色**: 白ベース。ブランド色は MATCHA green `#69AF00`。**朱色 `#C4432B` は御朱印専用**
 - **箱で囲まない**。入力欄は下線。「スタイリッシュに」が一貫した要求
 - **バックグラウンドGPSは使わない**。チェックインは場所検索から手動
-- **都道府県を検索対象にしない**（チェックイン時）。市区町村か観光エリアを選ばせる
+- **都道府県そのものはチェックインの候補に出さない**。ただし検索語として
+  都道府県名を入れたときは、その中の市区町村を並べて選ばせる（searchPlaces）
 - 御朱印は **1都道府県に1つ、全47個**
 - サンプル旅(`ashiato_demo`所有)は閲覧・共有できるが編集不可。他人の旅は
   共有/設定ボタン自体を出さない
@@ -103,9 +106,10 @@ lib/photobook/     台割(plan) と 紙面描画(render.web)
 lib/ugc/           シェアカードの座標計算（緯度経度→日本地図SVG）
 components/map/    Mapbox（.web / .native で分割）
 lib/exif.ts        写真のEXIF（撮影日時・緯度経度）を自前で読む
+lib/shareImage.*   カード画像をSNSへ（web=Web Share API / native=共有シート）
+lib/cardShot.*     ネイティブでカードのビューを写し取って画像にする
 lib/autotrip.ts    写真 → 立ち寄り先 → 旅（写真から記録を起こす本体）
-supabase/functions/   Edge Function（trip-title = 旅の題をAIでつける中継）
-supabase/migrations/  0001〜0016。適用済み
+supabase/migrations/  0001〜0017。適用済み
 ```
 
 ---
@@ -129,29 +133,15 @@ supabase/migrations/  0001〜0016。適用済み
 - `nearest_municipality(lat,lng)` … 座標→市区町村。外部ジオコーダは使わず
   `municipalities_master`(1,741件)の代表点から引く。60km超は日本国外と扱う
 - **ピンは市区町村の代表点ではなく実際に撮った座標**（`logs.lat/lng`）
-- **AIが名づけるのは旅の題だけ**。立ち寄り先の題は市区町村名のまま
 
-### AIの題（Edge Function `trip-title`）
+### 旅の題
 
-**Geminiの鍵はクライアントに置かない。** Edge Function が中継し、鍵は
-プロジェクトのシークレット `GEMINI_API_KEY` に入っている。送るのは地名と
-日付だけで、写真そのものは渡さない。
+行った場所の名前をそのまま並べる（`titleFromPlaces`）。1か所なら地名、
+2〜3か所なら「A, B & C」、4か所以上は「A, B, C +2」。**AIは使わない。**
+Gemini を通していた Edge Function とシークレットは 0017 と一緒に廃止した。
 
-**Vercel には入れない。** Vercel が配るのは静的なJSだけで、`EXPO_PUBLIC_*` に
-置いた値はビルド成果物に焼き込まれて誰でも読める。鍵の置き場所は Supabase の
-シークレット1か所にする。
-
-鍵切れ・障害・未設定のときは `suggestTripTitle()` が null を返し、
-`fallbackTitle()` が地名と季節から題を組む（「Taitō, Hakone & Kyoto」）。
-**AIが落ちても機能は止まらない。**
-
-デプロイし直すとき:
-```
-curl -X POST -H "Authorization: Bearer $SUPABASE_PAT" \
-  -F 'metadata={"name":"trip-title","entrypoint_path":"source/index.ts","verify_jwt":true};type=application/json' \
-  -F "file=@supabase/functions/trip-title/index.ts;filename=source/index.ts;type=application/typescript" \
-  "https://api.supabase.com/v1/projects/tcyclvfinguwudztfgsb/functions/deploy?slug=trip-title"
-```
+作られる旅は **既定で public**（Exploreに並び、共有もそのままできる）。
+見せたくない旅は /trip/[id]/edit で private に落とす。
 
 ---
 
@@ -191,7 +181,10 @@ bind「かごに入れる」→ 全ページを焼いて Storage へ → cart_it
 
 - Stripe の接続（かご〜注文〜通知は動いている。カード決済だけ未接続）
 - 印刷所への入稿（`order_items.page_urls` を渡す先が未定）
-- 記事→アプリの導線（MATCHAの記事に「足跡に保存」を埋める）— 集客の本体
+- 記事→アプリの導線（MATCHAの記事に「My Japanに保存」を埋める）— 集客の本体
 - 「MATCHA 200」を制覇の軸にする案（47都道府県だと天井が低い）
-- 管理画面とプライバシーポリシーは英語のまま（意図的）
-- ネイティブビルドは未検証（Web運用が前提）
+- 管理画面は英語のまま（意図的）。プライバシーポリシーは正文が英語で、
+  表示言語への翻訳ボタンを持つ
+- ネイティブビルドは未検証（Web運用が前提）。
+  **SNS共有のネイティブ経路（expo-sharing + react-native-view-shot）は
+  実機で未確認。** Webは Web Share API で確認済み

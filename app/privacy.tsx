@@ -33,7 +33,7 @@ const POLICY: { title: string; paragraphs: string[] }[] = [
       '· To show your journeys on the map, keep your goshuin collection, and let friends see what you choose to share.',
       '· To notify you when someone comments on your stops or sends you a friend request.',
       '· To produce anonymised, aggregated statistics (for example, popular prefectures) that help us improve the service.',
-      '· To name a trip created from your photos, we send only the place names and dates to Google Gemini. Your photos are never sent.',
+      '· When you create a trip from your photos, everything happens on your device and our own servers. Nothing is sent to a third-party AI service.',
     ],
   },
   {
