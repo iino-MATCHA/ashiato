@@ -102,7 +102,51 @@ lib/api.ts         Supabaseアクセス層（ほぼ全てのクエリ）
 lib/photobook/     台割(plan) と 紙面描画(render.web)
 lib/ugc/           シェアカードの座標計算（緯度経度→日本地図SVG）
 components/map/    Mapbox（.web / .native で分割）
-supabase/migrations/  0001〜0014。適用済み
+lib/exif.ts        写真のEXIF（撮影日時・緯度経度）を自前で読む
+lib/autotrip.ts    写真 → 立ち寄り先 → 旅（写真から記録を起こす本体）
+supabase/functions/   Edge Function（trip-title = 旅の題をAIでつける中継）
+supabase/migrations/  0001〜0015。適用済み
+```
+
+---
+
+## 写真から旅を起こす（0015）
+
+写真を選ぶだけで旅の記録ができる。手入力の導線はそのまま残す ―― 入り口が
+増えただけで、できあがる旅の形は同じ（/trip で普通に編集できる）。
+
+```
+入口①  サインアップ → 日本地図の選択 → 「旅してますか？」（初回だけ）
+入口②  /map の「あなたの旅」一覧のいちばん上のカード（いつでも）
+  ↓
+写真選択 → 中央モーダルの中で読込 → 「旅を見ますか？」→ /trip
+```
+
+- `lib/exif.ts` … JPEGのAPP1を自前で読む（撮影日時 / 緯度 / 経度の3つだけ）。
+  ライブラリは足していない。リトル/ビッグ両方のバイトオーダーに対応
+- `lib/autotrip.ts` … 12km・8時間で立ち寄り先に割り、同じ市区町村が続いたら
+  1つにまとめる。位置の無い写真は時間が近い立ち寄り先へ寄せる
+- `nearest_municipality(lat,lng)` … 座標→市区町村。外部ジオコーダは使わず
+  `municipalities_master`(1,741件)の代表点から引く。60km超は日本国外と扱う
+- **ピンは市区町村の代表点ではなく実際に撮った座標**（`logs.lat/lng`）
+- **AIが名づけるのは旅の題だけ**。立ち寄り先の題は市区町村名のまま
+
+### AIの題（Edge Function `trip-title`）
+
+**Geminiの鍵はクライアントに置かない。** Edge Function が中継し、鍵は
+プロジェクトのシークレット `GEMINI_API_KEY` に入っている。送るのは地名と
+日付だけで、写真そのものは渡さない。
+
+鍵切れ・障害・未設定のときは `suggestTripTitle()` が null を返し、
+`fallbackTitle()` が地名と季節から題を組む（「Taitō, Hakone & Kyoto」）。
+**AIが落ちても機能は止まらない。**
+
+デプロイし直すとき:
+```
+curl -X POST -H "Authorization: Bearer $SUPABASE_PAT" \
+  -F 'metadata={"name":"trip-title","entrypoint_path":"source/index.ts","verify_jwt":true};type=application/json' \
+  -F "file=@supabase/functions/trip-title/index.ts;filename=source/index.ts;type=application/typescript" \
+  "https://api.supabase.com/v1/projects/tcyclvfinguwudztfgsb/functions/deploy?slug=trip-title"
 ```
 
 ---

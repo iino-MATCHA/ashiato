@@ -365,12 +365,12 @@ export async function uploadPhoto(uid: string, tripId: string, fileOrBlob: Blob,
   return path;
 }
 
-export async function createTrip(input: { title: string; visibility?: string; startDate?: string; endDate?: string }): Promise<string | null> {
+export async function createTrip(input: { title: string; visibility?: string; startDate?: string; endDate?: string; status?: string }): Promise<string | null> {
   const uid = await currentUserId();
   if (!uid) return null;
   const { data, error } = await supabase
     .from('trips')
-    .insert({ owner_id: uid, title: input.title, visibility: input.visibility ?? 'private', status: 'ongoing', start_date: input.startDate, end_date: input.endDate })
+    .insert({ owner_id: uid, title: input.title, visibility: input.visibility ?? 'private', status: input.status ?? 'ongoing', start_date: input.startDate, end_date: input.endDate })
     .select('id')
     .single();
   if (error || !data) return null;
@@ -426,6 +426,9 @@ export async function createStep(input: {
   loggedAt: string;
   transport: string;
   photoBlobs?: Blob[];
+  /** 実際の座標が分かっている場合（写真のEXIFなど）。無ければ市区町村の代表点を使う。 */
+  lat?: number;
+  lng?: number;
 }): Promise<{ id: string | null; photoFailed: number }> {
   const uid = await currentUserId();
   if (!uid) return { id: null, photoFailed: 0 };
@@ -438,6 +441,7 @@ export async function createStep(input: {
     .insert({
       trip_id: input.tripId, author_id: uid, title: input.title, note: input.note,
       municipality_code: input.municipalityCode, prefecture_code: input.prefectureCode,
+      lat: input.lat ?? null, lng: input.lng ?? null,
       logged_at: input.loggedAt, sort_order: sortOrder,
     })
     .select('id')
@@ -965,6 +969,65 @@ export async function updateStep(logId: string, input: { title?: string; note?: 
   }
   bump('trips');
   return true;
+}
+
+// ---------------------------------------------------------------- 写真から旅を起こす
+export interface NearestPlace {
+  municipalityCode: number;
+  prefectureCode: number;
+  municipalityEn: string;
+  prefectureEn: string;
+  lat: number;
+  lng: number;
+  distanceKm: number;
+}
+
+/**
+ * 座標から一番近い市区町村。日本国外の座標は null。
+ * 外部のジオコーダは使わず、手元の municipalities_master(1,741件) から引く。
+ */
+export async function nearestMunicipality(lat: number, lng: number): Promise<NearestPlace | null> {
+  const { data, error } = await supabase.rpc('nearest_municipality', { p_lat: lat, p_lng: lng });
+  if (error || !data || !data.length) return null;
+  const r = data[0];
+  // 日本の外の座標でも矩形にかすれば行が返る。遠すぎるものは「日本ではない」と扱う
+  if (Number(r.distance_km) > 60) return null;
+  return {
+    municipalityCode: Number(r.municipality_code),
+    prefectureCode: Number(r.prefecture_code),
+    municipalityEn: r.municipality_en ?? '',
+    prefectureEn: r.prefecture_en ?? '',
+    lat: Number(r.latitude),
+    lng: Number(r.longitude),
+    distanceKm: Number(r.distance_km),
+  };
+}
+
+/**
+ * 旅の題をAIにつけてもらう。
+ *
+ * Gemini の鍵はブラウザに置かない。Edge Function(trip-title)が中継し、
+ * 鍵はプロジェクトのシークレットに置いてある。送るのは地名と日付だけで、
+ * 写真そのものは渡さない。
+ *
+ * 鍵切れ・障害・未設定のときは null を返す。呼び出し側が地名から題を組む。
+ */
+export async function suggestTripTitle(input: {
+  places: string[];
+  start?: string;
+  end?: string;
+  days?: number;
+  locale?: string;
+}): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const { data, error } = await supabase.functions.invoke('trip-title', { body: input });
+    if (error) return null;
+    const title = (data as any)?.title;
+    return typeof title === 'string' && title.trim() ? title.trim() : null;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------- 製本の購入

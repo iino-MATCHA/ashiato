@@ -12,6 +12,7 @@ import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { saveVisitedPrefectures, fetchUserPrefectures } from '@/lib/api';
 import { PREFECTURE_EN_BY_ID } from '@/lib/prefectures';
+import { AutoTripModal } from '@/components/AutoTripModal';
 
 export default function PrefectureOnboarding() {
   const { palette } = useTheme();
@@ -22,6 +23,8 @@ export default function PrefectureOnboarding() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  // 都道府県を保存したあと、写真から旅を起こすかを聞く（初回のみ）
+  const [askAuto, setAskAuto] = useState(false);
   const baseW = Math.min(width - space.lg * 2, 420);
 
   // when re-editing, preload what's already saved
@@ -52,8 +55,10 @@ export default function PrefectureOnboarding() {
         return;
       }
     }
-    if (isEdit && router.canGoBack()) router.back();
-    else router.replace('/(tabs)/map');
+    if (isEdit && router.canGoBack()) return router.back();
+    // 初回だけ、地図の選択のあとに写真の話をする。
+    // ここで閉じる／断ると /map へ進む（AutoTripModal の onClose）
+    setAskAuto(true);
   };
 
   return (
@@ -103,6 +108,9 @@ export default function PrefectureOnboarding() {
           disabled={saving}
         />
       </View>
+
+      {/* 「旅してますか？」→ 写真選択 → 読込 → 「見ますか？」 */}
+      <AutoTripModal visible={askAuto} onClose={() => { setAskAuto(false); router.replace('/(tabs)/map'); }} />
     </SafeAreaView>
   );
 }

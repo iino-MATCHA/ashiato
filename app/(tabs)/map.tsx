@@ -13,6 +13,7 @@ import { useProfile } from '@/lib/useProfile';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { deleteTrip } from '@/lib/api';
 import { CountUp } from '@/components/CountUp';
+import { AutoTripModal } from '@/components/AutoTripModal';
 import { useRippleNav } from '@/lib/transition';
 
 import { useI18n, t } from '@/lib/i18n';
@@ -31,6 +32,7 @@ export default function Home() {
   const { codes: visited } = useVisitedPrefectures();
   const [menuTrip, setMenuTrip] = useState<Trip | null>(null);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const [autoOpen, setAutoOpen] = useState(false);
   const pct = Math.round((visited.length / PREFECTURE_TOTAL) * 100);
   let ordered = [...trips]
     .filter((t) => !deletedIds.has(t.id))
@@ -98,12 +100,38 @@ export default function Home() {
             <InlineStat value={trips.filter((tr) => !tr.sample).length} label={t('home.trips')} palette={palette} />
           </Row>
 
+          {/* 写真から旅を起こす入口。一覧の一番上に置いて、
+              「新規作成＝手で書く」しか無いように見えないようにする。
+              箱で囲わず、細い罫と面だけで区切る */}
+          <Gap h={space.lg} />
+          <Pressable
+            onPress={() => setAutoOpen(true)}
+            style={({ pressed }) => [styles.autoRow, { backgroundColor: palette.fill }, pressed && { opacity: 0.7 }]}
+          >
+            <View style={[styles.autoIcon, { backgroundColor: palette.matcha }]}>
+              <Ionicons name="images" size={19} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Row style={{ gap: 6, alignItems: 'center' }}>
+                <AppText variant="bodyStrong" tone="ink">{t('auto.cardTitle')}</AppText>
+                <View style={[styles.newTag, { backgroundColor: palette.matcha }]}>
+                  <AppText style={{ color: '#fff', fontSize: 9, letterSpacing: 1 }}>NEW</AppText>
+                </View>
+              </Row>
+              <AppText variant="small" tone="inkFaint" style={{ lineHeight: 18 }}>{t('auto.cardBody')}</AppText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={palette.inkFaint} />
+          </Pressable>
+
           <Gap h={space.lg} />
           {ordered.map((t) => (
             <TripCard key={t.id} trip={t} palette={palette} onEdit={() => setMenuTrip(t)} />
           ))}
         </View>
       </ScrollView>
+
+      {/* 写真から旅を起こす（一覧の先頭のカードから） */}
+      <AutoTripModal visible={autoOpen} onClose={() => setAutoOpen(false)} />
 
       {/* Trip actions (own, non-sample trips) */}
       <Modal visible={!!menuTrip} transparent animationType="fade" onRequestClose={() => setMenuTrip(null)}>
@@ -210,4 +238,7 @@ const styles = StyleSheet.create({
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: space.lg },
   sheet: { width: '100%', maxWidth: 360, padding: space.lg, borderRadius: 16 },
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
+  autoRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: 12 },
+  autoIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  newTag: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
 });
