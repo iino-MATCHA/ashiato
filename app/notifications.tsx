@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
-import { View, Image, Pressable, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Easing, View, Image, Pressable, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,10 +28,10 @@ export default function Notifications() {
   }, []);
   useFocusEffect(useCallback(() => { alive.current = true; load(); return () => { alive.current = false; }; }, [load]));
 
-  const dismiss = async (id: string) => {
-    setItems((cur) => cur.filter((i) => i.commentId !== id)); // optimistic
-    await markNotificationRead(id);
-  };
+  /** 既読にする。カードが倒れ切るのを待たない（動きが止まっても用件は片付く）。 */
+  const markRead = (id: string) => { markNotificationRead(id).catch(() => {}); };
+  /** 倒れ切ったカードを一覧から外す。 */
+  const remove = (id: string) => setItems((cur) => cur.filter((i) => i.commentId !== id));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
@@ -56,7 +56,13 @@ export default function Notifications() {
             </Row>
             <Gap h={space.md} />
             {items.map((n) => (
-              <NotificationCard key={n.commentId} n={n} palette={palette} onRead={() => dismiss(n.commentId)} onReplied={load} />
+              <NotificationCard
+                key={n.commentId}
+                n={n}
+                palette={palette}
+                onRead={() => markRead(n.commentId)}
+                onGone={() => remove(n.commentId)}
+              />
             ))}
           </>
         )}
@@ -65,20 +71,76 @@ export default function Notifications() {
   );
 }
 
-function NotificationCard({ n, palette, onRead, onReplied }: { n: CommentNotification; palette: any; onRead: () => void; onReplied: () => void }) {
+function NotificationCard({
+  n, palette, onRead, onGone,
+}: {
+  n: CommentNotification;
+  palette: any;
+  /** 既読としてDBに記録する */
+  onRead: () => void;
+  /** 倒れ切ったので一覧から外していい */
+  onGone: () => void;
+}) {
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  // 0 = そのまま / 1 = 倒れ切った
+  const fall = useRef(new Animated.Value(0)).current;
+  const alive = useRef(true);
+  const going = useRef(false);
+  useEffect(() => () => { alive.current = false; }, []);
 
+  /**
+   * カードを倒して片付ける。
+   * 傾きながら滑り落ちて薄くなる ―― 机の上の紙を払うような動き。
+   *
+   * 既読は動きを待たずに先に記録する。タブが裏に回るなどして
+   * アニメーションが進まなくても、用件だけは必ず片付くようにする
+   * （実際、描画が止まっている環境では完了コールバックが来ない）。
+   * 保険として、動き終わらなくても一定時間後に一覧から外す。
+   */
+  const fallAway = () => {
+    if (going.current) return;
+    going.current = true;
+    onRead();
+    const gone = () => { if (alive.current) onGone(); };
+    const guard = setTimeout(gone, 900);
+    Animated.timing(fall, {
+      toValue: 1,
+      duration: 460,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => { clearTimeout(guard); gone(); });
+  };
+
+  /**
+   * 返信したら、その用件は済んでいる。
+   * 「返信しました」を一拍だけ見せてから、同じ動きで片付ける。
+   */
   const send = async () => {
-    if (!reply.trim()) return;
+    if (!reply.trim() || sending) return;
     setSending(true);
-    const ok = await addComment(n.logId, n.tripId, reply);
+    const created = await addComment(n.logId, n.tripId, reply);
+    if (!alive.current) return;
     setSending(false);
-    if (ok) { setReply(''); setSent(true); onReplied(); }
+    if (!created) return;
+    setReply('');
+    setSent(true);
+    setTimeout(() => { if (alive.current) fallAway(); }, 900);
+  };
+
+  const anim = {
+    opacity: fall.interpolate({ inputRange: [0, 0.55, 1], outputRange: [1, 0.85, 0] }),
+    transform: [
+      { translateY: fall.interpolate({ inputRange: [0, 1], outputRange: [0, 120] }) },
+      { translateX: fall.interpolate({ inputRange: [0, 1], outputRange: [0, 34] }) },
+      { rotate: fall.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '11deg'] }) },
+      { scale: fall.interpolate({ inputRange: [0, 1], outputRange: [1, 0.92] }) },
+    ],
   };
 
   return (
+    <Animated.View style={[{ width: '100%', maxWidth: 380, alignSelf: 'center' }, anim]}>
     <Swipeable
       renderLeftActions={() => (
         <View style={styles.readAction}>
@@ -87,7 +149,7 @@ function NotificationCard({ n, palette, onRead, onReplied }: { n: CommentNotific
         </View>
       )}
       leftThreshold={70}
-      onSwipeableOpen={(direction) => { if (direction === 'left') onRead(); }}
+      onSwipeableOpen={(direction) => { if (direction === 'left') fallAway(); }}
     >
       <View style={[styles.card, { backgroundColor: palette.paper, borderColor: palette.rule }]}>
         {/* the stop this comment belongs to (no map, just the card) */}
@@ -137,6 +199,7 @@ function NotificationCard({ n, palette, onRead, onReplied }: { n: CommentNotific
         )}
       </View>
     </Swipeable>
+    </Animated.View>
   );
 }
 

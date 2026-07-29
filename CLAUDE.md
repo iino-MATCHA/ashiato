@@ -105,7 +105,7 @@ components/map/    Mapbox（.web / .native で分割）
 lib/exif.ts        写真のEXIF（撮影日時・緯度経度）を自前で読む
 lib/autotrip.ts    写真 → 立ち寄り先 → 旅（写真から記録を起こす本体）
 supabase/functions/   Edge Function（trip-title = 旅の題をAIでつける中継）
-supabase/migrations/  0001〜0015。適用済み
+supabase/migrations/  0001〜0016。適用済み
 ```
 
 ---
@@ -137,6 +137,10 @@ supabase/migrations/  0001〜0015。適用済み
 プロジェクトのシークレット `GEMINI_API_KEY` に入っている。送るのは地名と
 日付だけで、写真そのものは渡さない。
 
+**Vercel には入れない。** Vercel が配るのは静的なJSだけで、`EXPO_PUBLIC_*` に
+置いた値はビルド成果物に焼き込まれて誰でも読める。鍵の置き場所は Supabase の
+シークレット1か所にする。
+
 鍵切れ・障害・未設定のときは `suggestTripTitle()` が null を返し、
 `fallbackTitle()` が地名と季節から題を組む（「Taitō, Hakone & Kyoto」）。
 **AIが落ちても機能は止まらない。**
@@ -158,7 +162,7 @@ bind「かごに入れる」→ 全ページを焼いて Storage へ → cart_it
   ↓
 /cart          削除だけできる。冊数は増やせない
   ↓
-/checkout      配送先を選ぶと送料が即確定（shipping_fee_for と同じ規則）
+/checkout      お届けエリアを選ぶと送料が即確定
   ↓ checkout_cart()   かご→orders + order_items + books(status='ordered')、かごは空に
                       この時点で admin_notifications に order_placed を1件
   ↓ mark_order_paid() ここを通ったときだけ paid。order_paid を1件（二度目は無視）
@@ -168,6 +172,15 @@ bind「かごに入れる」→ 全ページを焼いて Storage へ → cart_it
 - **かごに入れた時点で全ページを画像として保存する**。旅をあとから編集しても
   届く本は変わらない。印刷所に渡すのは `order_items.page_urls`
 - 金額はクライアントから受け取らない。`checkout_cart()` がDBの単価から組み直す
+- **送料はお届けエリア別の一律料金**（0016）。冊数にも小計にもよらない。
+  日本は east-asia に含む。金額の正は `shipping_fee_for(region)`
+
+  | region | | ¥ |
+  |---|---|---|
+  | `east-asia` | 日本・韓国・台湾・香港・中国 | 1,000 |
+  | `southeast-asia` | タイ・ベトナム・シンガポールなど | 1,300 |
+  | `west` | ヨーロッパ・北米・オセアニア | 2,200 |
+  | `other` | 南米・中東・アフリカなど | 2,500 |
 - Stripe は未接続。`EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` が入るまで注文は
   `pending` のまま止まり、決済画面にその旨を出す（黙って成功にしない）。
   鍵を入れたら `app/checkout.tsx` の `if (STRIPE_KEY)` の場所に決済を挟む

@@ -82,10 +82,10 @@ export default function OrderDone() {
 
                 <Gap h={space.md} />
                 <Row style={{ justifyContent: 'space-between' }}>
-                  <AppText variant="small" tone="inkSoft">{t('checkout.shipping')}</AppText>
-                  <AppText variant="small" tone={order.shippingFee === 0 ? 'matcha' : 'ink'}>
-                    {order.shippingFee === 0 ? t('checkout.free') : yen(order.shippingFee)}
+                  <AppText variant="small" tone="inkSoft">
+                    {t('checkout.shipping')} · {t(`checkout.region.${order.region}`)}
                   </AppText>
+                  <AppText variant="small" tone="ink">{yen(order.shippingFee)}</AppText>
                 </Row>
                 <Gap h={space.sm} />
                 <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>

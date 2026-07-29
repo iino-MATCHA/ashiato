@@ -7,10 +7,10 @@
  * 手入力の導線には触らない ―― これは入り口が増えただけで、できる記録は同じ。
  */
 import { useRef, useState } from 'react';
-import { View, Modal, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Image, Modal, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AppText, Row, Gap, Button, Rule } from '@/components/ui';
+import { AppText, Row, Gap, Button } from '@/components/ui';
 import { PhotoPicker } from '@/components/PhotoPicker';
 import { space, fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
@@ -68,6 +68,10 @@ export function AutoTripModal({
 
           {phase === 'ask' && (
             <>
+              {/* 机に投げ出した3枚の写真。言葉より先に、何を渡せばいいのかを見せる */}
+              <PhotoStack palette={palette} />
+
+              <Gap h={space.lg} />
               <Row style={{ gap: 8, alignItems: 'center' }}>
                 <Ionicons name="images-outline" size={17} color={palette.matcha} />
                 <AppText variant="eyebrow" tone="matcha">{t('auto.eyebrow')}</AppText>
@@ -76,16 +80,6 @@ export function AutoTripModal({
               <AppText style={[styles.title, { color: palette.ink }]}>{t('auto.askTitle')}</AppText>
               <Gap h={space.md} />
               <AppText variant="small" tone="inkSoft" style={{ lineHeight: 22 }}>{t('auto.askBody')}</AppText>
-
-              <Gap h={space.lg} />
-              <Rule />
-              <Gap h={space.md} />
-              {[t('auto.point1'), t('auto.point2'), t('auto.point3')].map((p) => (
-                <Row key={p} style={{ gap: 8, alignItems: 'flex-start', marginBottom: 7 }}>
-                  <Ionicons name="checkmark" size={14} color={palette.matcha} style={{ marginTop: 3 }} />
-                  <AppText variant="small" tone="inkSoft" style={{ flex: 1, lineHeight: 19 }}>{p}</AppText>
-                </Row>
-              ))}
 
               <Gap h={space.lg} />
               {/* 実物の <input type=file> を敷いているので、Pressable では包まない */}
@@ -187,6 +181,46 @@ export function AutoTripModal({
   );
 }
 
+/**
+ * 重なり合った3枚の写真。
+ * 白フチをつけて少しずつ傾け、机に置いた紙焼きのように見せる。
+ * 中の1枚だけを正面に立て、両脇を後ろへ倒す。
+ */
+function PhotoStack({ palette }: { palette: any }) {
+  const shots = [STACK[0], STACK[1], STACK[2]];
+  return (
+    <View style={styles.stack}>
+      {shots.map((s, i) => {
+        const angle = [-9, 0, 8][i];
+        const shift = [-72, 0, 72][i];
+        const drop = [10, 0, 14][i];
+        return (
+          <View
+            key={s.src}
+            style={[
+              styles.print,
+              {
+                backgroundColor: palette.paper,
+                transform: [{ translateX: shift }, { translateY: drop }, { rotate: `${angle}deg` }],
+                zIndex: i === 1 ? 3 : 1,
+              },
+            ]}
+          >
+            <Image source={{ uri: s.src }} style={styles.printImg} resizeMode="cover" />
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+/** LPと同じ写真を使う（別の絵を持ち込まない）。 */
+const STACK = [
+  { src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Shirakawa-go_%282017-07-22%29.jpg/960px-Shirakawa-go_%282017-07-22%29.jpg' },
+  { src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Fushimiinari-taisha%2C_gehaiden-1.jpg/960px-Fushimiinari-taisha%2C_gehaiden-1.jpg' },
+  { src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Kabira-Bay-Kabira-park-2019.jpg/960px-Kabira-Bay-Kabira-park-2019.jpg' },
+];
+
 /** 4つの工程を通しで1本のゲージに見せる。工程ごとに巻き戻ると進んでいないように見える。 */
 function barWidth(p: AutoTripProgress): number {
   const weights: Record<AutoTripProgress['phase'], [number, number]> = {
@@ -207,4 +241,11 @@ const styles = StyleSheet.create({
   pickWrap: { borderRadius: 10 },
   pick: { height: 50, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   bar: { alignSelf: 'stretch', height: 4, borderRadius: 999, overflow: 'hidden' },
+  stack: { height: 168, alignItems: 'center', justifyContent: 'center' },
+  print: {
+    position: 'absolute', width: 132, height: 132, padding: 6, borderRadius: 3,
+    shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  printImg: { width: '100%', height: '100%', borderRadius: 1 },
 });

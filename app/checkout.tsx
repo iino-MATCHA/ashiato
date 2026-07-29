@@ -20,7 +20,10 @@ import { space, fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useCart } from '@/lib/useData';
 import { useI18n } from '@/lib/i18n';
-import { checkoutCart, markOrderPaid, shippingFeeFor, type ShippingInput } from '@/lib/api';
+import {
+  checkoutCart, markOrderPaid, shippingFeeFor, SHIPPING_REGIONS,
+  type ShippingInput, type ShippingRegion,
+} from '@/lib/api';
 import { yen } from '@/lib/money';
 
 /** Stripe の公開鍵。入っていなければカード決済の画面へは進めない。 */
@@ -65,7 +68,7 @@ export default function Checkout() {
   const { t } = useI18n();
   const { items, loading } = useCart();
 
-  const [country, setCountry] = useState<'jp' | 'overseas'>('jp');
+  const [region, setRegion] = useState<ShippingRegion>('east-asia');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [postalCode, setPostal] = useState('');
@@ -76,7 +79,7 @@ export default function Checkout() {
   const [error, setError] = useState<string | null>(null);
 
   const subtotal = useMemo(() => items.reduce((s, i) => s + i.unitPrice, 0), [items]);
-  const shipping = shippingFeeFor(country, subtotal);
+  const shipping = shippingFeeFor(region);
   const total = subtotal + shipping;
 
   const ready = !!email.trim() && !!name.trim() && !!address1.trim() && items.length > 0;
@@ -86,7 +89,7 @@ export default function Checkout() {
     setBusy(true);
     setError(null);
     try {
-      const input: ShippingInput = { email, name, country, postalCode, address1, address2, phone };
+      const input: ShippingInput = { email, name, region, postalCode, address1, address2, phone };
       const orderId = await checkoutCart(input);
       if (!orderId) throw new Error('no order');
 
@@ -146,38 +149,51 @@ export default function Checkout() {
         <AppText variant="h3" tone="ink">{t('checkout.shipTo')}</AppText>
 
         <Gap h={space.md} />
-        <AppText variant="small" tone="inkSoft">{t('checkout.destination')}</AppText>
+        <AppText variant="small" tone="inkSoft">{t('checkout.region')}</AppText>
         <Gap h={space.sm} />
-        <Row style={{ gap: space.sm }}>
-          {([['jp', t('checkout.jp')], ['overseas', t('checkout.overseas')]] as const).map(([k, label]) => {
-            const on = country === k;
-            return (
-              <Pressable
-                key={k}
-                onPress={() => setCountry(k as 'jp' | 'overseas')}
-                style={[
-                  styles.segment,
-                  { borderColor: on ? palette.matcha : palette.ruleStrong },
-                  on && { backgroundColor: palette.matcha },
-                ]}
-              >
-                <AppText variant="small" style={{ color: on ? '#fff' : palette.inkSoft }}>{label}</AppText>
-              </Pressable>
-            );
-          })}
-        </Row>
+        {/* 送料はここで決まる。金額を各行に出して、選ぶ前から分かるようにする */}
+        {SHIPPING_REGIONS.map((k) => {
+          const on = region === k;
+          return (
+            <Pressable
+              key={k}
+              onPress={() => setRegion(k)}
+              style={[styles.regionRow, { borderColor: on ? palette.matcha : palette.rule }, on && { backgroundColor: palette.fill }]}
+            >
+              <Ionicons
+                name={on ? 'radio-button-on' : 'radio-button-off'}
+                size={18}
+                color={on ? palette.matcha : palette.ruleStrong}
+              />
+              <View style={{ flex: 1 }}>
+                <AppText variant="small" tone="ink">{t(`checkout.region.${k}`)}</AppText>
+                <AppText variant="small" tone="inkFaint" style={{ fontSize: 11, lineHeight: 16 }}>
+                  {t(`checkout.hint.${k}`)}
+                </AppText>
+              </View>
+              <AppText variant="small" tone={on ? 'matcha' : 'inkFaint'}>{yen(shippingFeeFor(k))}</AppText>
+            </Pressable>
+          );
+        })}
+        <Gap h={space.sm} />
+        <AppText variant="small" tone="inkFaint" style={{ fontSize: 11 }}>{t('checkout.flatRate')}</AppText>
 
         <Field palette={palette} label={t('checkout.name')} value={name} onChangeText={setName} placeholder="Taro Yamada" />
-        <Field palette={palette} label={t('checkout.postal')} value={postalCode} onChangeText={setPostal} placeholder={country === 'jp' ? '150-0001' : 'ZIP / Postcode'} />
-        <Field palette={palette} label={t('checkout.address1')} value={address1} onChangeText={setAddress1} placeholder={country === 'jp' ? '東京都渋谷区…' : 'Street, city, country'} />
+        <Field palette={palette} label={t('checkout.postal')} value={postalCode} onChangeText={setPostal} placeholder={region === 'east-asia' ? '150-0001' : 'ZIP / Postcode'} />
+        <Field palette={palette} label={t('checkout.address1')} value={address1} onChangeText={setAddress1} placeholder={region === 'east-asia' ? '東京都渋谷区…' : 'Street, city, country'} />
         <Field palette={palette} label={t('checkout.address2')} value={address2} onChangeText={setAddress2} placeholder="" optional />
         <Field palette={palette} label={t('checkout.phone')} value={phone} onChangeText={setPhone} placeholder="" keyboardType="phone-pad" optional />
 
-        <Gap h={space.md} />
-        <Row style={{ gap: 6, alignItems: 'flex-start' }}>
-          <AppText variant="small" tone="inkFaint">※</AppText>
-          <AppText variant="small" tone="inkFaint" style={{ flex: 1, lineHeight: 19 }}>{t('checkout.hotelNote')}</AppText>
-        </Row>
+        {/* ホテル宛ての案内は日本に届ける人にだけ要る */}
+        {region === 'east-asia' && (
+          <>
+            <Gap h={space.md} />
+            <Row style={{ gap: 6, alignItems: 'flex-start' }}>
+              <AppText variant="small" tone="inkFaint">※</AppText>
+              <AppText variant="small" tone="inkFaint" style={{ flex: 1, lineHeight: 19 }}>{t('checkout.hotelNote')}</AppText>
+            </Row>
+          </>
+        )}
 
         {/* --- ご注文内容 --- */}
         <Gap h={space.xl} />
@@ -206,17 +222,11 @@ export default function Checkout() {
         </Row>
         <Gap h={space.sm} />
         <Row style={{ justifyContent: 'space-between' }}>
-          <AppText variant="small" tone="inkSoft">{t('checkout.shipping')}</AppText>
-          <AppText variant="small" tone={shipping === 0 ? 'matcha' : 'ink'}>
-            {shipping === 0 ? t('checkout.free') : yen(shipping)}
+          <AppText variant="small" tone="inkSoft">
+            {t('checkout.shipping')} · {t(`checkout.region.${region}`)}
           </AppText>
+          <AppText variant="small" tone="ink">{yen(shipping)}</AppText>
         </Row>
-        {country === 'jp' && shipping > 0 && (
-          <>
-            <Gap h={4} />
-            <AppText variant="small" tone="inkFaint" style={{ fontSize: 11 }}>{t('checkout.freeOver')}</AppText>
-          </>
-        )}
         <Gap h={space.md} />
         <Rule strong />
         <Gap h={space.md} />
@@ -254,5 +264,9 @@ export default function Checkout() {
 const styles = StyleSheet.create({
   // 箱で囲わず下線だけ
   input: { fontFamily: fonts.minchoMedium, fontSize: 17, paddingVertical: space.sm },
-  segment: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 999, borderWidth: hairline * 2 },
+  regionRow: {
+    flexDirection: 'row', alignItems: 'center', gap: space.md,
+    paddingVertical: 10, paddingHorizontal: space.md, marginBottom: 6,
+    borderRadius: 10, borderWidth: hairline * 2,
+  },
 });

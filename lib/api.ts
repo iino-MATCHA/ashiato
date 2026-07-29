@@ -1042,11 +1042,24 @@ export type BookPlanKey = 'premium' | 'regular';
 
 export const PLAN_PRICE: Record<BookPlanKey, number> = { premium: 8500, regular: 3900 };
 
-/** 送料。サーバ側の shipping_fee_for() と同じ決め方（表示用の写し）。 */
-export const FREE_SHIPPING_OVER = 12000;
-export function shippingFeeFor(country: 'jp' | 'overseas', subtotal: number): number {
-  if (country !== 'jp') return 3500;
-  return subtotal >= FREE_SHIPPING_OVER ? 0 : 800;
+/**
+ * お届けエリア。送料は距離ではなくエリアで決まる。
+ * 日本は東アジアに含む。金額の正はサーバ側 shipping_fee_for()。
+ */
+export type ShippingRegion = 'east-asia' | 'southeast-asia' | 'west' | 'other';
+
+export const SHIPPING_REGIONS: ShippingRegion[] = ['east-asia', 'southeast-asia', 'west', 'other'];
+
+const SHIPPING_FEE: Record<ShippingRegion, number> = {
+  'east-asia': 1000,
+  'southeast-asia': 1300,
+  west: 2200,
+  other: 2500,
+};
+
+/** 冊数にも小計にもよらない一律料金（表示用の写し）。 */
+export function shippingFeeFor(region: ShippingRegion): number {
+  return SHIPPING_FEE[region] ?? SHIPPING_FEE.other;
 }
 
 export interface CartItem {
@@ -1162,7 +1175,7 @@ export async function removeCartItem(id: string): Promise<boolean> {
 export interface ShippingInput {
   email: string;
   name: string;
-  country: 'jp' | 'overseas';
+  region: ShippingRegion;
   postalCode: string;
   address1: string;
   address2?: string;
@@ -1174,7 +1187,7 @@ export async function checkoutCart(input: ShippingInput): Promise<string | null>
   const { data, error } = await supabase.rpc('checkout_cart', {
     p_email: input.email.trim(),
     p_name: input.name.trim(),
-    p_country: input.country,
+    p_region: input.region,
     p_address: {
       postal_code: input.postalCode.trim(),
       address1: input.address1.trim(),
@@ -1213,7 +1226,7 @@ export interface OrderRow {
   amount: number;
   subtotal: number;
   shippingFee: number;
-  country: string;
+  region: ShippingRegion;
   createdAt: string;
   paidAt: string | null;
   items: OrderItemRow[];
@@ -1229,7 +1242,7 @@ export async function fetchMyOrders(): Promise<OrderRow[]> {
     amount: o.amount_jpy ?? 0,
     subtotal: o.subtotal_jpy ?? 0,
     shippingFee: o.shipping_fee_jpy ?? 0,
-    country: o.country ?? 'jp',
+    region: (o.shipping_region ?? 'other') as ShippingRegion,
     createdAt: o.created_at,
     paidAt: o.paid_at ?? null,
     items: (o.items ?? []).map((i: any) => ({

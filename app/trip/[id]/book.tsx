@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Image, Pressable, ScrollView, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Eyebrow, Button } from '@/components/ui';
@@ -170,15 +170,21 @@ export default function TripBook() {
           </AppText>
         </Row>
 
-        {/* 印刷版への布石。PDF自体には入れない（綺麗なまま共有された方が宣伝になる） */}
+        {/* 印刷版への導線。PDF自体には入れない（綺麗なまま共有された方が宣伝になる） */}
         <Gap h={space.lg} />
-        <Row style={[styles.printTeaser, { borderColor: palette.rule, backgroundColor: palette.paper }]}>
-          <Ionicons name="book-outline" size={20} color={palette.inkSoft} />
-          <View style={{ flex: 1 }}>
-            <AppText variant="bodyStrong" tone="ink">{t('book.printTitle')}</AppText>
-            <AppText variant="small" tone="inkFaint">{t('book.printBody')}</AppText>
-          </View>
-        </Row>
+        <Pressable
+          onPress={() => router.push(`/trip/${id}/bind`)}
+          style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+        >
+          <Row style={[styles.printTeaser, { borderColor: palette.matcha, backgroundColor: palette.paper }]}>
+            <Ionicons name="book-outline" size={20} color={palette.matcha} />
+            <View style={{ flex: 1 }}>
+              <AppText variant="bodyStrong" tone="ink">{t('book.printTitle')}</AppText>
+              <AppText variant="small" tone="inkFaint">{t('book.printBody')}</AppText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={palette.matcha} />
+          </Row>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
