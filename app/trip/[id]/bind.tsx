@@ -6,10 +6,10 @@
  * までを作り、需要（メールアドレスと配送先）だけ集める。
  * 既存のジャーナルPDF（/trip/[id]/book）は残し、一番下から見本として辿れる。
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View, Image, Pressable, ScrollView, StyleSheet, Modal, TextInput,
-  useWindowDimensions, type NativeSyntheticEvent, type NativeScrollEvent,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -23,6 +23,7 @@ import { useTrip } from '@/lib/useData';
 import { useI18n } from '@/lib/i18n';
 import { planBook } from '@/lib/photobook/plan';
 import { renderPage, PAGE_SIZE } from '@/lib/photobook/render';
+import { BookPreview } from '@/components/BookPreview';
 
 export default function TripBind() {
   const { palette } = useTheme();
@@ -31,43 +32,29 @@ export default function TripBind() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { trip } = useTrip(id);
 
-  const [spread, setSpread] = useState(0);
   const [chosen, setChosen] = useState<'premium' | 'regular' | null>(null);
   const [email, setEmail] = useState('');
   const [country, setCountry] = useState<'jp' | 'overseas'>('jp');
   const [sent, setSent] = useState(false);
   const scrollRef = useRef<ScrollView | null>(null);
 
-  // プレビューは実際のPDFのページをそのまま使う（見本と本番で見え方を変えない）
+  // プレビューは実際のPDFのページをそのまま使う（見本と本番で見え方を変えない）。
+  // 最初に全ページを描くと重いので、BookPreview から求められた分だけ描く。
   const book = useMemo(() => (trip ? planBook(trip) : null), [trip]);
-  const [pages, setPages] = useState<(string | null)[]>([]);
-  useEffect(() => {
-    if (!book) return;
-    let alive = true;
-    (async () => {
-      const out: (string | null)[] = [];
-      for (let i = 0; i < Math.min(book.pages.length, 8); i++) {
-        const url = await renderPage(book, i);
-        if (!alive) return;
-        out.push(url);
-        setPages([...out]);
-      }
-    })();
-    return () => { alive = false; };
-  }, [book]);
+  const cache = useRef(new Map<number, string | null>());
+  const getPage = useCallback(
+    async (i: number) => {
+      if (!book) return null;
+      const hit = cache.current.get(i);
+      if (hit !== undefined) return hit;
+      const url = await renderPage(book, i);
+      cache.current.set(i, url);
+      return url;
+    },
+    [book]
+  );
 
-  const pageW = Math.min(width - space.lg * 2, 460);
-  const spreadH = (pageW / 2) * (PAGE_SIZE.height / PAGE_SIZE.width);
-
-  // 2ページずつを1つの見開きにする
-  const spreads: (string | null)[][] = [];
-  for (let i = 0; i < pages.length; i += 2) spreads.push([pages[i], pages[i + 1] ?? null]);
-  if (!spreads.length) spreads.push([null, null]);
-
-  const onSpreadScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const i = Math.round(e.nativeEvent.contentOffset.x / pageW);
-    if (i !== spread) setSpread(Math.max(0, Math.min(spreads.length - 1, i)));
-  };
+  const bookW = Math.min(width - space.lg * 2, 460);
 
   if (!trip || !book) {
     return (
@@ -98,46 +85,15 @@ export default function TripBind() {
           <Gap h={space.md} />
         </View>
 
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={onSpreadScroll}
-          scrollEventThrottle={16}
-          snapToInterval={pageW}
-          decelerationRate="fast"
-          contentContainerStyle={{ paddingHorizontal: (width - pageW) / 2 }}
-        >
-          {spreads.map((pair, i) => (
-            <View key={i} style={{ width: pageW }}>
-              <View style={[styles.spread, { height: spreadH, borderColor: palette.ruleStrong }]}>
-                {pair.map((src, j) => (
-                  <View key={j} style={styles.leaf}>
-                    {src ? (
-                      <Image source={{ uri: src }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
-                    ) : (
-                      <View style={[StyleSheet.absoluteFill, { backgroundColor: palette.fill }]} />
-                    )}
-                    {j === 0 && <View style={styles.gutter} />}
-                  </View>
-                ))}
-              </View>
-            </View>
-          ))}
-        </ScrollView>
+        <View style={{ alignItems: 'center' }}>
+          <BookPreview
+            total={book.pages.length}
+            getPage={getPage}
+            width={bookW}
+            ratio={PAGE_SIZE.height / PAGE_SIZE.width}
+          />
+        </View>
 
-        <Gap h={space.sm} />
-        <Row style={{ justifyContent: 'center', gap: 6 }}>
-          {spreads.map((_, i) => (
-            <View
-              key={i}
-              style={{
-                width: i === spread ? 16 : 6, height: 6, borderRadius: 3,
-                backgroundColor: i === spread ? palette.matcha : palette.rule,
-              }}
-            />
-          ))}
-        </Row>
         <Gap h={space.xs} />
         <AppText variant="small" tone="inkFaint" center style={{ fontSize: 11 }}>
           {t('bind.previewHint')}
@@ -318,18 +274,7 @@ function PlanCard({ tier, name, price, badges, features, accent, palette, t, onP
 }
 
 const styles = StyleSheet.create({
-  spread: {
-    flexDirection: 'row', borderRadius: 8, overflow: 'hidden',
-    borderWidth: hairline, backgroundColor: '#FBF8F0',
-    shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6,
-  },
-  leaf: { flex: 1, overflow: 'hidden' },
   // 谷折りの陰
-  gutter: { width: 10, backgroundColor: 'rgba(120,110,95,0.16)' },
-  leafCap: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 8, backgroundColor: 'rgba(0,0,0,0.42)' },
-  leafCapText: { fontFamily: fonts.gothicMedium, fontSize: 10, color: '#fff' },
-  blankLeaf: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  blankHint: { position: 'absolute', right: 10, bottom: 8 },
   about: { borderWidth: hairline, borderRadius: 14, overflow: 'hidden' },
   plan: { borderWidth: hairline * 2, borderRadius: 16, overflow: 'hidden' },
   planEdge: { height: 4, width: '100%' },

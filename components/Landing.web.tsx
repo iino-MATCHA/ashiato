@@ -6,13 +6,14 @@
  * 無限マーキー、Ken Burns）がCSSの方が圧倒的に軽く滑らかなため。
  * 言語はブラウザ設定から自動判定するので、切替UIは置かない。
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { router } from 'expo-router';
 import { LP_PHOTOS } from '@/lib/lpPhotos';
 import { TripMap } from '@/components/map/TripMap';
 import { LP_DEMO_STEPS, LP_DEMO_TRIP } from '@/lib/lpDemo';
 import { planBook } from '@/lib/photobook/plan';
-import { renderPage } from '@/lib/photobook/render';
+import { renderPage, PAGE_SIZE } from '@/lib/photobook/render';
+import { BookPreview } from '@/components/BookPreview';
 import { useI18n } from '@/lib/i18n';
 
 const CSS = `
@@ -69,6 +70,9 @@ const CSS = `
 .lp .dark { background:var(--ink); color:#fff; }
 .lp .dark .lead { color:rgba(255,255,255,.72); }
 .lp .warm { background:linear-gradient(180deg,#FBFAF7 0%,#F4F1E8 100%); }
+/* 説明が続くので、このセクションだけ下の余白を詰める */
+.lp section.tight { padding-bottom:clamp(40px,6vw,72px); }
+.lp section.tight .feats { margin-top:28px; }
 
 /* --- 無限マーキー --- */
 .lp .marquee { display:flex; gap:14px; width:max-content; }
@@ -106,7 +110,7 @@ const CSS = `
 .lp .demo.in .demoCard { animation:cardUp .8s .5s cubic-bezier(.2,.7,.2,1) forwards; }
 @keyframes cardUp { to { transform:none; opacity:1 } }
 .lp .demoCard .ph { height:150px; background-size:cover; background-position:center; }
-.lp .demoCard .bd { padding:13px 16px 20px; background:rgba(251,250,247,.93); backdrop-filter:blur(8px); }
+.lp .demoCard .bd { padding:13px 16px 17px; background:rgba(251,250,247,.93); backdrop-filter:blur(8px); }
 .lp .demoCard .kx { font-size:9.5px; letter-spacing:1.8px; color:#A5A19A; }
 .lp .demoCard .tt { font-size:19px; margin:4px 0 2px; color:#1B1815; }
 .lp .demoCard .sb { font-size:12px; color:#6B6862; }
@@ -132,6 +136,16 @@ const CSS = `
 .lp .featBody p { margin:0; font-size:13px; line-height:1.75; color:#6B6862; }
 
 /* --- 御朱印帳（蛇腹・写真つき） --- */
+.lp .bookStage { display:flex; justify-content:center; margin-top:48px; }
+/* 御朱印の説明。長くなるので字は小さく、行間は広く */
+.lp .goshuinNote { max-width:640px; margin:56px auto 0; text-align:left;
+  border-top:1px solid rgba(255,255,255,.16); padding-top:30px; }
+.lp .goshuinNote .gnHead { display:flex; align-items:baseline; gap:12px; margin-bottom:14px; }
+.lp .goshuinNote .gnHead .brush { font-size:26px; color:#fff; letter-spacing:2px; }
+.lp .goshuinNote .gnHead b { font-size:13px; letter-spacing:2px; color:rgba(255,255,255,.55); font-weight:500; }
+.lp .goshuinNote p { margin:0 0 12px; font-size:12.5px; line-height:2.05; color:rgba(255,255,255,.66); }
+.lp .goshuinNote .gnPitch { margin-top:20px; padding-top:18px; font-size:14px; line-height:1.95;
+  color:#fff; border-top:1px solid rgba(255,255,255,.14); }
 .lp .book { display:flex; align-items:stretch; justify-content:center; perspective:1400px; margin-top:52px; }
 .lp .bookCover { width:clamp(88px,17vw,128px); background:linear-gradient(145deg,#22303F,#16202B);
   border-radius:5px 2px 2px 5px; display:flex; align-items:center; justify-content:center;
@@ -251,22 +265,18 @@ export function Landing() {
     };
   }, []);
 
-  // 御朱印帳の見本は、実際のジャーナルのページをそのまま描いて入れる
-  const [bookPageImgs, setBookPageImgs] = useState<string[]>([]);
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const plan = planBook(LP_DEMO_TRIP);
-      const out: string[] = [];
-      for (let i = 0; i < Math.min(plan.pages.length, 4); i++) {
-        const url = await renderPage(plan, i);
-        if (!alive) return;
-        if (url) out.push(url);
-        setBookPageImgs([...out]);
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
+  // 御朱印帳の見本。製本ページと同じ planBook / renderPage を使い、
+  // 開いている見開きの分だけ描く（最初から全ページは描かない）
+  const demoBook = useMemo(() => planBook(LP_DEMO_TRIP), []);
+  const demoCache = useRef(new Map<number, string | null>());
+  const getDemoPage = useCallback(async (i: number) => {
+    const hit = demoCache.current.get(i);
+    if (hit !== undefined) return hit;
+    const url = await renderPage(demoBook, i);
+    demoCache.current.set(i, url);
+    return url;
+  }, [demoBook]);
+  const bookW = Math.min(420, Math.max(260, (typeof window !== 'undefined' ? window.innerWidth : 900) - 56));
 
   // TripMap は実寸の高さが要るので、画面幅から決める
   const demoH = Math.round(Math.min(560, Math.max(300, (typeof window !== 'undefined' ? window.innerWidth : 900) * 0.52)));
@@ -318,7 +328,7 @@ export function Landing() {
       </section>
 
       {/* ================= 3つの柱 ================= */}
-      <section className="warm">
+      <section className="warm tight">
         <div className="wrap">
           <div className="rv">
             <div className="eyebrow">HOW IT WORKS</div>
@@ -350,7 +360,6 @@ export function Landing() {
               <div className="bd">
                 <div className="kx">STOP 2 / 3 · {LP_DEMO_STEPS[1].prefectureName.toUpperCase()}</div>
                 <div className="tt mincho">{LP_DEMO_STEPS[1].title}</div>
-                <div className="sb">{t('lp.demoCardNote')}</div>
               </div>
             </div>
           </div>
@@ -396,19 +405,25 @@ export function Landing() {
             <h2 className="mincho">{t('lp.bookTitle')}</h2>
             <p className="lead" style={{ margin: '16px auto 0' }}>{t('lp.bookCaption')}</p>
           </div>
-          <div className="book rv d2">
-            <div className="bookCover"><span className="brush">足<br />跡</span></div>
-            {(bookPageImgs.length ? bookPageImgs : bookPages.map((p) => p.src)).map((src, i) => (
-              <div className="fold" key={i}>
-                {/* 実際のジャーナルのページをそのまま貼る */}
-                <img className="foldPage" src={src} alt="" loading="lazy" decoding="async" />
-              </div>
-            ))}
+          {/* 製本ページと同じ、めくれる本のプレビュー */}
+          <div className="bookStage rv d2">
+            <BookPreview
+              total={demoBook.pages.length}
+              getPage={getDemoPage}
+              width={bookW}
+              ratio={PAGE_SIZE.height / PAGE_SIZE.width}
+            />
           </div>
-          <div className="stats rv d3" style={{ justifyContent: 'center', marginTop: 54 }}>
-            {[['47', 'PREFECTURES'], ['1,741', 'MUNICIPALITIES'], ['∞', 'FOOTPRINTS']].map(([n, l]) => (
-              <div className="stat" key={l}><b className="mincho">{n}</b><span>{l}</span></div>
-            ))}
+
+          {/* 御朱印そのものの説明。小さめの字で丁寧に */}
+          <div className="goshuinNote rv d3">
+            <div className="gnHead">
+              <span className="brush">御朱印</span>
+              <b>{t('lp.goshuinWhatTitle')}</b>
+            </div>
+            <p>{t('lp.goshuinWhat1')}</p>
+            <p>{t('lp.goshuinWhat2')}</p>
+            <p className="gnPitch">{t('lp.goshuinPitch')}</p>
           </div>
         </div>
       </section>
