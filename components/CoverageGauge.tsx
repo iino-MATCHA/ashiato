@@ -32,8 +32,9 @@ export const REGIONS: Region[] = [
   { key: 'kyushu', label: '九州・沖縄', codes: [40, 41, 42, 43, 44, 45, 46, 47] },
 ];
 
-/** 全国のゲージ。一番上なので最も濃い */
-const GREEN_TOP = '#2F5E00';
+/** 全国のゲージ。溝は黒、満ちる部分は明るい黄緑にして必ず目立たせる */
+const TRACK_ALL = '#1B1815';
+const GREEN_TOP = '#9BE33F';
 
 /** 地方のゲージ。上から下へ順に薄くしていく */
 const GREENS = ['#3F7500', '#4E8C00', '#5CA000', '#69AF00', '#7ABE24', '#8CCB47', '#9FD86B', '#B2E58F'];
@@ -103,9 +104,13 @@ export function CoverageGauge({
   };
 
   // パネルの版面
-  const panelW = Math.min(winW - space.lg * 2, 380);
+  // 画面が狭いと「ラベル + ゲージ + 数値」が版面をはみ出すので、
+  // ゲージ長も含めて画面幅から決め直し、必ず中央に収める
+  const labelW = winW < 380 ? 62 : 78;
+  const tailW = 46; // 右端の "3/6" ぶん
+  const gaugeLen = Math.min(LEN, winW - space.lg * 2 - labelW - tailW);
+  const panelW = Math.min(winW - space.lg * 2, labelW + gaugeLen + tailW);
   const panelLeft = (winW - panelW) / 2;
-  const labelW = 78;
   const gaugeX = panelLeft + labelW;      // 横ゲージの左端
   const topY = winH * 0.2;                // 「日本全国」行のY
   const rowGap = 44;
@@ -116,6 +121,8 @@ export function CoverageGauge({
   const tx = flip.interpolate({ inputRange: [0, 1], outputRange: [0, gaugeX - startX] });
   const ty = flip.interpolate({ inputRange: [0, 1], outputRange: [0, topY - (startY + LEN)] });
   const rot = flip.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-90deg'] });
+  // 画面が狭いと横ゲージが LEN より短くなるので、倒れながら長さも合わせる
+  const lenScale = flip.interpolate({ inputRange: [0, 1], outputRange: [1, gaugeLen / LEN] });
 
   return (
     <>
@@ -124,10 +131,7 @@ export function CoverageGauge({
         {/* 溝は白地に白だと消えてしまうので、必ず見える色と縁をつける */}
         <View
           ref={barRef}
-          style={[
-            styles.track,
-            { height: LEN, backgroundColor: palette.rule, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.ruleStrong },
-          ]}
+          style={[styles.track, { height: LEN, backgroundColor: TRACK_ALL }]}
         >
           <View style={[styles.fill, { height: `${Math.max(3, overall * 100)}%`, backgroundColor: GREEN_TOP }]} />
         </View>
@@ -151,12 +155,12 @@ export function CoverageGauge({
               top: startY,
               width: THICK,
               height: LEN,
-              transform: [{ translateX: tx }, { translateY: ty }, { rotate: rot }],
+              transform: [{ translateX: tx }, { translateY: ty }, { rotate: rot }, { scaleY: lenScale }],
               // 下端を軸に倒す
               transformOrigin: 'bottom left' as any,
             }}
           >
-            <View style={[styles.track, { height: LEN, backgroundColor: 'rgba(255,255,255,0.16)' }]}>
+            <View style={[styles.track, { height: LEN, backgroundColor: TRACK_ALL }]}>
               <View style={[styles.fill, { height: `${Math.max(3, overall * 100)}%`, backgroundColor: GREEN_TOP }]} />
             </View>
           </Animated.View>
@@ -174,7 +178,7 @@ export function CoverageGauge({
             }}
           >
             <View style={{ width: labelW }} />
-            <View style={{ width: LEN }} />
+            <View style={{ width: gaugeLen }} />
             <AppText style={{ fontFamily: fonts.minchoBold, fontSize: 20, color: '#fff', marginLeft: space.sm }}>
               {Math.round(overall * 100)}%
             </AppText>
@@ -208,7 +212,7 @@ export function CoverageGauge({
                 >
                   {r.label}
                 </AppText>
-                <View style={[styles.hTrack, { width: LEN }]}>
+                <View style={[styles.hTrack, { width: gaugeLen }]}>
                   <View style={[styles.hFill, { width: `${Math.max(2, ratio * 100)}%`, backgroundColor: GREENS[i % GREENS.length] }]} />
                 </View>
                 <AppText

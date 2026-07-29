@@ -134,7 +134,7 @@ export default function TripDetail() {
           {!isFellow && (
             <>
               <Glass onPress={() => router.push(`/trip/${trip.id}/share`)} icon="share-outline" palette={palette} />
-              <Glass onPress={() => router.push(`/trip/${trip.id}/book`)} icon="book-outline" palette={palette} />
+              <Glass onPress={() => router.push(`/trip/${trip.id}/bind` as any)} icon="book-outline" palette={palette} />
               <Glass onPress={() => (canEdit ? router.push(`/trip/${trip.id}/edit`) : setBlocked(true))} icon="settings-outline" palette={palette} />
             </>
           )}

@@ -82,6 +82,69 @@ const CSS = `
 .lp .mCap b { display:block; font-size:12.5px; }
 .lp .mCap span { font-size:10px; opacity:.82; letter-spacing:1.4px; }
 
+/* --- /trip の再現デモ（衛星写真の上に写真ピンとルート） --- */
+.lp .demo { position:relative; margin-top:44px; border-radius:20px; overflow:hidden;
+  aspect-ratio:16/10; background:#0d1b2a; box-shadow:0 22px 60px rgba(0,0,0,.22); }
+.lp .demo .sat { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  filter:saturate(1.06) contrast(1.06) brightness(.9); }
+.lp .demoVeil { position:absolute; inset:0;
+  background:linear-gradient(180deg,rgba(6,14,24,.42) 0%,rgba(6,14,24,.12) 38%,rgba(6,14,24,.72) 100%); }
+/* ルート線: 描かれていくアニメーション */
+.lp .demo svg { position:absolute; inset:0; width:100%; height:100%; }
+.lp .demoPath { fill:none; stroke:#8FD13F; stroke-width:3; stroke-linecap:round;
+  filter:drop-shadow(0 0 6px rgba(143,209,63,.55));
+  stroke-dasharray:1000; stroke-dashoffset:1000; }
+.lp .demo.in .demoPath { animation:draw 1.7s .35s cubic-bezier(.4,0,.2,1) forwards; }
+@keyframes draw { to { stroke-dashoffset:0 } }
+/* 写真ピン（/tripと同じ 52px・白3px縁・番号バッジ） */
+.lp .pin { position:absolute; width:clamp(44px,7.4vw,58px); aspect-ratio:1; border-radius:50%;
+  border:3px solid #fff; background-size:cover; background-position:center;
+  box-shadow:0 2px 10px rgba(0,0,0,.45); transform:translate(-50%,-50%) scale(.5); opacity:0; }
+.lp .demo.in .pin { animation:pinIn .5s cubic-bezier(.2,1.5,.4,1) forwards; }
+@keyframes pinIn { to { transform:translate(-50%,-50%) scale(1); opacity:1 } }
+.lp .pin.active { border-color:#8FD13F; }
+.lp .demo.in .pin.active { animation:pinIn .5s cubic-bezier(.2,1.5,.4,1) forwards,
+  pulse 2.6s 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{box-shadow:0 2px 10px rgba(0,0,0,.45)} 50%{box-shadow:0 2px 10px rgba(0,0,0,.45),0 0 0 10px rgba(143,209,63,.16)} }
+.lp .pinNo { position:absolute; top:-5px; right:-5px; font-size:10px; font-weight:700; color:#fff;
+  background:#1B1815; border:1.5px solid #fff; border-radius:9px; min-width:17px; height:17px;
+  line-height:15px; text-align:center; padding:0 3px; }
+/* 交通手段のチップ */
+.lp .leg { position:absolute; width:36px; height:36px; border-radius:50%; background:#FBFAF7;
+  border:2px solid #69AF00; display:flex; align-items:center; justify-content:center;
+  transform:translate(-50%,-50%) scale(0); box-shadow:0 3px 10px rgba(0,0,0,.3); }
+.lp .demo.in .leg { animation:pinIn .45s 1.5s cubic-bezier(.2,1.5,.4,1) forwards; }
+.lp .leg svg { position:static; width:18px; height:18px; }
+/* 下のカード（/tripのドックを縮めたもの） */
+.lp .demoCard { position:absolute; left:5%; bottom:5%; width:min(58%,270px);
+  background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 10px 26px rgba(0,0,0,.32);
+  transform:translateY(24px); opacity:0; }
+.lp .demo.in .demoCard { animation:cardUp .7s 1.7s cubic-bezier(.2,.7,.2,1) forwards; }
+@keyframes cardUp { to { transform:none; opacity:1 } }
+.lp .demoCard .ph { height:88px; background-size:cover; background-position:center; }
+.lp .demoCard .bd { padding:10px 12px 12px; }
+.lp .demoCard .kx { font-size:8.5px; letter-spacing:1.6px; color:#A5A19A; }
+.lp .demoCard .tt { font-size:14px; margin:3px 0 1px; color:#1B1815; }
+.lp .demoCard .sb { font-size:10.5px; color:#6B6862; }
+/* 右上の丸ボタン列（/tripのヘッダー） */
+.lp .demoActions { position:absolute; top:5%; right:5%; display:flex; flex-direction:column; gap:7px; }
+.lp .demoActions i { width:34px; height:34px; border-radius:50%; background:#fff;
+  display:flex; align-items:center; justify-content:center; box-shadow:0 3px 10px rgba(0,0,0,.3); }
+.lp .demoActions svg { position:static; width:16px; height:16px; }
+/* 左上のタイトルチップ */
+.lp .demoTitle { position:absolute; top:5%; left:5%; background:rgba(255,255,255,.55);
+  backdrop-filter:blur(4px); border-radius:10px; padding:6px 10px; max-width:52%; }
+.lp .demoTitle b { display:block; font-size:13px; color:#171717; }
+.lp .demoTitle span { font-size:9.5px; color:#5E5B57; }
+
+/* --- 説明の箇条書き --- */
+.lp .points { display:grid; gap:14px; margin-top:34px; }
+.lp .point { display:flex; gap:13px; align-items:flex-start; }
+.lp .pointNo { flex:0 0 auto; width:26px; height:26px; border-radius:50%; background:var(--matcha);
+  color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center; margin-top:2px; }
+.lp .point b { display:block; font-size:15.5px; margin-bottom:3px; }
+.lp .point p { margin:0; font-size:13px; line-height:1.8; color:#6B6862; }
+
 /* --- 特徴カード --- */
 .lp .feats { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); margin-top:44px; }
 .lp .feat { background:#fff; border:1px solid #ECEAE3; border-radius:18px; overflow:hidden;
@@ -149,6 +212,10 @@ const CSS = `
 }
 `;
 
+/** デモ地図の下地。本州の衛星写真（HTTP 200 を実測して固定） */
+const SAT =
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Satellite_image_of_Honshu_in_May_2003.png/1280px-Satellite_image_of_Honshu_in_May_2003.png';
+
 export function Landing() {
   const { t } = useI18n();
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -160,6 +227,16 @@ export function Landing() {
   const rowA = useMemo(() => photos.slice(0, 11), [photos]);
   const rowB = useMemo(() => photos.slice(11, 22), [photos]);
   const feats = useMemo(() => [photos[3], photos[7], photos[14]].filter(Boolean), [photos]);
+  // /trip の再現デモに置く3地点。座標は衛星写真の上での見た目で決めている
+  const demoPins = useMemo(
+    () =>
+      [
+        { ...photos[5], left: '23.5%', top: '70.4%' },
+        { ...photos[9], left: '45.8%', top: '48.8%' },
+        { ...photos[2], left: '70%', top: '30%' },
+      ].filter((p) => p.src),
+    [photos]
+  );
   const bookPages = useMemo(() => photos.slice(22, 26), [photos]);
   const paper = useMemo(() => photos.slice(26, 30), [photos]);
 
@@ -177,7 +254,7 @@ export function Landing() {
     // requestAnimationFrame も IntersectionObserver も、タブが描画されていないと
     // 止まる／発火しない。中身が透明のまま残る事故を避けるため、
     // scroll イベントの中で直接判定する（対象は最大14要素なので十分軽い）。
-    const targets = Array.from(root.querySelectorAll<HTMLElement>('.rv, .papers'));
+    const targets = Array.from(root.querySelectorAll<HTMLElement>('.rv, .papers, .demo'));
 
     const tick = () => {
       const rootTop = root.getBoundingClientRect().top;
@@ -257,7 +334,86 @@ export function Landing() {
           <div className="rv">
             <div className="eyebrow">HOW IT WORKS</div>
             <h2 className="mincho">{t('lp.howTitle')}</h2>
+            <p className="lead">{t('lp.howLead')}</p>
           </div>
+
+          {/* /trip の画面をそのまま再現したデモ。線が引かれ、ピンが立ち、カードが上がる */}
+          <div className="demo">
+            <img className="sat" src={SAT} alt="" decoding="async" />
+            <div className="demoVeil" />
+
+            <svg viewBox="0 0 800 500" preserveAspectRatio="none">
+              {/* 3地点を結ぶ道なりの線（/tripと同じ黄緑） */}
+              <path className="demoPath" d="M188 352 C 262 300, 300 262, 366 244 S 470 214, 560 150" />
+            </svg>
+
+            {/* 交通手段のチップ（線の中ほど） */}
+            <div className="leg" style={{ left: '36%', top: '55%' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#69AF00" strokeWidth="2" strokeLinecap="round">
+                <rect x="6" y="3" width="12" height="13" rx="2" /><path d="M6 19l-2 2M18 19l2 2M9 20h6M7 9h10" />
+              </svg>
+            </div>
+
+            {/* 写真ピン（/tripと同じ 52px相当・白3px縁・番号バッジ） */}
+            {demoPins.map((p, i) => (
+              <div
+                key={p.src}
+                className={`pin${i === 1 ? ' active' : ''}`}
+                style={{
+                  left: p.left, top: p.top,
+                  backgroundImage: `url(${p.src})`,
+                  animationDelay: `${900 + i * 220}ms`,
+                }}
+              >
+                <span className="pinNo">{i + 1}</span>
+              </div>
+            ))}
+
+            {/* 左上のタイトルチップ */}
+            <div className="demoTitle">
+              <span>{demoPins.map((p) => p.pref).join(' · ')}</span>
+              <b className="mincho">{t('lp.demoTripTitle')}</b>
+            </div>
+
+            {/* 右上のアクション列 */}
+            <div className="demoActions">
+              {[
+                'M4 12v8a1 1 0 001 1h14a1 1 0 001-1v-8M12 3v13M8 7l4-4 4 4',
+                'M4 4h13a2 2 0 012 2v14H6a2 2 0 01-2-2V4z M8 4v16',
+                'M12 15a3 3 0 100-6 3 3 0 000 6z M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1L14.5 3h-4l-.4 2.6a7 7 0 00-1.7 1l-2.3-1-2 3.4L6.1 11a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1l.4 2.6h4l.4-2.6a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5c.06-.33.1-.66.1-1z',
+              ].map((d, i) => (
+                <i key={i}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#1B1815" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={d} />
+                  </svg>
+                </i>
+              ))}
+            </div>
+
+            {/* 下のカード */}
+            <div className="demoCard">
+              <div className="ph" style={{ backgroundImage: `url(${demoPins[1].src})` }} />
+              <div className="bd">
+                <div className="kx">STOP 2 / 3 · {demoPins[1].pref.toUpperCase()}</div>
+                <div className="tt mincho">{demoPins[1].title}</div>
+                <div className="sb">{t('lp.demoCardNote')}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 何ができるアプリなのかを、ここで言葉でも伝える */}
+          <div className="points rv">
+            {[1, 2, 3].map((n) => (
+              <div className="point" key={n}>
+                <div className="pointNo mincho">{n}</div>
+                <div>
+                  <b className="mincho">{t(`lp.p${n}t`)}</b>
+                  <p>{t(`lp.p${n}b`)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
           <div className="feats">
             {[
               { t: t('lp.f1t'), b: t('lp.f1b') },
