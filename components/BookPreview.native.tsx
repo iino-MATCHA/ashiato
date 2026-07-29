@@ -25,7 +25,8 @@ export function BookPreview({ total, getPage, width, ratio = 1654 / 1165 }: Book
 
   useEffect(() => {
     let alive = true;
-    const want = [at, at + 1, at + 2, at + 3].filter((i) => i < total);
+    // 表示中の見開きと、次の見開きだけ用意する
+    const want = [at, at + 1, at + 2, at + 3].filter((i) => i >= 0 && i < total);
     (async () => {
       for (const i of want) {
         if (cache.current.has(i)) continue;
@@ -42,7 +43,7 @@ export function BookPreview({ total, getPage, width, ratio = 1654 / 1165 }: Book
   const spreads = Math.max(1, Math.ceil(total / 2));
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const i = Math.round(e.nativeEvent.contentOffset.x / width) * 2;
-    if (i !== at) setAt(Math.max(0, Math.min(total - 2, i)));
+    if (i !== at) setAt(Math.max(0, Math.min(Math.max(0, total - 2), i)));
   };
 
   return (

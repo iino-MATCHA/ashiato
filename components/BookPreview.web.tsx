@@ -24,9 +24,11 @@ const CSS = `
 .bkp .side.right { border-radius:0 6px 6px 0; }
 /* めくられる紙。右半分の上に重ね、綴じ側を軸に回す */
 .bkp .flip { position:absolute; top:0; right:0; width:50%; height:100%; z-index:6;
-  transform-origin:left center; transform-style:preserve-3d;
-  transition:transform .78s cubic-bezier(.42,0,.2,1); }
-.bkp .flip.turning { transform:rotateY(-172deg); }
+  transform-origin:left center; transform-style:preserve-3d; transform:rotateY(0deg); }
+.bkp .flip.turn-next { animation:turnNext .78s cubic-bezier(.42,0,.2,1) forwards; }
+.bkp .flip.turn-prev { animation:turnPrev .78s cubic-bezier(.42,0,.2,1) forwards; }
+@keyframes turnNext { from { transform:rotateY(0deg) } to { transform:rotateY(-172deg) } }
+@keyframes turnPrev { from { transform:rotateY(-172deg) } to { transform:rotateY(0deg) } }
 .bkp .flip .face { position:absolute; inset:0; backface-visibility:hidden; overflow:hidden;
   background:var(--paper); border-radius:0 6px 6px 0; }
 .bkp .flip .back { transform:rotateY(180deg); border-radius:6px 0 0 6px; }
@@ -35,7 +37,7 @@ const CSS = `
 .bkp .flip::after { content:''; position:absolute; inset:0; pointer-events:none;
   background:linear-gradient(90deg,rgba(0,0,0,.20),rgba(0,0,0,0) 32%);
   opacity:0; transition:opacity .3s; }
-.bkp .flip.turning::after { opacity:1; }
+.bkp .flip.turn-next::after, .bkp .flip.turn-prev::after { opacity:1; }
 /* 操作 */
 .bkp .nav { position:absolute; top:50%; transform:translateY(-50%); z-index:8;
   width:38px; height:38px; border:0; border-radius:50%; cursor:pointer;
@@ -50,7 +52,7 @@ const CSS = `
 .bkp .meter i.on { width:17px; background:#69AF00; }
 .bkp .empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   color:#A5A19A; font-size:12px; }
-@media (prefers-reduced-motion: reduce) { .bkp .flip { transition:none } }
+@media (prefers-reduced-motion: reduce) { .bkp .flip { animation:none } }
 `;
 
 export interface BookPreviewProps {
@@ -79,7 +81,7 @@ export function BookPreview({ total, getPage, width, ratio = 1654 / 1165 }: Book
   // 見えている見開きと、その前後だけを先に用意しておく
   useEffect(() => {
     let alive = true;
-    const want = [at - 2, at - 1, at, at + 1, at + 2, at + 3].filter((i) => i >= 0 && i < total);
+    const want = [at, at + 1, at - 1, at - 2, at + 2, at + 3].filter((i) => i >= 0 && i < total);
     (async () => {
       for (const i of want) {
         if (cache.current.has(i)) continue;
@@ -107,9 +109,18 @@ export function BookPreview({ total, getPage, width, ratio = 1654 / 1165 }: Book
     }, 780);
   };
 
-  // めくっている紙の表裏
+  /**
+   * 紙は「表 = page(2k+1) / 裏 = page(2k+2)」の1枚。
+   * 次へ: 右の紙(表 at+1 / 裏 at+2)が左へ倒れる。倒れた先の左は裏(at+2)、
+   *       持ち上がった右からは at+3 が現れる。
+   * 前へ: 左に伏せている紙(表 at-1 / 裏 at)が右へ起き上がる。始まりは裏(at)が
+   *       見えている状態（＝いまの左ページ）で、退いた左からは at-2 が現れる。
+   * この対応を外すと、同じページが二度出たり抜けたりする。
+   */
+  const leftStatic = turning === 'prev' ? page(at - 2) : page(at);
+  const rightStatic = turning === 'next' ? page(at + 3) : page(at + 1);
   const flipFront = turning === 'prev' ? page(at - 1) : page(at + 1);
-  const flipBack = turning === 'prev' ? page(at - 2) : page(at + 2);
+  const flipBack = turning === 'prev' ? page(at) : page(at + 2);
 
   const Face = ({ src, className }: { src: string | null; className: string }) => (
     <div className={className}>
@@ -121,14 +132,11 @@ export function BookPreview({ total, getPage, width, ratio = 1654 / 1165 }: Book
     <div className="bkp" style={{ width, height }}>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div className="book" style={{ height }}>
-        <Face src={page(at)} className="side left" />
-        <Face src={page(at + 1)} className="side right" />
+        <Face src={leftStatic} className="side left" />
+        <Face src={rightStatic} className="side right" />
 
-        {/* めくられる紙。prev のときは左から戻ってくるので開始角を変える */}
-        <div
-          className={`flip${turning ? ' turning' : ''}`}
-          style={turning === 'prev' ? { transform: turning ? 'rotateY(0deg)' : 'rotateY(-172deg)' } : undefined}
-        >
+        {/* めくられる紙。next は 0→-172度、prev は -172→0度 */}
+        <div className={`flip${turning ? ` turn-${turning}` : ''}`} key={`${at}-${turning ?? 'rest'}`}>
           <Face src={flipFront} className="face" />
           <Face src={flipBack} className="face back" />
         </div>

@@ -94,10 +94,6 @@ export default function TripBind() {
           />
         </View>
 
-        <Gap h={space.xs} />
-        <AppText variant="small" tone="inkFaint" center style={{ fontSize: 11 }}>
-          {t('bind.previewHint')}
-        </AppText>
 
         {/* ② この一冊について ------------------------------------------ */}
         <View style={{ paddingHorizontal: space.lg }}>

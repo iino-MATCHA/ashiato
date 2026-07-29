@@ -138,7 +138,7 @@ const CSS = `
 /* --- 御朱印帳（蛇腹・写真つき） --- */
 .lp .bookStage { display:flex; justify-content:center; margin-top:48px; }
 /* 御朱印の説明。長くなるので字は小さく、行間は広く */
-.lp .goshuinNote { max-width:640px; margin:56px auto 0; text-align:left;
+.lp .goshuinNote { max-width:640px; margin:clamp(64px,9vw,104px) auto 0; text-align:left;
   border-top:1px solid rgba(255,255,255,.16); padding-top:30px; }
 .lp .goshuinNote .gnHead { display:flex; align-items:baseline; gap:12px; margin-bottom:14px; }
 .lp .goshuinNote .gnHead .brush { font-size:26px; color:#fff; letter-spacing:2px; }
@@ -168,6 +168,9 @@ const CSS = `
 
 /* --- ジャーナル（紙の重なり） --- */
 .lp .papers { position:relative; width:clamp(210px,44vw,282px); aspect-ratio:1/1.414; margin:46px auto 0; }
+/* 紙は回転してはみ出す前提なので、その分だけ下を確保して余りは削る */
+.lp section.journal { padding-bottom:clamp(52px,7vw,88px); }
+.lp section.journal .papers { margin-bottom:clamp(26px,4vw,44px); }
 .lp .paper { position:absolute; inset:0; background:#FBFAF7; border:1px solid #E6E3DA; border-radius:7px;
   overflow:hidden; box-shadow:0 16px 40px rgba(0,0,0,.16); transition:transform .8s cubic-bezier(.2,.7,.2,1); }
 .lp .paper.p3 { transform:rotate(7deg) translate(16px,10px); }
@@ -429,7 +432,7 @@ export function Landing() {
       </section>
 
       {/* ================= ジャーナル ================= */}
-      <section>
+      <section className="journal">
         <div className="wrap" style={{ textAlign: 'center' }}>
           <div className="rv">
             <div className="eyebrow">{t('lp.journalEyebrow')}</div>
