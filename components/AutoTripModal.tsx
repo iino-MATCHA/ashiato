@@ -19,7 +19,12 @@ import { createTripFromPhotos, addStopsFromPhotos, type AutoTripProgress, type A
 
 type Phase = 'ask' | 'working' | 'done' | 'failed';
 
-/** Android のブラウザか。位置情報が剥がされる案内を出すためだけに見る */
+/**
+ * Android のブラウザか。
+ * AndroidのフォトピッカーはWebアプリへ渡す写真からGPSを剥がすため、
+ * ウェブ版では位置つきの写真を受け取れない。対応するまで、その旨を
+ * モーダルに注記する。
+ */
 const isAndroidWeb =
   typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent ?? '');
 
@@ -112,6 +117,14 @@ export function AutoTripModal({
               <Pressable onPress={close} hitSlop={8}>
                 <AppText variant="small" tone="inkFaint" center>{t('auto.notYet')}</AppText>
               </Pressable>
+              {isAndroidWeb && (
+                <>
+                  <Gap h={space.md} />
+                  <AppText variant="small" tone="inkFaint" center style={{ fontSize: 11, lineHeight: 17 }}>
+                    {t('auto.androidNote')}
+                  </AppText>
+                </>
+              )}
             </>
           )}
 
@@ -186,14 +199,6 @@ export function AutoTripModal({
               <AppText variant="h3" tone="ink" center>{t(`auto.fail.${result?.failure ?? 'save-failed'}`)}</AppText>
               <Gap h={space.md} />
               <AppText variant="small" tone="ink" center style={{ lineHeight: 21, opacity: 0.86 }}>{t('auto.failHint')}</AppText>
-              {/* Androidのフォトピッカーは位置情報を剥がして渡すことがある。
-                  位置が読めなかったときは、ファイルアプリから選ぶ道を案内する */}
-              {isAndroidWeb && result?.failure === 'no-location' && (
-                <>
-                  <Gap h={space.md} />
-                  <AppText variant="small" tone="inkSoft" center style={{ lineHeight: 20 }}>{t('auto.failHintAndroid')}</AppText>
-                </>
-              )}
               <Gap h={space.xl} />
               <View style={{ alignSelf: 'stretch' }}>
                 <PhotoPicker onPick={run} multiple style={styles.pickWrap}>
