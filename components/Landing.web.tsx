@@ -83,6 +83,11 @@ const CSS = `
 .lp .heroInner { position:relative; text-align:center; padding:0 22px; max-width:760px; }
 .lp .heroKicker { color:rgba(255,255,255,.72); font-size:11px; letter-spacing:7px; }
 .lp .heroTitle { color:#fff; font-size:clamp(38px,8.4vw,74px); line-height:1.18; margin:14px 0 0; white-space:pre-line; }
+/* 運営元。主張しない。中央に置かず、タイトルの右下へ半歩ずらして重ねる */
+.lp .byMatcha { text-align:right; margin:2px 4% 0 0; transform:translateY(-4px);
+  color:rgba(255,255,255,.46); font-size:11px; letter-spacing:2.5px; }
+.lp .byMatcha a { color:inherit; text-decoration:none; }
+.lp .byMatcha a:hover { color:rgba(255,255,255,.75); }
 .lp .heroSub { color:rgba(255,255,255,.86); font-size:clamp(14px,3.4vw,18px); line-height:1.75; margin:20px auto 0; max-width:34em; }
 .lp .heroLangs { color:rgba(255,255,255,.62); font-size:12px; line-height:1.7; margin:12px auto 0; max-width:30em; }
 .lp .scrollHint { position:absolute; bottom:26px; left:50%; transform:translateX(-50%);
@@ -393,6 +398,7 @@ export function Landing() {
         <div className="heroInner">
           <div className="heroKicker rv in">M Y &nbsp;J A P A N</div>
           <h1 className="heroTitle mincho rv d1">{t('lp.tagline')}</h1>
+          <div className="byMatcha rv d1"><a href="https://matcha-jp.com" target="_blank" rel="noreferrer">by MATCHA</a></div>
           <p className="heroSub rv d2">{t('lp.sub')}</p>
           <p className="heroLangs rv d2">{t('lp.langs')}</p>
           <div className="rv d3" style={{ marginTop: 34, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -577,7 +583,13 @@ export function Landing() {
         </div>
       )}
 
-      <footer>{t('lp.footer')}</footer>
+      <footer>
+        MY JAPAN BY{' '}
+        <a href="https://matcha-jp.com" target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>
+          MATCHA, INC.
+        </a>{' '}
+        · ALL RIGHTS RESERVED
+      </footer>
     </div>
   );
 }

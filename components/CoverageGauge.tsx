@@ -32,8 +32,13 @@ export const REGIONS: Region[] = [
   { key: 'kyushu', label: '九州・沖縄', codes: [40, 41, 42, 43, 44, 45, 46, 47] },
 ];
 
-/** 全国のゲージ。溝は黒、満ちる部分は明るい黄緑にして必ず目立たせる */
-const TRACK_ALL = '#1B1815';
+/**
+ * 全国のゲージの溝。満ちる部分は明るい黄緑で固定だが、溝は地の色に合わせる。
+ * 明るい地では黒、暗い地では生成り寄りの白
+ * （黒地に黒い溝で、ゲージそのものが見えなくなっていた）。
+ */
+const TRACK_LIGHT = '#1B1815';
+const TRACK_DARK = 'rgba(237,233,224,0.85)';
 const GREEN_TOP = '#9BE33F';
 
 /** 地方のゲージ。上から下へ順に薄くしていく */
@@ -46,7 +51,8 @@ export function CoverageGauge({
   visitedCodes: number[];
   total?: number;
 }) {
-  const { palette } = useTheme();
+  const { palette, scheme } = useTheme();
+  const track = scheme === 'dark' ? TRACK_DARK : TRACK_LIGHT;
   const { t } = useI18n();
   const { width: winW, height: winH } = useWindowDimensions();
   const visited = new Set(visitedCodes);
@@ -131,7 +137,7 @@ export function CoverageGauge({
         {/* 溝は白地に白だと消えてしまうので、必ず見える色と縁をつける */}
         <View
           ref={barRef}
-          style={[styles.track, { height: LEN, backgroundColor: TRACK_ALL }]}
+          style={[styles.track, { height: LEN, backgroundColor: track }]}
         >
           <View style={[styles.fill, { height: `${Math.max(3, overall * 100)}%`, backgroundColor: GREEN_TOP }]} />
         </View>
@@ -160,7 +166,7 @@ export function CoverageGauge({
               transformOrigin: 'bottom left' as any,
             }}
           >
-            <View style={[styles.track, { height: LEN, backgroundColor: TRACK_ALL }]}>
+            <View style={[styles.track, { height: LEN, backgroundColor: 'rgba(255,255,255,0.22)' }]}>
               <View style={[styles.fill, { height: `${Math.max(3, overall * 100)}%`, backgroundColor: GREEN_TOP }]} />
             </View>
           </Animated.View>

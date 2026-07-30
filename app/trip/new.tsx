@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, TextInput, Switch, StyleSheet } from 'react-native';
+import { View, TextInput, Switch, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,7 +47,13 @@ export default function NewTrip() {
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
       <Header closeIcon title={t('tripNew.header')} />
       <Rule />
-      <View style={{ flex: 1, paddingHorizontal: space.lg }}>
+      {/* バディー欄が増えて一画面に収まらないことがあるので、スクロールで受ける */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.lg }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <Gap h={space.lg} />
         <TextInput placeholder={t('tripNew.titlePh')} placeholderTextColor={palette.inkFaint} value={title} onChangeText={setTitle} style={[styles.titleInput, { color: palette.ink }]} multiline />
         <Rule strong />
@@ -78,8 +84,6 @@ export default function NewTrip() {
 
         <Gap h={space.xl} />
         <Eyebrow>{t('buddy.title')}</Eyebrow>
-        <Gap h={space.sm} />
-        <AppText variant="small" tone="inkFaint" style={{ lineHeight: 20 }}>{t('buddy.lead')}</AppText>
         <Gap h={space.md} />
         <BuddyPicker selected={buddies} onChange={setBuddies} tripTitle={title.trim() || undefined} />
 
@@ -102,7 +106,7 @@ export default function NewTrip() {
         <AppText variant="small" tone="inkFaint">
           {isPublic ? 'Shown in Explore for everyone.' : 'Only you — friends can still see it on their feed.'}
         </AppText>
-      </View>
+      </ScrollView>
 
       <View style={{ padding: space.lg }}>
         {!canSave && <><AppText variant="small" tone="inkFaint" center>Add a title and a start date to continue.</AppText><Gap h={space.sm} /></>}

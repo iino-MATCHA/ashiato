@@ -125,12 +125,7 @@ export default function Home() {
               <Ionicons name="images" size={19} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Row style={{ gap: 6, alignItems: 'center' }}>
-                <AppText variant="bodyStrong" tone="ink">{t('auto.cardTitle')}</AppText>
-                <View style={[styles.newTag, { backgroundColor: palette.matcha }]}>
-                  <AppText style={{ color: '#fff', fontSize: 9, letterSpacing: 1 }}>NEW</AppText>
-                </View>
-              </Row>
+              <AppText variant="bodyStrong" tone="ink">{t('auto.cardTitle')}</AppText>
               <AppText variant="small" tone="inkFaint" style={{ lineHeight: 18 }}>{t('auto.cardBody')}</AppText>
             </View>
             <Ionicons name="chevron-forward" size={18} color={palette.inkFaint} />

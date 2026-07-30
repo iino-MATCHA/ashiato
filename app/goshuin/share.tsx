@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Pressable, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,8 @@ import { exportJapanCard } from '@/lib/japanCard';
 import { shareImage, type ShareTarget } from '@/lib/shareImage';
 import { captureCard } from '@/lib/cardShot';
 import { CountUp } from '@/components/CountUp';
+import { CopyLink } from '@/components/CopyLink';
+import { currentUserId } from '@/lib/api';
 
 import { useI18n } from '@/lib/i18n';
 export default function GoshuinShare() {
@@ -26,6 +28,15 @@ export default function GoshuinShare() {
   const [notice, setNotice] = useState<string | null>(null);
   // ネイティブはこのビューを写し取って画像にする
   const cardRef = useRef<View | null>(null);
+  // 自分のプロフィールのURL。ここからそのまま貼れるようにする
+  const [profileUrl, setProfileUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    currentUserId().then((uid) => {
+      if (alive && uid) setProfileUrl(`https://www.my-japan-matcha.com/friends/${uid}`);
+    });
+    return () => { alive = false; };
+  }, []);
   const count = visited.length;
   const pct = Math.round((count / PREFECTURE_TOTAL) * 100);
 
@@ -142,6 +153,12 @@ export default function GoshuinShare() {
         </View>
 
         <Gap h={space.lg} />
+        {profileUrl && (
+          <>
+            <CopyLink url={profileUrl} />
+            <Gap h={space.md} />
+          </>
+        )}
         <Row style={{ gap: space.xl }}>
           <ExportBtn icon="download-outline" label={saving ? t('common.saving') : t('common.save')} onPress={download} palette={palette} />
           <ExportBtn icon="logo-instagram" label={busy === 'instagram' ? '…' : 'Stories'} onPress={() => share('instagram')} palette={palette} color="#C13584" />

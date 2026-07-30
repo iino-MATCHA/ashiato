@@ -79,11 +79,11 @@ export function JapanSvgMap({
           const isOki = slug === 'okinawa';
           if (hideOkinawa && isOki && !okinawaInset) return null;
           const on = set.has(slug);
-          let fill = on ? fillVisited : palette.fill;
+          let fill = on ? fillVisited : palette.mapEmpty;
           if (intensity) {
             // 0 は無着色、1 に近づくほど濃く。薄い側でも見えるよう 0.12 を下限に。
             const v = intensity[PREFECTURE_ID_BY_SLUG[slug]] ?? 0;
-            fill = v > 0 ? withAlpha(fillVisited, 0.12 + v * 0.88) : palette.fill;
+            fill = v > 0 ? withAlpha(fillVisited, 0.12 + v * 0.88) : palette.mapEmpty;
           }
           const path = (
             <Path

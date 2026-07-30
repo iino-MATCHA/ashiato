@@ -315,7 +315,7 @@ export async function resolvePlace(municipalityCode: number): Promise<{ lat: num
  * 失敗して「ログインしているのに未ログイン扱い」になることがある。
  * セッションはローカルに保持されているので getSession() を使う（通信なし）。
  */
-async function currentUserId(): Promise<string | null> {
+export async function currentUserId(): Promise<string | null> {
   try {
     const { data } = await supabase.auth.getSession();
     return data?.session?.user?.id ?? null;

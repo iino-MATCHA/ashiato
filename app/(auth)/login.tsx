@@ -109,7 +109,13 @@ export default function Login() {
     <SafeAreaView style={[styles.root, { backgroundColor: palette.washi }]}>
       {/* Brand */}
       <View style={styles.hero}>
-        <AppText style={styles.brand} tone="ink">My Japan</AppText>
+        <View>
+          <AppText style={styles.brand} tone="ink">My Japan</AppText>
+          {/* 運営元。中央に置かず、ブランドの右下へ寄せて小さく */}
+          <AppText variant="small" tone="inkFaint" style={{ alignSelf: 'flex-end', fontSize: 11, letterSpacing: 2, marginTop: -4 }}>
+            by MATCHA
+          </AppText>
+        </View>
         <Gap h={space.md} />
         <AppText variant="body" tone="inkSoft" center style={{ maxWidth: 280 }}>
           Where you walk becomes a map.{'\n'}Where you visit, a stamp is earned.

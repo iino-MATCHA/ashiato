@@ -107,6 +107,11 @@ export default function OrderDone() {
         <Button label={t('done.backHome')} tone="matcha" onPress={() => router.replace('/(tabs)/map')} />
         <Gap h={space.md} />
         <Button label={t('done.seeOrders')} tone="ink" variant="outline" onPress={() => router.replace('/orders' as any)} />
+        <Gap h={space.lg} />
+        {/* 運営元。右下に小さく */}
+        <AppText variant="small" tone="inkFaint" style={{ alignSelf: 'flex-end', fontSize: 10, letterSpacing: 1.5 }}>
+          MATCHA, Inc. · matcha-jp.com
+        </AppText>
       </ScrollView>
     </SafeAreaView>
   );

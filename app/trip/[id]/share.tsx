@@ -12,6 +12,7 @@ import { useTrip } from '@/lib/useData';
 import { exportShareCard } from '@/lib/shareCard';
 import { shareImage, type ShareTarget } from '@/lib/shareImage';
 import { captureCard } from '@/lib/cardShot';
+import { CopyLink } from '@/components/CopyLink';
 import { PREFECTURE_ID_BY_SLUG, slugForName } from '@/lib/prefectures';
 
 import { useI18n } from '@/lib/i18n';
@@ -118,6 +119,8 @@ export default function TripShare() {
 
         {/* export buttons */}
         <Gap h={space.lg} />
+        <CopyLink url={`https://www.my-japan-matcha.com/trip/${trip.id}`} />
+        <Gap h={space.md} />
         <Row style={{ gap: space.xl }}>
           <ExportBtn icon="download-outline" label={saving ? t('common.saving') : t('common.save')} onPress={download} palette={palette} />
           <ExportBtn icon="logo-instagram" label={busy === 'instagram' ? '…' : 'Stories'} onPress={() => send('instagram')} palette={palette} color="#C13584" />

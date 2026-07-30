@@ -55,7 +55,7 @@ export default function GoshuinBook() {
       <Gap h={space.xs} />
       <Row style={{ justifyContent: 'center', gap: space.lg }}>
         <LegendDot color={palette.matcha} label={t('goshuin.visited')} palette={palette} />
-        <LegendDot color={palette.fill} label={t('goshuin.notYet')} palette={palette} border={palette.ruleStrong} />
+        <LegendDot color={palette.mapEmpty} label={t('goshuin.notYet')} palette={palette} border={palette.ruleStrong} />
       </Row>
 
       {/* ゲストの帳面は真っ白なので、なぜ空なのかをここで言う */}

@@ -278,6 +278,10 @@ function paintColophon(ctx: CanvasRenderingContext2D, p: Extract<Page, { kind: '
   ctx.textAlign = 'center';
   ctx.globalAlpha = 0.5;
   ctx.fillText('My Japan', PW / 2, PH - M * 2.4);
+  // 出版元。本の奥付なので、ここだけは会社名をきちんと書く
+  ctx.font = `400 ${PW * 0.02}px ${SANS}`;
+  ctx.globalAlpha = 0.45;
+  ctx.fillText('Published by MATCHA, Inc. · matcha-jp.com', PW / 2, PH - M * 1.9);
   ctx.globalAlpha = 1;
   ctx.textAlign = 'left';
 }

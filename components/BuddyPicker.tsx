@@ -27,7 +27,6 @@ export function BuddyPicker({
   const { t } = useI18n();
   const [friends, setFriends] = useState<UserSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -41,30 +40,17 @@ export function BuddyPicker({
   const toggle = (id: string) =>
     onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
 
-  const invite = async () => {
-    const r = await shareInvite(tripTitle);
-    if (r === 'copied') {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2600);
-    }
-  };
+  // 共有シートが無い環境では文面がクリップボードへ入る。通知は出さない
+  const invite = () => { shareInvite(tripTitle); };
 
   /** 「家族や友達を招待する」。小さく、罫線も枠も付けない */
   const InviteLink = (
-    <View>
-      <Pressable onPress={invite} hitSlop={8}>
-        <Row style={{ gap: 5, alignItems: 'center' }}>
-          <Ionicons name="paper-plane-outline" size={13} color={palette.matcha} />
-          <AppText variant="small" tone="matcha" style={{ fontSize: 12 }}>{t('buddy.invite')}</AppText>
-        </Row>
-      </Pressable>
-      {copied && (
-        <>
-          <Gap h={4} />
-          <AppText variant="small" tone="inkFaint" style={{ fontSize: 11 }}>{t('buddy.inviteCopied')}</AppText>
-        </>
-      )}
-    </View>
+    <Pressable onPress={invite} hitSlop={8}>
+      <Row style={{ gap: 5, alignItems: 'center' }}>
+        <Ionicons name="paper-plane-outline" size={13} color={palette.matcha} />
+        <AppText variant="small" tone="matcha" style={{ fontSize: 12 }}>{t('buddy.invite')}</AppText>
+      </Row>
+    </Pressable>
   );
 
   if (loading) return null;
@@ -114,8 +100,6 @@ export function BuddyPicker({
     </ScrollView>
       <Gap h={space.md} />
       {InviteLink}
-      <Gap h={space.sm} />
-      <AppText variant="small" tone="inkFaint" style={{ fontSize: 11, lineHeight: 17 }}>{t('buddy.canEdit')}</AppText>
     </View>
   );
 }

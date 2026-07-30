@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, TextInput, Pressable, Switch, StyleSheet, Image, Platform } from 'react-native';
+import { View, TextInput, Pressable, Switch, StyleSheet, Image, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -82,7 +82,13 @@ export default function EditTrip() {
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
       <Header title={t('tripEdit.header')} />
       <Rule />
-      <View style={{ flex: 1, paddingHorizontal: space.lg }}>
+      {/* バディー欄が増えて一画面に収まらなくなったので、スクロールで受ける */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.lg }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <Gap h={space.lg} />
         <Eyebrow>{t('tripEdit.cover')}</Eyebrow>
         <Gap h={space.sm} />
@@ -124,8 +130,6 @@ export default function EditTrip() {
 
         <Gap h={space.xl} />
         <Eyebrow>{t('buddy.title')}</Eyebrow>
-        <Gap h={space.sm} />
-        <AppText variant="small" tone="inkFaint" style={{ lineHeight: 20 }}>{t('buddy.lead')}</AppText>
         <Gap h={space.md} />
         <BuddyPicker selected={buddies} onChange={setBuddies} tripTitle={title.trim() || undefined} />
 
@@ -140,8 +144,7 @@ export default function EditTrip() {
           <Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ true: palette.matcha, false: palette.rule }} thumbColor="#fff" />
         </Row>
 
-        {/* 画面が詰まっていても最低限の余白が残るようにする */}
-        <View style={{ flex: 1, minHeight: space.xxl }} />
+        <Gap h={space.xxl} />
         <Button label={saving ? t('common.saving') : t('common.saveChanges')} tone="matcha" onPress={save} disabled={saving} />
         <Gap h={space.sm} />
         <Pressable onPress={remove} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, paddingVertical: space.md }]}>
@@ -151,7 +154,7 @@ export default function EditTrip() {
           </Row>
         </Pressable>
         <Gap h={space.sm} />
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
