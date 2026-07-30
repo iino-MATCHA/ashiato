@@ -113,10 +113,6 @@ export default function GoshuinBook() {
 
       <Gap h={space.lg} />
       <Rule />
-      <Gap h={space.md} />
-      <AppText variant="small" tone="inkFaint">
-        {t('goshuin.footNote')}
-      </AppText>
     </Screen>
   );
 }

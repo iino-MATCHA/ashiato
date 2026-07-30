@@ -2,6 +2,7 @@ import { Modal, View, Pressable, StyleSheet } from 'react-native';
 import { AppText, Row, Rule, Gap } from '@/components/ui';
 import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
+import { useI18n } from '@/lib/i18n';
 
 export const RANKS: { label: string; range: string; min: number }[] = [
   { label: 'First Steps', range: '0 – 4', min: 0 },
@@ -19,14 +20,15 @@ export function rankFor(count: number): string {
 
 export function RankModal({ visible, onClose, count }: { visible: boolean; onClose: () => void; count: number }) {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const current = rankFor(count);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={[styles.card, { backgroundColor: palette.washi }]} onPress={() => {}}>
-          <AppText variant="h3" tone="ink">Ranks</AppText>
-          <AppText variant="small" tone="inkFaint">Based on how many prefectures you’ve visited.</AppText>
+          <AppText variant="h3" tone="ink">{t('rank.title')}</AppText>
+          <AppText variant="small" tone="inkFaint">{t('rank.based')}</AppText>
           <Gap h={space.md} />
           <Rule />
           {RANKS.map((r) => {
@@ -38,7 +40,7 @@ export function RankModal({ visible, onClose, count }: { visible: boolean; onClo
                     {on && <View style={[styles.dot, { backgroundColor: palette.shu }]} />}
                     <AppText variant="bodyStrong" tone={on ? 'shu' : 'ink'}>{r.label}</AppText>
                   </Row>
-                  <AppText variant="small" tone="inkFaint">{r.range} prefectures</AppText>
+                  <AppText variant="small" tone="inkFaint">{t('rank.range', { range: r.range })}</AppText>
                 </Row>
                 <Rule />
               </View>
@@ -46,7 +48,7 @@ export function RankModal({ visible, onClose, count }: { visible: boolean; onClo
           })}
           <Gap h={space.md} />
           <Pressable onPress={onClose} style={[styles.close, { backgroundColor: palette.ink }]}>
-            <AppText variant="bodyStrong" style={{ color: palette.paper }}>Close</AppText>
+            <AppText variant="bodyStrong" style={{ color: palette.paper }}>{t('common.close')}</AppText>
           </Pressable>
         </Pressable>
       </Pressable>

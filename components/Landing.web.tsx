@@ -22,7 +22,7 @@ import { useI18n } from '@/lib/i18n';
 const CSS = `
 /* シェルが 100dvh 固定なので、LP自身をスクロール領域にする */
 .lp { --ink:#14120F; --paper:#FBFAF7; --matcha:#69AF00; --shu:#C4432B; --gold:#C9A227; --slant:6vw;
-  height:100svh; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;
+  height:var(--vh,100svh); overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;
   background:var(--paper); color:var(--ink);
   font-family:'ZenKakuGothicNew_400Regular','Zen Kaku Gothic New',system-ui,sans-serif;
   -webkit-font-smoothing:antialiased; }
@@ -59,7 +59,7 @@ const CSS = `
 /* --- 都道府県の中央モーダル --- */
 .lp .quizBack { position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center;
   padding:18px; background:rgba(12,12,10,.58); backdrop-filter:blur(3px); animation:quizFade .28s ease both; }
-.lp .quizSheet { position:relative; width:100%; max-width:500px; max-height:92svh; overflow-y:auto;
+.lp .quizSheet { position:relative; width:100%; max-width:500px; max-height:calc(var(--vh,100svh)*0.92); overflow-y:auto;
   background:var(--paper); color:var(--ink); border-radius:20px; padding:20px 18px 20px; text-align:center;
   box-shadow:0 24px 70px rgba(0,0,0,.34); animation:quizUp .34s cubic-bezier(.2,.7,.2,1) both; }
 .lp .quizSheet h3 { margin:8px 0 0; font-size:clamp(17px,4.4vw,21px); line-height:1.35; }
@@ -70,7 +70,7 @@ const CSS = `
 @keyframes quizUp { from { opacity:0; transform:translateY(18px) scale(.97) } to { opacity:1; transform:none } }
 
 /* --- ヒーロー --- */
-.lp .hero { position:relative; min-height:100svh; display:flex; align-items:center;
+.lp .hero { position:relative; min-height:var(--vh,100svh); display:flex; align-items:center;
   justify-content:center; overflow:hidden; background:#0B0F0A; }
 .lp .heroGrid { position:absolute; inset:-8%; display:grid; gap:6px;
   grid-template-columns:repeat(4,1fr); grid-auto-rows:1fr; transform:rotate(-8deg) scale(1.25); }

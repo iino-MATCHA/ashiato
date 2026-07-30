@@ -35,39 +35,50 @@ function drawCard(tripTitle?: string): string | null {
   g.fillStyle = '#FBFAF7';
   g.fillRect(0, 0, W, H);
 
-  // 抹茶色の細い枠。囲みはこの一本だけにして、中は余白で見せる
-  g.strokeStyle = '#69AF00';
-  g.lineWidth = 6;
-  g.strokeRect(54, 54, W - 108, H - 108);
-
+  // 背景にファビコンと同じ抹茶の円。右上に大きく置いて、少しはみ出させる
+  g.fillStyle = '#69AF00';
+  g.globalAlpha = 0.12;
+  g.beginPath();
+  g.arc(W * 0.82, H * 0.2, 340, 0, Math.PI * 2);
+  g.fill();
+  g.globalAlpha = 1;
+  g.beginPath();
+  g.arc(W * 0.82, H * 0.2, 120, 0, Math.PI * 2);
+  g.fill();
+  // 円の中は白抜きの「印」らしく
+  g.fillStyle = '#FBFAF7';
+  g.font = '700 76px "Hiragino Mincho ProN", "Yu Mincho", serif';
   g.textAlign = 'center';
+  g.fillText('旅', W * 0.82, H * 0.2 + 28);
+
+  g.textAlign = 'left';
   g.fillStyle = '#9B978F';
   g.font = '500 26px system-ui, sans-serif';
-  g.fillText('M Y   J A P A N', W / 2, 210);
+  g.fillText('M Y   J A P A N', 100, 180);
 
   g.fillStyle = '#171717';
-  g.font = '700 62px "Hiragino Mincho ProN", "Yu Mincho", serif';
-  wrap(g, t('buddy.inviteTitle'), W / 2, 400, W - 240, 84);
+  g.font = '700 60px "Hiragino Mincho ProN", "Yu Mincho", serif';
+  wrapLeft(g, t('buddy.inviteTitle'), 100, 430, W - 320, 84);
 
   if (tripTitle) {
     g.fillStyle = '#69AF00';
-    g.font = '600 40px system-ui, sans-serif';
-    wrap(g, tripTitle, W / 2, 600, W - 260, 56);
+    g.font = '600 38px system-ui, sans-serif';
+    wrapLeft(g, tripTitle, 100, 560, W - 240, 54);
   }
 
   g.fillStyle = '#5E5B57';
-  g.font = '400 30px system-ui, sans-serif';
-  wrap(g, t('buddy.inviteBody'), W / 2, tripTitle ? 720 : 640, W - 260, 48);
+  g.font = '400 32px system-ui, sans-serif';
+  wrapLeft(g, t('buddy.inviteBody'), 100, tripTitle ? 680 : 620, W - 220, 52);
 
   g.fillStyle = '#9B978F';
   g.font = '400 26px system-ui, sans-serif';
-  g.fillText(SITE.replace('https://', ''), W / 2, H - 130);
+  g.fillText(SITE.replace('https://', ''), 100, H - 110);
 
   return c.toDataURL('image/png');
 }
 
-/** 中央揃えの折り返し。1行に収まらない見出しで崩れないように。 */
-function wrap(g: CanvasRenderingContext2D, text: string, cx: number, y: number, maxW: number, lh: number) {
+/** 左揃えの折り返し。textAlign は呼び出し側の設定をそのまま使う。 */
+function wrapLeft(g: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lh: number) {
   const chars = Array.from(text);
   const lines: string[] = [];
   let line = '';
@@ -82,8 +93,9 @@ function wrap(g: CanvasRenderingContext2D, text: string, cx: number, y: number, 
     }
   }
   if (line) lines.push(line);
-  lines.forEach((l, i) => g.fillText(l, cx, y + i * lh));
+  lines.forEach((l, i) => g.fillText(l, x, y + i * lh));
 }
+
 
 /**
  * 招待を送る。共有シートが使えれば画像ごと、駄目ならクリップボードへ。

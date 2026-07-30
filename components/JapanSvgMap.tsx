@@ -6,7 +6,7 @@
  */
 import React from 'react';
 import { View } from 'react-native';
-import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
+import Svg, { G, Path, Text as SvgText, Rect } from 'react-native-svg';
 import { PREFECTURE_PATHS } from '@/lib/mappath';
 import { PREFECTURE_SLUG_BY_ID, PREFECTURE_ID_BY_SLUG, slugForName } from '@/lib/prefectures';
 import { okinawaOffset, contentHeight, pathBox } from '@/lib/ugc/geo';
@@ -103,6 +103,17 @@ export function JapanSvgMap({
             return (
               <G key={slug} transform={`translate(${oki.dx} ${oki.dy})`}>
                 {path}
+                {/* 沖縄は細長くて狙いにくいので、見えない当たり判定を島の周りに敷く */}
+                {onToggle && okiBox && (
+                  <Rect
+                    x={okiBox.minX - 22}
+                    y={okiBox.minY - 22}
+                    width={okiBox.maxX - okiBox.minX + 44}
+                    height={okiBox.maxY - okiBox.minY + 44}
+                    fill="transparent"
+                    onPress={() => onToggle(PREFECTURE_ID_BY_SLUG.okinawa)}
+                  />
+                )}
               </G>
             );
           }

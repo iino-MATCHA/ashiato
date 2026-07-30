@@ -34,6 +34,8 @@ body {
 @supports (height: 100svh) {
   body { height: 100svh; }
 }
+/* 最後の砦: 実測の高さ（下のscriptが --vh を入れる）を最優先で使う */
+body { height: var(--vh, 100svh); }
  /* dynamic viewport = excludes browser chrome */
 }
 #root { display: flex; flex-direction: column; height: 100%; width: 100%; }
@@ -77,6 +79,34 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="twitter:image" content="https://www.my-japan-matcha.com/og.png" />
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: css }} />
+        {/* 見えている高さを実測して --vh に入れる（スマホChromeのツールバー対策） */}
+        <script
+          dangerouslySetInnerHTML={{ __html: `
+(function () {
+  var last = 0;
+  function set() {
+    var vv = window.visualViewport;
+    var h = vv && Math.abs(vv.scale - 1) < 0.05 ? vv.height : window.innerHeight;
+    h = Math.round(h);
+    if (h > 0 && Math.abs(h - last) > 1) {
+      last = h;
+      document.documentElement.style.setProperty('--vh', h + 'px');
+    }
+  }
+  set();
+  window.addEventListener('resize', set);
+  window.addEventListener('orientationchange', set);
+  window.addEventListener('pageshow', set);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', set);
+    window.visualViewport.addEventListener('scroll', set);
+  }
+  /* resizeを出さずにツールバーだけ出し入れするブラウザがあるので、
+     取りこぼしの保険として定期的にも見る。値が変わったときしか書かない */
+  setInterval(set, 800);
+})();
+` }}
+        />
       </head>
       <body>{children}</body>
     </html>

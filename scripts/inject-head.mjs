@@ -29,6 +29,37 @@ const DESC =
  *    タイトル欄やコメント欄が青い箱で囲まれてしまう。枠は各画面が
  *    下線で描いているので、ブラウザ側の装飾は全部止める
  */
+/**
+ * 見えている高さを実測して --vh に入れる。
+ * ピンチズーム中(scaleが1でない)は視覚ビューポートが縮むだけなので無視。
+ * キーボードが出たときは縮む＝タブバーがキーボードの上に乗る。それでよい。
+ */
+const VH_SCRIPT = `
+(function () {
+  var last = 0;
+  function set() {
+    var vv = window.visualViewport;
+    var h = vv && Math.abs(vv.scale - 1) < 0.05 ? vv.height : window.innerHeight;
+    h = Math.round(h);
+    if (h > 0 && Math.abs(h - last) > 1) {
+      last = h;
+      document.documentElement.style.setProperty('--vh', h + 'px');
+    }
+  }
+  set();
+  window.addEventListener('resize', set);
+  window.addEventListener('orientationchange', set);
+  window.addEventListener('pageshow', set);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', set);
+    window.visualViewport.addEventListener('scroll', set);
+  }
+  /* resizeを出さずにツールバーだけ出し入れするブラウザがあるので、
+     取りこぼしの保険として定期的にも見る。値が変わったときしか書かない */
+  setInterval(set, 800);
+})();
+`;
+
 const CSS = `
 html { height: 100%; }
 body {
@@ -48,6 +79,11 @@ body {
    一番下のタブバーが隠れていた。svh は「バーが出ている前提の高さ」なので、
    どの状態でも画面内に収まる。バーが消えたときに下が少し空くだけで済む。 */
 @supports (height: 100svh) { body { height: 100svh; } }
+/* それでも Chrome のスマホ版では、ツールバーが「重なって」表示される
+   状態があり、CSSの単位だけでは追いきれなかった。最後の砦として、
+   実際に見えている高さ(visualViewport)をJSで測って --vh に入れ、
+   それを最優先で使う。単位の理屈で悩むのはここで終わりにする。 */
+body { height: var(--vh, 100svh); }
 #root { display: flex; flex-direction: column; height: 100%; width: 100%; }
 *, *:focus, *:focus-visible, *:focus-within { outline: none !important; }
 input, textarea, select, [contenteditable] {
@@ -76,6 +112,7 @@ const HEAD = `
     <meta name="twitter:description" content="Turn your Japan trip into a keepsake." />
     <meta name="twitter:image" content="${ORIGIN}/og.png" />
     <style id="app-shell">${CSS}</style>
+    <script id="app-vh">${VH_SCRIPT}</script>
 `;
 
 if (!existsSync(FILE)) {
