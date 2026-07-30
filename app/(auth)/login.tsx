@@ -8,6 +8,7 @@ import { Splash } from '@/components/Splash';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { passwordProblem } from '@/lib/password';
 
 import { useI18n } from '@/lib/i18n';
 /**
@@ -71,6 +72,13 @@ export default function Login() {
     setBusy(true);
     try {
       if (mode === 'signup') {
+        // 新しく作るパスワードにだけ条件をかける（既存ユーザーはそのまま）
+        const bad = passwordProblem(password);
+        if (bad) {
+          setError(t(bad));
+          setBusy(false);
+          return;
+        }
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -134,8 +142,11 @@ export default function Login() {
           secureTextEntry
           style={[styles.input, { color: palette.ink, borderColor: palette.ruleStrong }]}
         />
+        {mode === 'signup' && (
+          <><Gap h={space.sm} /><AppText variant="small" tone="inkFaint">{t('password.rule')}</AppText></>
+        )}
 
-        {!!notice && (<><Gap h={space.sm} /><AppText variant="small" tone="matcha" center>{notice}</AppText></>)}
+        {!!notice &&(<><Gap h={space.sm} /><AppText variant="small" tone="matcha" center>{notice}</AppText></>)}
         {!!error && (<><Gap h={space.sm} /><AppText variant="small" tone="shu" center>{error}</AppText></>)}
 
         <Gap h={space.md} />

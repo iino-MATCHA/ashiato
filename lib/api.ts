@@ -1164,9 +1164,35 @@ const SHIPPING_FEE: Record<ShippingRegion, number> = {
   other: 2500,
 };
 
-/** 冊数にも小計にもよらない一律料金（表示用の写し）。 */
-export function shippingFeeFor(region: ShippingRegion): number {
-  return SHIPPING_FEE[region] ?? SHIPPING_FEE.other;
+/** 1kgを超えた分、1kgごとに乗る追加料金。金額の正はサーバ側 shipping_fee_for()。 */
+const SHIPPING_STEP: Record<ShippingRegion, number> = {
+  'east-asia': 600,
+  'southeast-asia': 800,
+  west: 1400,
+  other: 1600,
+};
+
+/** 製本仕様ごとの1冊あたり重量(g)。サーバ側 book_weight_g() の写し。 */
+export const BOOK_WEIGHT_G: Record<BookPlanKey, number> = { premium: 720, regular: 420 };
+
+/** 封筒と緩衝材。実重量に完全一致はしないので、一律で足しておく。 */
+export const PACKAGING_G = 200;
+
+/**
+ * 送料。お届けエリアと総重量で決まる。
+ * 最初の1kgまでが基本料金、そこから1kgごとに段階的に上がる。
+ * 表示のためにここでも計算するが、請求額の正はサーバ側 shipping_fee_for()。
+ */
+export function shippingFeeFor(region: ShippingRegion, weightG = 0): number {
+  const base = SHIPPING_FEE[region] ?? SHIPPING_FEE.other;
+  const step = SHIPPING_STEP[region] ?? SHIPPING_STEP.other;
+  const over = Math.max(0, weightG + PACKAGING_G - 1000);
+  return base + step * Math.ceil(over / 1000);
+}
+
+/** かごの中身の総重量(g)。梱包材は含まない。 */
+export function cartWeightG(items: Array<{ plan: BookPlanKey; qty: number }>): number {
+  return items.reduce((g, i) => g + BOOK_WEIGHT_G[i.plan] * i.qty, 0);
 }
 
 export interface CartItem {
@@ -1179,6 +1205,8 @@ export interface CartItem {
   photoCount: number;
   pageUrls: string[];
   unitPrice: number;
+  /** 部数。unitPrice は1冊あたりのまま。 */
+  qty: number;
 }
 
 function toCartItem(r: any): CartItem {
@@ -1192,6 +1220,7 @@ function toCartItem(r: any): CartItem {
     photoCount: r.photo_count ?? 0,
     pageUrls: Array.isArray(r.page_urls) ? r.page_urls : [],
     unitPrice: r.unit_price_jpy ?? 0,
+    qty: r.qty ?? 1,
   };
 }
 
@@ -1271,6 +1300,14 @@ export async function fetchCart(): Promise<CartItem[]> {
     .eq('user_id', uid)
     .order('created_at', { ascending: true });
   return (data ?? []).map(toCartItem);
+}
+
+/** 部数を変える。1未満・20超は受け付けない（DB側にも同じ制約がある）。 */
+export async function setCartQty(id: string, qty: number): Promise<boolean> {
+  const n = Math.max(1, Math.min(20, Math.round(qty)));
+  const { error } = await supabase.from('cart_items').update({ qty: n }).eq('id', id);
+  if (!error) bump('cart');
+  return !error;
 }
 
 export async function removeCartItem(id: string): Promise<boolean> {
@@ -1360,6 +1397,7 @@ export async function fetchMyOrders(): Promise<OrderRow[]> {
       coverPhotoUrl: i.cover_photo_url ?? null,
       pageCount: i.page_count ?? 0,
       unitPrice: i.unit_price_jpy ?? 0,
+      qty: i.qty ?? 1,
     })),
   }));
 }

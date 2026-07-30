@@ -6,9 +6,11 @@
  * 無限マーキー、Ken Burns）がCSSの方が圧倒的に軽く滑らかなため。
  * 言語はブラウザ設定から自動判定するので、切替UIは置かない。
  */
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { LP_PHOTOS } from '@/lib/lpPhotos';
+import { LP_PHOTOS, PAIR_PHOTOS } from '@/lib/lpPhotos';
+import { JapanSvgMap } from '@/components/JapanSvgMap';
+import { PENDING_PREFECTURES_KEY } from '@/lib/pendingPrefectures';
 import { TripMap } from '@/components/map/TripMap';
 import { LP_DEMO_STEPS, LP_DEMO_TRIP } from '@/lib/lpDemo';
 import { planBook } from '@/lib/photobook/plan';
@@ -18,7 +20,7 @@ import { useI18n } from '@/lib/i18n';
 
 const CSS = `
 /* シェルが 100dvh 固定なので、LP自身をスクロール領域にする */
-.lp { --ink:#14120F; --paper:#FBFAF7; --matcha:#69AF00; --shu:#C4432B; --gold:#C9A227;
+.lp { --ink:#14120F; --paper:#FBFAF7; --matcha:#69AF00; --shu:#C4432B; --gold:#C9A227; --slant:6vw;
   height:100dvh; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;
   background:var(--paper); color:var(--ink);
   font-family:'ZenKakuGothicNew_400Regular','Zen Kaku Gothic New',system-ui,sans-serif;
@@ -39,6 +41,28 @@ const CSS = `
 .lp .hero .rv.d1{animation-delay:.10s}.lp .hero .rv.d2{animation-delay:.20s}
 .lp .hero .rv.d3{animation-delay:.30s}
 @keyframes riseIn { from { transform:translateY(22px) } to { transform:none } }
+
+/* --- 御朱印帳 ↔ ジャーナル --------------------------------
+   このふたつは対になっている（集めるもの / 編むもの）。
+   境目を斜めに切って、対比であることを形でも見せる。 */
+.lp section.journal { margin-top:calc(-1 * var(--slant));
+  clip-path:polygon(0 var(--slant),100% 0,100% 100%,0 100%);
+  padding-top:calc(clamp(72px,13vw,140px) + var(--slant)); }
+
+/* --- 家族とカップル --- */
+/* 写真と文章だけ。枠で囲わない */
+.lp .pair { display:grid; gap:clamp(22px,4vw,44px); grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); margin-top:44px; }
+.lp .pairCard { margin:0; }
+.lp .pairImg { aspect-ratio:4/3; border-radius:16px; overflow:hidden; background:#EDEAE2; }
+.lp .pairImg img { width:100%; height:100%; object-fit:cover; display:block; filter:saturate(.9) contrast(.97); }
+.lp .pairCard h3 { margin:18px 0 7px; font-size:18px; }
+.lp .pairCard p { margin:0; font-size:13.5px; line-height:1.95; color:#6B6862; }
+
+/* --- 都道府県の問いかけ --- */
+.lp section.quiz { text-align:center; background:var(--paper); }
+.lp section.quiz .lead { margin-left:auto; margin-right:auto; }
+.lp .quizMap { display:flex; justify-content:center; margin:34px 0 10px; }
+.lp .quizCount { margin:0; font-size:13px; color:#6B6862; }
 
 /* --- ヒーロー --- */
 .lp .hero { position:relative; min-height:100dvh; display:flex; align-items:center;
@@ -240,6 +264,29 @@ export function Landing() {
   const paper = useMemo(() => photos.slice(26, 30), [photos]);
 
   /**
+   * 「いくつ回りましたか？」の日本地図。
+   * ログイン後の最初の選択と同じ JapanSvgMap をそのまま使う。
+   * 選んだ県は端末に控えておき、登録直後の都道府県選択で拾い直す
+   * （そのままログインすると、その御朱印が入った状態で始められる）。
+   */
+  const [quizSel, setQuizSel] = useState<Set<number>>(() => new Set());
+  const toggleQuiz = useCallback((code: number) => {
+    setQuizSel((cur) => {
+      const next = new Set(cur);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  }, []);
+  const quizW = typeof window === 'undefined' ? 340 : Math.min(window.innerWidth - 44, 420);
+  const seeGoshuin = () => {
+    try {
+      localStorage.setItem(PENDING_PREFECTURES_KEY, JSON.stringify(Array.from(quizSel)));
+    } catch {}
+    router.push('/(auth)/login?signup=1');
+  };
+
+  /**
    * 出現アニメーションとパララックス。
    * アプリのシェル（+html.tsx）は height:100dvh 固定なので、文書はスクロールしない。
    * LP自身をスクロール領域にしているため、監視も購読もこの要素に対して行う。
@@ -342,6 +389,109 @@ export function Landing() {
         </div>
       </section>
 
+      {/* ================= 御朱印帳 ================= */}
+      <section className="dark">
+        <div className="wrap" style={{ textAlign: 'center' }}>
+          <div className="rv">
+            <div className="eyebrow">{t('lp.bookEyebrow')}</div>
+            <h2 className="mincho">{t('lp.bookTitle')}</h2>
+            <p className="lead" style={{ margin: '16px auto 0' }}>{t('lp.bookCaption')}</p>
+          </div>
+          {/* 製本ページと同じ、めくれる本のプレビュー */}
+          <div className="bookStage rv d2">
+            <BookPreview
+              total={demoBook.pages.length}
+              getPage={getDemoPage}
+              width={bookW}
+              ratio={PAGE_SIZE.height / PAGE_SIZE.width}
+            />
+          </div>
+
+          {/* 御朱印そのものの説明。小さめの字で丁寧に */}
+          <div className="goshuinNote rv d3">
+            <div className="gnHead">
+              <span className="brush">御朱印</span>
+              <b>{t('lp.goshuinWhatTitle')}</b>
+            </div>
+            <p>{t('lp.goshuinWhat1')}</p>
+            <p>{t('lp.goshuinWhat2')}</p>
+            <p className="gnPitch">{t('lp.goshuinPitch')}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ================= ジャーナル ================= */}
+      <section className="journal">
+        <div className="wrap" style={{ textAlign: 'center' }}>
+          <div className="rv">
+            <div className="eyebrow">{t('lp.journalEyebrow')}</div>
+            <h2 className="mincho">{t('lp.journalTitle')}</h2>
+            <p className="lead" style={{ margin: '16px auto 0' }}>{t('lp.journalCaption')}</p>
+          </div>
+          <div className="papers">
+            <div className="paper p3" />
+            <div className="paper p2" />
+            <div className="paper">
+              <div className="paperTop">
+                <div className="paperHero">{paper[0] && <img src={paper[0].src} alt="" loading="lazy" />}</div>
+                <div className="paperStrip">
+                  {paper.slice(1, 4).map((p) => <div key={p.src}><img src={p.src} alt="" loading="lazy" /></div>)}
+                </div>
+                <div className="paperFoot">
+                  <div style={{ fontSize: 7, letterSpacing: 2.4, color: '#A5A19A' }}>MY JAPAN</div>
+                  <div className="mincho" style={{ fontSize: 15, marginTop: 2 }}>{t('lp.journalMockTitle')}</div>
+                  <div style={{ fontSize: 8, color: '#6B6862', marginTop: 2 }}>2026.05.02 – 05.06</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ================= 家族とカップル ================= */}
+      <section className="warm">
+        <div className="wrap">
+          <div className="rv" style={{ textAlign: 'center' }}>
+            <div className="eyebrow">{t('lp.pairEyebrow')}</div>
+            <h2 className="mincho">{t('lp.pairTitle')}</h2>
+            <p className="lead" style={{ margin: '16px auto 0' }}>{t('lp.pairLead')}</p>
+          </div>
+          <div className="pair">
+            {[
+              { src: PAIR_PHOTOS.family, t: t('lp.famT'), b: t('lp.famB') },
+              { src: PAIR_PHOTOS.couple, t: t('lp.coupleT'), b: t('lp.coupleB') },
+            ].map((x, i) => (
+              <figure className={`pairCard rv d${i + 1}`} key={x.t}>
+                <div className="pairImg"><img src={x.src} alt="" loading="lazy" decoding="async" /></div>
+                <figcaption>
+                  <h3 className="mincho">{x.t}</h3>
+                  <p>{x.b}</p>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ================= 都道府県の問いかけ ================= */}
+      <section className="quiz">
+        <div className="wrap">
+          <div className="rv">
+            <div className="eyebrow">{t('lp.quizEyebrow')}</div>
+            <h2 className="mincho">{t('lp.quizTitle')}</h2>
+            <p className="lead" style={{ margin: '16px auto 0' }}>{t('lp.quizLead')}</p>
+          </div>
+          {/* ログイン後の最初の選択と同じ地図をそのまま使う */}
+          <div className="quizMap">
+            <JapanSvgMap visited={quizSel} onToggle={toggleQuiz} width={quizW} okinawaInset />
+          </div>
+          <p className="quizCount">{t('lp.quizCount', { n: quizSel.size })}</p>
+          <div style={{ marginTop: 22 }}>
+            <button className="cta" onClick={seeGoshuin}>{t('lp.quizCta')} →</button>
+          </div>
+        </div>
+      </section>
+
       {/* ================= 3つの柱 ================= */}
       <section className="warm tight">
         <div className="wrap">
@@ -400,65 +550,6 @@ export function Landing() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ================= 御朱印帳 ================= */}
-      <section className="dark">
-        <div className="wrap" style={{ textAlign: 'center' }}>
-          <div className="rv">
-            <div className="eyebrow">{t('lp.bookEyebrow')}</div>
-            <h2 className="mincho">{t('lp.bookTitle')}</h2>
-            <p className="lead" style={{ margin: '16px auto 0' }}>{t('lp.bookCaption')}</p>
-          </div>
-          {/* 製本ページと同じ、めくれる本のプレビュー */}
-          <div className="bookStage rv d2">
-            <BookPreview
-              total={demoBook.pages.length}
-              getPage={getDemoPage}
-              width={bookW}
-              ratio={PAGE_SIZE.height / PAGE_SIZE.width}
-            />
-          </div>
-
-          {/* 御朱印そのものの説明。小さめの字で丁寧に */}
-          <div className="goshuinNote rv d3">
-            <div className="gnHead">
-              <span className="brush">御朱印</span>
-              <b>{t('lp.goshuinWhatTitle')}</b>
-            </div>
-            <p>{t('lp.goshuinWhat1')}</p>
-            <p>{t('lp.goshuinWhat2')}</p>
-            <p className="gnPitch">{t('lp.goshuinPitch')}</p>
-          </div>
-        </div>
-      </section>
-
-      {/* ================= ジャーナル ================= */}
-      <section className="journal">
-        <div className="wrap" style={{ textAlign: 'center' }}>
-          <div className="rv">
-            <div className="eyebrow">{t('lp.journalEyebrow')}</div>
-            <h2 className="mincho">{t('lp.journalTitle')}</h2>
-            <p className="lead" style={{ margin: '16px auto 0' }}>{t('lp.journalCaption')}</p>
-          </div>
-          <div className="papers">
-            <div className="paper p3" />
-            <div className="paper p2" />
-            <div className="paper">
-              <div className="paperTop">
-                <div className="paperHero">{paper[0] && <img src={paper[0].src} alt="" loading="lazy" />}</div>
-                <div className="paperStrip">
-                  {paper.slice(1, 4).map((p) => <div key={p.src}><img src={p.src} alt="" loading="lazy" /></div>)}
-                </div>
-                <div className="paperFoot">
-                  <div style={{ fontSize: 7, letterSpacing: 2.4, color: '#A5A19A' }}>MY JAPAN</div>
-                  <div className="mincho" style={{ fontSize: 15, marginTop: 2 }}>{t('lp.journalMockTitle')}</div>
-                  <div style={{ fontSize: 8, color: '#6B6862', marginTop: 2 }}>2026.05.02 – 05.06</div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>

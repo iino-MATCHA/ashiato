@@ -17,7 +17,7 @@ import { space, fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useCart } from '@/lib/useData';
 import { useI18n } from '@/lib/i18n';
-import { removeCartItem } from '@/lib/api';
+import { removeCartItem, setCartQty } from '@/lib/api';
 import { yen } from '@/lib/money';
 
 export default function Cart() {
@@ -26,7 +26,7 @@ export default function Cart() {
   const { items, loading } = useCart();
   const [confirming, setConfirming] = useState<string | null>(null);
 
-  const subtotal = items.reduce((s, i) => s + i.unitPrice, 0);
+  const subtotal = items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
 
   const remove = async (id: string) => {
     setConfirming(null);
@@ -84,6 +84,28 @@ export default function Cart() {
                   {t(item.plan === 'premium' ? 'bind.premiumName' : 'bind.regularName')} · {item.pageCount} {t('cart.pages')}
                 </AppText>
                 <Gap h={space.sm} />
+                {/* 部数。押せるものなので丸で囲う（説明文は囲わない方針のまま） */}
+                <Row style={{ gap: space.sm, alignItems: 'center' }}>
+                  <Pressable
+                    onPress={() => setCartQty(item.id, item.qty - 1)}
+                    disabled={item.qty <= 1}
+                    hitSlop={8}
+                    style={[styles.step, { borderColor: palette.ruleStrong }, item.qty <= 1 && { opacity: 0.35 }]}
+                  >
+                    <Ionicons name="remove" size={15} color={palette.ink} />
+                  </Pressable>
+                  <AppText variant="bodyStrong" tone="ink" style={{ minWidth: 22, textAlign: 'center' }}>{item.qty}</AppText>
+                  <Pressable
+                    onPress={() => setCartQty(item.id, item.qty + 1)}
+                    disabled={item.qty >= 20}
+                    hitSlop={8}
+                    style={[styles.step, { borderColor: palette.ruleStrong }, item.qty >= 20 && { opacity: 0.35 }]}
+                  >
+                    <Ionicons name="add" size={15} color={palette.ink} />
+                  </Pressable>
+                  <AppText variant="small" tone="inkFaint">{t('cart.copies')}</AppText>
+                </Row>
+                <Gap h={space.sm} />
                 {confirming === item.id ? (
                   <Row style={{ gap: space.md }}>
                     <Pressable onPress={() => remove(item.id)} hitSlop={8}>
@@ -103,9 +125,14 @@ export default function Cart() {
                 )}
               </View>
 
-              <AppText style={{ fontFamily: fonts.minchoBold, fontSize: 17, color: palette.ink }}>
-                {yen(item.unitPrice)}
-              </AppText>
+              <View style={{ alignItems: 'flex-end' }}>
+                <AppText style={{ fontFamily: fonts.minchoBold, fontSize: 17, color: palette.ink }}>
+                  {yen(item.unitPrice * item.qty)}
+                </AppText>
+                {item.qty > 1 && (
+                  <AppText variant="small" tone="inkFaint">{yen(item.unitPrice)} × {item.qty}</AppText>
+                )}
+              </View>
             </Row>
             {confirming === item.id && (
               <AppText variant="small" tone="shu" style={{ paddingBottom: space.sm }}>
@@ -138,6 +165,7 @@ export default function Cart() {
 }
 
 const styles = StyleSheet.create({
+  step: { width: 30, height: 30, borderRadius: 15, borderWidth: hairline * 2, alignItems: 'center', justifyContent: 'center' },
   row: { gap: space.md, alignItems: 'flex-start', paddingVertical: space.md },
   cover: {
     width: 56, height: 79, borderRadius: 4, borderWidth: hairline, overflow: 'hidden',

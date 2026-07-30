@@ -49,3 +49,12 @@ export const LP_PHOTOS: LpPhoto[] = [
   { src: 'https://upload.wikimedia.org/wikipedia/commons/f/ff/SendaiJoOtemonSumiYagura2003-11.jpg', title: 'Sendai Castle', pref: 'Miyagi' },
   { src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Himeji_castle_in_may_2015.jpg/960px-Himeji_castle_in_may_2015.jpg', title: 'Himeji Castle', pref: 'Hyogo' },
 ];
+
+/**
+ * 家族とカップルのセクションで使う写真。
+ * 人が写っていて、しかも騒がしくないものを選んである（HTTP 200 確認済み）。
+ */
+export const PAIR_PHOTOS = {
+  family: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Small_family_walking_down_a_street_in_Kanazawa_-_Takeshi_DSC_1097_%283873425324%29.jpg/960px-Small_family_walking_down_a_street_in_Kanazawa_-_Takeshi_DSC_1097_%283873425324%29.jpg',
+  couple: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Pedestrian_road_with_pavements%2C_paper_umbrellas_and_people_in_yukata%2C_Higashiyama-ku%2C_Kyoto%2C_Japan.jpg/960px-Pedestrian_road_with_pavements%2C_paper_umbrellas_and_people_in_yukata%2C_Higashiyama-ku%2C_Kyoto%2C_Japan.jpg',
+} as const;

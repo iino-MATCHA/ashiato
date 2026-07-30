@@ -21,7 +21,7 @@ import { useTheme } from '@/lib/useTheme';
 import { useCart } from '@/lib/useData';
 import { useI18n } from '@/lib/i18n';
 import {
-  checkoutCart, markOrderPaid, shippingFeeFor, SHIPPING_REGIONS,
+  checkoutCart, markOrderPaid, shippingFeeFor, SHIPPING_REGIONS, cartWeightG, PACKAGING_G,
   type ShippingInput, type ShippingRegion,
 } from '@/lib/api';
 import { yen } from '@/lib/money';
@@ -78,8 +78,11 @@ export default function Checkout() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const subtotal = useMemo(() => items.reduce((s, i) => s + i.unitPrice, 0), [items]);
-  const shipping = shippingFeeFor(region);
+  const subtotal = useMemo(() => items.reduce((s, i) => s + i.unitPrice * i.qty, 0), [items]);
+  // 送料はエリアだけでなく重さでも変わる。冊数を増やせばここが上がる
+  const weightG = useMemo(() => cartWeightG(items), [items]);
+  const books = useMemo(() => items.reduce((n, i) => n + i.qty, 0), [items]);
+  const shipping = shippingFeeFor(region, weightG);
   const total = subtotal + shipping;
 
   const ready = !!email.trim() && !!name.trim() && !!address1.trim() && items.length > 0;
@@ -171,12 +174,14 @@ export default function Checkout() {
                   {t(`checkout.hint.${k}`)}
                 </AppText>
               </View>
-              <AppText variant="small" tone={on ? 'matcha' : 'inkFaint'}>{yen(shippingFeeFor(k))}</AppText>
+              <AppText variant="small" tone={on ? 'matcha' : 'inkFaint'}>{yen(shippingFeeFor(k, weightG))}</AppText>
             </Pressable>
           );
         })}
         <Gap h={space.sm} />
-        <AppText variant="small" tone="inkFaint" style={{ fontSize: 11 }}>{t('checkout.flatRate')}</AppText>
+        <AppText variant="small" tone="inkFaint" style={{ fontSize: 11, lineHeight: 17 }}>
+          {t('checkout.weightNote', { books, kg: ((weightG + PACKAGING_G) / 1000).toFixed(1) })}
+        </AppText>
 
         <Field palette={palette} label={t('checkout.name')} value={name} onChangeText={setName} placeholder="Taro Yamada" />
         <Field palette={palette} label={t('checkout.postal')} value={postalCode} onChangeText={setPostal} placeholder={region === 'east-asia' ? '150-0001' : 'ZIP / Postcode'} />
@@ -223,7 +228,7 @@ export default function Checkout() {
         <Gap h={space.sm} />
         <Row style={{ justifyContent: 'space-between' }}>
           <AppText variant="small" tone="inkSoft">
-            {t('checkout.shipping')} · {t(`checkout.region.${region}`)}
+            {t('checkout.shipping')} · {t(`checkout.region.${region}`)} · {books}{t('cart.copies')}
           </AppText>
           <AppText variant="small" tone="ink">{yen(shipping)}</AppText>
         </Row>

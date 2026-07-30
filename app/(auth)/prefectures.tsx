@@ -13,6 +13,7 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { saveVisitedPrefectures, fetchUserPrefectures } from '@/lib/api';
 import { PREFECTURE_EN_BY_ID } from '@/lib/prefectures';
 import { AutoTripModal } from '@/components/AutoTripModal';
+import { takePendingPrefectures } from '@/lib/pendingPrefectures';
 import { useI18n } from '@/lib/i18n';
 
 export default function PrefectureOnboarding() {
@@ -29,11 +30,16 @@ export default function PrefectureOnboarding() {
   const [askAuto, setAskAuto] = useState(false);
   const baseW = Math.min(width - space.lg * 2, 420);
 
-  // when re-editing, preload what's already saved
+  // when re-editing, preload what's already saved.
+  // LPの「いくつ回りましたか？」で選んだ分があれば、それも重ねて拾う
   useEffect(() => {
+    const pending = takePendingPrefectures();
+    if (pending.length) setSelected((cur) => new Set([...cur, ...pending]));
     if (!isSupabaseConfigured) return;
     let alive = true;
-    fetchUserPrefectures().then((codes) => alive && setSelected(new Set(codes))).catch(() => {});
+    fetchUserPrefectures()
+      .then((codes) => alive && setSelected((cur) => new Set([...cur, ...codes])))
+      .catch(() => {});
     return () => { alive = false; };
   }, []);
 
