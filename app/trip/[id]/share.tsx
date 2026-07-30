@@ -13,6 +13,7 @@ import { exportShareCard } from '@/lib/shareCard';
 import { shareImage, type ShareTarget } from '@/lib/shareImage';
 import { captureCard } from '@/lib/cardShot';
 import { CopyLink } from '@/components/CopyLink';
+import { track } from '@/lib/analytics';
 import { PREFECTURE_ID_BY_SLUG, slugForName } from '@/lib/prefectures';
 
 import { useI18n } from '@/lib/i18n';
@@ -78,6 +79,7 @@ export default function TripShare() {
 
   // プレビューと同じ scene を 1080px 幅で描き直して保存する
   const download = async () => {
+    track('share_ugc', { type: 'trip', method: 'download' });
     if (Platform.OS !== 'web' || typeof document === 'undefined' || saving) return;
     setSaving(true);
     const dataUrl = await exportShareCard(cardMeta);
@@ -94,6 +96,7 @@ export default function TripShare() {
    * Web は Canvas で 1080px に描き直し、ネイティブは画面のカードを写し取る。
    */
   const send = async (to: ShareTarget) => {
+    track('share_ugc', { type: 'trip', method: to });
     if (busy) return;
     setBusy(to);
     setNotice(null);

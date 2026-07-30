@@ -25,6 +25,7 @@ import {
   type ShippingInput, type ShippingRegion,
 } from '@/lib/api';
 import { yen } from '@/lib/money';
+import { track } from '@/lib/analytics';
 
 /**
  * 支払いは Stripe のホスト型 Checkout に飛ばす。
@@ -98,6 +99,7 @@ export default function Checkout() {
       const input: ShippingInput = { email, name, region, postalCode, address1, address2, phone };
       const orderId = await checkoutCart(input);
       if (!orderId) throw new Error('no order');
+      track('begin_checkout', { value: total, currency: 'JPY', items: books });
 
       // Stripe の支払いページへ送る。ここを離れたあとの入金確定は
       // webhook が行うので、戻ってきた画面の言い分では paid にしない。

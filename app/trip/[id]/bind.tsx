@@ -8,6 +8,7 @@
  * 届く本は変わらない。
  * 既存のジャーナルPDF（/trip/[id]/book）は残し、一番下から見本として辿れる。
  */
+import { track } from '@/lib/analytics';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View, Pressable, ScrollView, StyleSheet, Modal,
@@ -74,6 +75,7 @@ export default function TripBind() {
     setFailed(false);
     setAdding({ plan, done: 0, total: book.pages.length });
     try {
+      track('add_to_cart');
       const item = await addToCart({
         tripId: trip.id,
         plan,

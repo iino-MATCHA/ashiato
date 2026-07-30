@@ -15,6 +15,7 @@ import { PhotoPicker } from '@/components/PhotoPicker';
 import { space, fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useI18n } from '@/lib/i18n';
+import { track } from '@/lib/analytics';
 import { createTripFromPhotos, addStopsFromPhotos, type AutoTripProgress, type AutoTripResult } from '@/lib/autotrip';
 
 type Phase = 'ask' | 'working' | 'done' | 'failed';
@@ -67,6 +68,7 @@ export function AutoTripModal({
       : await createTripFromPhotos(files, setProgress);
     running.current = false;
     setResult(res);
+    if (!res.failure) track('auto_trip_created', { stops: res.stops, photos: res.photos });
     setPhase(res.failure ? 'failed' : 'done');
   };
 

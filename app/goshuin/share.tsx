@@ -16,6 +16,7 @@ import { captureCard } from '@/lib/cardShot';
 import { CountUp } from '@/components/CountUp';
 import { CopyLink } from '@/components/CopyLink';
 import { currentUserId } from '@/lib/api';
+import { track } from '@/lib/analytics';
 
 import { useI18n } from '@/lib/i18n';
 export default function GoshuinShare() {
@@ -69,6 +70,7 @@ export default function GoshuinShare() {
    * Web は Canvas で 1080px に描き直し、ネイティブは画面のカードを写し取る。
    */
   const share = async (to: ShareTarget) => {
+    track('share_ugc', { type: 'goshuin', method: to });
     if (busy) return;
     setBusy(to);
     setNotice(null);
@@ -85,6 +87,7 @@ export default function GoshuinShare() {
 
   // プレビューと同じ構成を 1080×1920 で描き直して1枚のPNGにする
   const download = async () => {
+    track('share_ugc', { type: 'goshuin', method: 'download' });
     if (Platform.OS !== 'web' || typeof document === 'undefined' || saving) return;
     setSaving(true);
     const dataUrl = await exportJapanCard(cardMeta());

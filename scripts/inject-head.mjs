@@ -96,7 +96,18 @@ input, textarea, select, [contenteditable] {
 }
 `.trim();
 
-const HEAD = `
+/** GA4。SPAなので初回の page_view はここ、以後の遷移は app/_layout が送る */
+const GA_ID = 'G-6ZT45DQVPX';
+const GA = `
+    <script async src="https://www.googletagmanager.com/gtag/js?id=${GA_ID}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '${GA_ID}');
+    </script>`;
+
+const HEAD = `${GA}
     <meta name="description" content="${DESC}" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/icon-512.png" />

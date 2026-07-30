@@ -9,6 +9,7 @@ import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { passwordProblem } from '@/lib/password';
+import { track } from '@/lib/analytics';
 
 import { useI18n } from '@/lib/i18n';
 /**
@@ -85,6 +86,7 @@ export default function Login() {
           options: { emailRedirectTo: redirectTo },
         });
         if (error) throw error;
+        track('sign_up', { method: 'email' });
         if (!data.session) {
           setNotice('Check your inbox and tap the confirmation link — it opens the app automatically.');
           setMode('signin');

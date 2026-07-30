@@ -6,6 +6,7 @@
  * クリップボードへ置く。黙って何も起きない、という状態は作らない。
  */
 import { t } from '@/lib/i18n';
+import { track } from '@/lib/analytics';
 
 const SITE = 'https://www.my-japan-matcha.com';
 
@@ -102,6 +103,7 @@ function wrapLeft(g: CanvasRenderingContext2D, text: string, x: number, y: numbe
  * 押した流れの中で呼ぶこと（await を挟むとシートが開けなくなる）。
  */
 export async function shareInvite(tripTitle?: string): Promise<InviteResult> {
+  track('invite_shared', { hasTrip: !!tripTitle });
   const text = inviteText(tripTitle);
 
   try {

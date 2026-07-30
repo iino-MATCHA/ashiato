@@ -123,19 +123,21 @@ const CSS = `
 /* --- 宙に浮くスマホ --- */
 .lp .mqHead { display:flex; align-items:center; justify-content:space-between; gap:26px; flex-wrap:wrap; }
 .lp .phoneFloat { perspective:1100px; margin:6px auto 0; }
-/* 斜めに上を向いた板。浮遊は transform だけで動かす（止まっても壊れない） */
-.lp .phone { width:216px; padding:20px 14px 16px; border-radius:30px; background:#101010;
+/* 斜めに上を向いた板。浮遊は transform だけで動かす（止まっても壊れない）。
+   本物のスマホの縦横比(9:19.5)に固定し、中身は縦に間隔を取って収める */
+.lp .phone { width:172px; aspect-ratio:9/19.5; padding:16px 12px 14px; border-radius:26px; background:#101010;
   box-shadow:0 34px 60px rgba(0,0,0,.30), 0 8px 18px rgba(0,0,0,.18);
   transform:rotateX(11deg) rotateY(-16deg) rotateZ(5deg);
-  animation:phoneBob 5.2s ease-in-out infinite alternate; position:relative; }
-.lp .phone::before { content:''; position:absolute; inset:6px; border-radius:24px;
+  animation:phoneBob 5.2s ease-in-out infinite alternate; position:relative;
+  display:flex; flex-direction:column; }
+.lp .phone::before { content:''; position:absolute; inset:5px; border-radius:21px;
   background:#FBFAF7; z-index:0; }
 .lp .phone > * { position:relative; z-index:1; }
-.lp .phoneNotch { width:74px; height:8px; border-radius:5px; background:#101010; margin:0 auto 12px; }
-.lp .phoneBrand { text-align:center; font-size:9px; letter-spacing:4px; color:#9B978F; margin-bottom:6px; }
-.lp .phoneMap { display:flex; justify-content:center; }
-.lp .phoneCount { text-align:center; font-size:11px; color:#6B6862; margin-top:8px; }
-.lp .phoneCount b { font-size:16px; color:#69AF00; }
+.lp .phoneNotch { flex:0 0 auto; width:56px; height:6px; border-radius:4px; background:#101010; margin:0 auto 14px; }
+.lp .phoneBrand { flex:0 0 auto; text-align:center; font-size:8px; letter-spacing:3.4px; color:#9B978F; }
+.lp .phoneMap { flex:1 1 auto; display:flex; justify-content:center; align-items:center; }
+.lp .phoneCount { flex:0 0 auto; text-align:center; font-size:10px; color:#6B6862; padding-bottom:6px; }
+.lp .phoneCount b { font-size:15px; color:#69AF00; }
 @keyframes phoneBob { from { transform:rotateX(11deg) rotateY(-16deg) rotateZ(5deg) translateY(0) }
   to { transform:rotateX(9deg) rotateY(-13deg) rotateZ(4deg) translateY(-14px) } }
 @media (max-width:720px) { .lp .mqHead { justify-content:center; text-align:center; } }
@@ -448,7 +450,7 @@ export function Landing() {
                 <div className="phoneBrand">MY JAPAN</div>
                 <div className="phoneMap">
                   {/* LPは常に明るい紙の上なので、テーマに寄らず明所の色で固定する */}
-                  <JapanSvgMap visited={PHONE_VISITED} width={168} okinawaInset tint="#69AF00" emptyFill="#EDEBE3" />
+                  <JapanSvgMap visited={PHONE_VISITED} width={132} okinawaInset tint="#69AF00" emptyFill="#EDEBE3" />
                 </div>
                 <div className="phoneCount"><b>12</b> / 47</div>
               </div>

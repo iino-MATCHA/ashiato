@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText, Row, Gap, Rule } from '@/components/ui';
-import { GlobeMap } from '@/components/map/GlobeMap';
+import { JapanBanner } from '@/components/JapanBanner';
+import { useWindowDimensions } from 'react-native';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { PREFECTURE_TOTAL, type Trip } from '@/lib/mock';
@@ -27,6 +28,7 @@ const statusLabel: Record<Trip['status'], string> = {
 
 export default function Home() {
   const { palette } = useTheme();
+  const { width: winW } = useWindowDimensions();
   useI18n(); // 言語切替の再レンダー購読
   const { trips } = useTrips();
   const { trips: publicTrips } = usePublicTrips();
@@ -62,8 +64,8 @@ export default function Home() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.xxl }}>
-        {/* Rotating globe */}
-        <GlobeMap height={300} />
+        {/* 和紙のバナー。訪れた県と旅のルート線（無い人にはサンプルの線） */}
+        <JapanBanner visited={visited} trips={ordered} width={winW} />
 
         <View style={{ paddingHorizontal: space.lg }}>
           {/* Profile row — links to the profile page */}

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -19,10 +19,17 @@ import { YujiSyuku_400Regular } from '@expo-google-fonts/yuji-syuku';
 import { useTheme } from '@/lib/useTheme';
 import { TransitionProvider } from '@/lib/transition';
 import { StampPressProvider } from '@/lib/stampPress';
+import { trackPageView } from '@/lib/analytics';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
+  // GA4: SPAは初回しか page_view が飛ばないので、遷移のたびに自分で送る
+  const pathname = usePathname();
+  useEffect(() => {
+    trackPageView(pathname);
+  }, [pathname]);
+
   const { palette, scheme } = useTheme();
   const [loaded] = useFonts({
     ShipporiMincho_400Regular,

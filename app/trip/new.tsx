@@ -11,6 +11,7 @@ import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { createTrip, setTripBuddies } from '@/lib/api';
 import { BuddyPicker } from '@/components/BuddyPicker';
+import { track } from '@/lib/analytics';
 
 import { useI18n } from '@/lib/i18n';
 export default function NewTrip() {
@@ -36,6 +37,7 @@ export default function NewTrip() {
         startDate: start,
         endDate: end || undefined,
       });
+      if (id) track('trip_created', { buddies: buddies.length });
       if (id && buddies.length) await setTripBuddies(id, buddies);
       setSaving(false);
       if (id) return router.replace(`/trip/${id}`);
