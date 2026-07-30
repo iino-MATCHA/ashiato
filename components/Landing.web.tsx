@@ -55,6 +55,7 @@ const CSS = `
 .lp .heroKicker { color:rgba(255,255,255,.72); font-size:11px; letter-spacing:7px; }
 .lp .heroTitle { color:#fff; font-size:clamp(38px,8.4vw,74px); line-height:1.18; margin:14px 0 0; white-space:pre-line; }
 .lp .heroSub { color:rgba(255,255,255,.86); font-size:clamp(14px,3.4vw,18px); line-height:1.75; margin:20px auto 0; max-width:34em; }
+.lp .heroLangs { color:rgba(255,255,255,.62); font-size:12px; line-height:1.7; margin:12px auto 0; max-width:30em; }
 .lp .scrollHint { position:absolute; bottom:26px; left:50%; transform:translateX(-50%);
   color:rgba(255,255,255,.6); font-size:10px; letter-spacing:3px; animation:bob 2.2s ease-in-out infinite; }
 @keyframes bob { 0%,100%{transform:translate(-50%,0)} 50%{transform:translate(-50%,8px)} }
@@ -320,6 +321,7 @@ export function Landing() {
           <div className="heroKicker rv in">M Y &nbsp;J A P A N</div>
           <h1 className="heroTitle mincho rv d1">{t('lp.tagline')}</h1>
           <p className="heroSub rv d2">{t('lp.sub')}</p>
+          <p className="heroLangs rv d2">{t('lp.langs')}</p>
           <div className="rv d3" style={{ marginTop: 34, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button className="cta" onClick={browse}>{t('lp.cta')} →</button>
             <button className="cta ctaGhost" onClick={go}>{t('lp.haveAccount')}</button>
@@ -469,7 +471,7 @@ export function Landing() {
         </div>
       </section>
 
-      <footer>MY JAPAN BY MATCHA</footer>
+      <footer>{t('lp.footer')}</footer>
     </div>
   );
 }

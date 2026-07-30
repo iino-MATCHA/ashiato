@@ -142,8 +142,6 @@ export default function Home() {
               {/* ゲストの一覧は空なので、代わりに行き先を示す */}
               <Rule />
               <Gap h={space.md} />
-              <AppText variant="small" tone="inkSoft" style={{ lineHeight: 21 }}>{t('guest.mapBody')}</AppText>
-              <Gap h={space.md} />
               <Pressable onPress={() => router.push('/(tabs)/explore')} hitSlop={8}>
                 <Row style={{ gap: 6, alignItems: 'center' }}>
                   <Ionicons name="compass-outline" size={16} color={palette.matcha} />

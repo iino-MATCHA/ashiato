@@ -16,11 +16,13 @@ import { useI18n } from '@/lib/i18n';
 export function SignInPrompt({
   visible,
   onClose,
-  /** 何をしようとして止まったのか。辞書のキー（guest.why.*） */
-  reason,
 }: {
   visible: boolean;
   onClose: () => void;
+  /**
+   * どの操作で止まったか。文面は一種類に統一したので表示には使わないが、
+   * 呼び出し側が渡しているので受け口だけ残してある。
+   */
   reason?: 'save' | 'comment' | 'like' | 'collect' | 'order';
 }) {
   const { palette } = useTheme();
@@ -41,7 +43,7 @@ export function SignInPrompt({
             <AppText style={[styles.title, { color: palette.ink }]} center>{t('guest.promptTitle')}</AppText>
             <Gap h={space.sm} />
             <AppText variant="small" tone="ink" center style={{ lineHeight: 21, opacity: 0.86 }}>
-              {t(`guest.why.${reason ?? 'save'}`)}
+              {t('guest.promptBody')}
             </AppText>
           </View>
 

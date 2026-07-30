@@ -39,6 +39,8 @@ export function Landing() {
           </AppText>
           <Gap h={space.md} />
           <AppText variant="body" tone="inkSoft" center>{t('lp.sub')}</AppText>
+          <Gap h={space.sm} />
+          <AppText variant="small" tone="inkFaint" center>{t('lp.langs')}</AppText>
 
           <Gap h={space.lg} />
           {/* 「始める」はログインを挟まずアプリの中へ。
@@ -153,7 +155,7 @@ export function Landing() {
           </View>
 
           <Gap h={space.xl} />
-          <AppText variant="small" tone="inkFaint" center>MY JAPAN by MATCHA</AppText>
+          <AppText variant="small" tone="inkFaint" center>{t('lp.footer')}</AppText>
         </View>
       </ScrollView>
     </SafeAreaView>
