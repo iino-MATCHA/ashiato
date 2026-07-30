@@ -8,7 +8,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "build:web": "expo export -p web && node scripts/inject-head.mjs"
+    "build:web": "expo export -p web && node scripts/inject-head.mjs",
+    "check:exif": "npx --yes esbuild lib/exif.ts --bundle --format=esm --platform=node --outfile=.exif-bundle.mjs && node scripts/exif-check.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/shippori-mincho": "^0.2.3",
