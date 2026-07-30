@@ -65,7 +65,7 @@ export default function Home() {
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.xxl }}>
         {/* 和紙のバナー。訪れた県と旅のルート線（無い人にはサンプルの線） */}
-        <JapanBanner visited={visited} trips={ordered} width={winW} />
+        <JapanBanner visited={visited} width={winW} />
 
         <View style={{ paddingHorizontal: space.lg }}>
           {/* Profile row — links to the profile page */}
