@@ -90,6 +90,7 @@ const CSS = `
 .lp .byMatcha a:hover { color:rgba(255,255,255,.75); }
 .lp .heroSub { color:rgba(255,255,255,.86); font-size:clamp(14px,3.4vw,18px); line-height:1.75; margin:20px auto 0; max-width:34em; }
 .lp .heroLangs { color:rgba(255,255,255,.62); font-size:12px; line-height:1.7; margin:12px auto 0; max-width:30em; }
+.lp .androidNote { color:rgba(255,255,255,.78); font-size:12.5px; margin:16px auto 0; max-width:30em; }
 .lp .scrollHint { position:absolute; bottom:26px; left:50%; transform:translateX(-50%);
   color:rgba(255,255,255,.6); font-size:10px; letter-spacing:3px; animation:bob 2.2s ease-in-out infinite; }
 @keyframes bob { 0%,100%{transform:translate(-50%,0)} 50%{transform:translate(-50%,8px)} }
@@ -394,6 +395,9 @@ export function Landing() {
     : Math.round(Math.min(560, Math.max(300, vw * 0.52)));
 
   const go = () => router.push('/(auth)/login');
+  // Androidのブラウザには最初から「使えない」と書いておく
+  // （フォトピッカーが位置情報を剥がすため、写真からの記録が成立しない）
+  const isAndroidWeb = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent ?? '');
   /**
    * 「始める」はログインを挟まずアプリの中へ入れる。
    * 見るだけなら登録は要らず、記録しようとしたところで初めて
@@ -431,6 +435,7 @@ export function Landing() {
             <button className="cta" onClick={browse}>{t('lp.cta')} →</button>
             <button className="cta ctaGhost" onClick={go}>{t('lp.haveAccount')}</button>
           </div>
+          {isAndroidWeb && <p className="androidNote rv d3">{t('auto.androidNote')}</p>}
         </div>
         <div className="scrollHint">SCROLL</div>
       </div>
