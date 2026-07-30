@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { LP_PHOTOS, PAIR_PHOTOS } from '@/lib/lpPhotos';
+import { LP_PHOTOS } from '@/lib/lpPhotos';
 import { JapanSvgMap } from '@/components/JapanSvgMap';
 import { PENDING_PREFECTURES_KEY } from '@/lib/pendingPrefectures';
 import { TripMap } from '@/components/map/TripMap';
@@ -49,20 +49,24 @@ const CSS = `
   clip-path:polygon(0 var(--slant),100% 0,100% 100%,0 100%);
   padding-top:calc(clamp(72px,13vw,140px) + var(--slant)); }
 
-/* --- 家族とカップル --- */
-/* 写真と文章だけ。枠で囲わない */
-.lp .pair { display:grid; gap:clamp(22px,4vw,44px); grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); margin-top:44px; }
-.lp .pairCard { margin:0; }
-.lp .pairImg { aspect-ratio:4/3; border-radius:16px; overflow:hidden; background:#EDEAE2; }
-.lp .pairImg img { width:100%; height:100%; object-fit:cover; display:block; filter:saturate(.9) contrast(.97); }
-.lp .pairCard h3 { margin:18px 0 7px; font-size:18px; }
-.lp .pairCard p { margin:0; font-size:13.5px; line-height:1.95; color:#6B6862; }
-
 /* --- 都道府県の問いかけ --- */
 .lp section.quiz { text-align:center; background:var(--paper); }
 .lp section.quiz .lead { margin-left:auto; margin-right:auto; }
 .lp .quizMap { display:flex; justify-content:center; margin:34px 0 10px; }
 .lp .quizCount { margin:0; font-size:13px; color:#6B6862; }
+
+/* --- 都道府県の中央モーダル --- */
+.lp .quizBack { position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center;
+  padding:18px; background:rgba(12,12,10,.58); backdrop-filter:blur(3px); animation:quizFade .28s ease both; }
+.lp .quizSheet { position:relative; width:100%; max-width:460px; max-height:88dvh; overflow-y:auto;
+  background:var(--paper); color:var(--ink); border-radius:20px; padding:26px 20px 24px; text-align:center;
+  box-shadow:0 24px 70px rgba(0,0,0,.34); animation:quizUp .34s cubic-bezier(.2,.7,.2,1) both; }
+.lp .quizSheet h3 { margin:10px 0 0; font-size:21px; line-height:1.4; }
+.lp .quizClose { position:absolute; top:10px; right:12px; border:0; background:transparent; cursor:pointer;
+  font-size:26px; line-height:1; color:#9B978F; padding:4px 8px; }
+.lp .quizClose:hover { color:var(--ink); }
+@keyframes quizFade { from { opacity:0 } to { opacity:1 } }
+@keyframes quizUp { from { opacity:0; transform:translateY(18px) scale(.97) } to { opacity:1; transform:none } }
 
 /* --- ヒーロー --- */
 .lp .hero { position:relative; min-height:100dvh; display:flex; align-items:center;
@@ -270,6 +274,10 @@ export function Landing() {
    * （そのままログインすると、その御朱印が入った状態で始められる）。
    */
   const [quizSel, setQuizSel] = useState<Set<number>>(() => new Set());
+  const [quizOpen, setQuizOpen] = useState(false);
+  const quizRef = useRef<HTMLElement | null>(null);
+  // 一度出したら、閉じたあとに勝手に出直さない
+  const quizShown = useRef(false);
   const toggleQuiz = useCallback((code: number) => {
     setQuizSel((cur) => {
       const next = new Set(cur);
@@ -305,6 +313,14 @@ export function Landing() {
       const y = root.scrollTop;
       if (heroRef.current && y < h * 1.2) {
         heroRef.current.style.transform = `rotate(-8deg) scale(1.25) translateY(${y * 0.16}px)`;
+      }
+      // 都道府県の節が画面に入ったら、地図を中央にぱっと出す（初回だけ）
+      if (!quizShown.current && quizRef.current) {
+        const top = quizRef.current.getBoundingClientRect().top;
+        if (top < h * 0.72) {
+          quizShown.current = true;
+          setQuizOpen(true);
+        }
       }
     };
 
@@ -448,47 +464,20 @@ export function Landing() {
         </div>
       </section>
 
-      {/* ================= 家族とカップル ================= */}
-      <section className="warm">
-        <div className="wrap">
-          <div className="rv" style={{ textAlign: 'center' }}>
-            <div className="eyebrow">{t('lp.pairEyebrow')}</div>
-            <h2 className="mincho">{t('lp.pairTitle')}</h2>
-            <p className="lead" style={{ margin: '16px auto 0' }}>{t('lp.pairLead')}</p>
-          </div>
-          <div className="pair">
-            {[
-              { src: PAIR_PHOTOS.family, t: t('lp.famT'), b: t('lp.famB') },
-              { src: PAIR_PHOTOS.couple, t: t('lp.coupleT'), b: t('lp.coupleB') },
-            ].map((x, i) => (
-              <figure className={`pairCard rv d${i + 1}`} key={x.t}>
-                <div className="pairImg"><img src={x.src} alt="" loading="lazy" decoding="async" /></div>
-                <figcaption>
-                  <h3 className="mincho">{x.t}</h3>
-                  <p>{x.b}</p>
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ================= 都道府県の問いかけ ================= */}
-      <section className="quiz">
+      {/* ここまでスクロールすると、中央に日本地図がぱっと出る。
+          自動で開かなかったときのために、節にもボタンを残してある */}
+      <section className="quiz" ref={quizRef}>
         <div className="wrap">
           <div className="rv">
             <div className="eyebrow">{t('lp.quizEyebrow')}</div>
             <h2 className="mincho">{t('lp.quizTitle')}</h2>
             <p className="lead" style={{ margin: '16px auto 0' }}>{t('lp.quizLead')}</p>
           </div>
-          {/* ログイン後の最初の選択と同じ地図をそのまま使う */}
-          <div className="quizMap">
-            <JapanSvgMap visited={quizSel} onToggle={toggleQuiz} width={quizW} okinawaInset />
+          <div style={{ marginTop: 30 }}>
+            <button className="cta" onClick={() => setQuizOpen(true)}>{t('lp.quizOpen')} →</button>
           </div>
-          <p className="quizCount">{t('lp.quizCount', { n: quizSel.size })}</p>
-          <div style={{ marginTop: 22 }}>
-            <button className="cta" onClick={seeGoshuin}>{t('lp.quizCta')} →</button>
-          </div>
+          {quizSel.size > 0 && <p className="quizCount">{t('lp.quizCount', { n: quizSel.size })}</p>}
         </div>
       </section>
 
@@ -561,6 +550,22 @@ export function Landing() {
 
         </div>
       </section>
+
+      {/* 中央モーダル。ログイン後の最初の選択と同じ地図をそのまま使う */}
+      {quizOpen && (
+        <div className="quizBack" onClick={() => setQuizOpen(false)}>
+          <div className="quizSheet" onClick={(e) => e.stopPropagation()}>
+            <button className="quizClose" onClick={() => setQuizOpen(false)} aria-label="close">×</button>
+            <div className="eyebrow">{t('lp.quizEyebrow')}</div>
+            <h3 className="mincho">{t('lp.quizTitle')}</h3>
+            <div className="quizMap">
+              <JapanSvgMap visited={quizSel} onToggle={toggleQuiz} width={quizW} okinawaInset />
+            </div>
+            <p className="quizCount">{t('lp.quizCount', { n: quizSel.size })}</p>
+            <button className="cta" style={{ marginTop: 18 }} onClick={seeGoshuin}>{t('lp.quizCta')} →</button>
+          </div>
+        </div>
+      )}
 
       <footer>{t('lp.footer')}</footer>
     </div>

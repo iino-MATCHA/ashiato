@@ -10,7 +10,8 @@ import { PhotoPicker } from '@/components/PhotoPicker';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { updateTrip, deleteTrip, uploadTripCover } from '@/lib/api';
+import { updateTrip, deleteTrip, uploadTripCover, setTripBuddies, fetchTripBuddies } from '@/lib/api';
+import { BuddyPicker } from '@/components/BuddyPicker';
 import { useTrip } from '@/lib/useData';
 
 import { useI18n } from '@/lib/i18n';
@@ -27,6 +28,8 @@ export default function EditTrip() {
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(trip?.steps[0]?.images[0] ?? null);
   const [ready, setReady] = useState(false);
+  // 一緒に行った人。いま載っている人を読んでから編集する
+  const [buddies, setBuddies] = useState<string[]>([]);
 
   // trip loads async — prefill the form once it arrives
   useEffect(() => {
@@ -39,6 +42,13 @@ export default function EditTrip() {
       setReady(true);
     }
   }, [trip, ready]);
+
+  useEffect(() => {
+    if (!id) return;
+    let alive = true;
+    fetchTripBuddies(id).then((b) => alive && setBuddies(b.map((x) => x.id))).catch(() => {});
+    return () => { alive = false; };
+  }, [id]);
 
   const pickCover = (files: File[]) => {
     const f = files[0];
@@ -57,6 +67,7 @@ export default function EditTrip() {
         endDate: end || null,
         coverPhotoUrl,
       });
+      await setTripBuddies(id, buddies);
       setSaving(false);
     }
     router.back();
@@ -110,6 +121,13 @@ export default function EditTrip() {
             <Rule strong />
           </View>
         </Row>
+
+        <Gap h={space.xl} />
+        <Eyebrow>{t('buddy.title')}</Eyebrow>
+        <Gap h={space.sm} />
+        <AppText variant="small" tone="inkFaint" style={{ lineHeight: 20 }}>{t('buddy.lead')}</AppText>
+        <Gap h={space.md} />
+        <BuddyPicker selected={buddies} onChange={setBuddies} />
 
         <Gap h={space.xl} />
         <Eyebrow>{t('trip.visibility')}</Eyebrow>

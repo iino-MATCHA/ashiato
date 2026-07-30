@@ -21,13 +21,16 @@ import { useTheme } from '@/lib/useTheme';
 import { useCart } from '@/lib/useData';
 import { useI18n } from '@/lib/i18n';
 import {
-  checkoutCart, markOrderPaid, shippingFeeFor, SHIPPING_REGIONS, cartWeightG, PACKAGING_G,
+  checkoutCart, createStripeCheckout, shippingFeeFor, SHIPPING_REGIONS, cartWeightG, PACKAGING_G,
   type ShippingInput, type ShippingRegion,
 } from '@/lib/api';
 import { yen } from '@/lib/money';
 
-/** Stripe の公開鍵。入っていなければカード決済の画面へは進めない。 */
-const STRIPE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
+/**
+ * 支払いは Stripe のホスト型 Checkout に飛ばす。
+ * カード番号はこの画面を一度も通らないので、公開鍵も要らない。
+ * 入金の確定は Stripe からの webhook だけが行う（戻りURLは信じない）。
+ */
 
 /**
  * 下線だけの入力欄。
@@ -96,11 +99,15 @@ export default function Checkout() {
       const orderId = await checkoutCart(input);
       if (!orderId) throw new Error('no order');
 
-      // Stripe を通す場所。鍵が無い間は注文を pending のまま残し、
-      // 完了画面で「支払い方法はメールで案内する」と伝える。
-      if (STRIPE_KEY) {
-        await markOrderPaid(orderId);
+      // Stripe の支払いページへ送る。ここを離れたあとの入金確定は
+      // webhook が行うので、戻ってきた画面の言い分では paid にしない。
+      const url = await createStripeCheckout(orderId);
+      if (url && typeof window !== 'undefined') {
+        window.location.href = url;
+        return;
       }
+      // 支払いページを開けなかったときは注文を pending のまま残し、
+      // 完了画面で支払い方法を案内する
       router.replace(`/order/${orderId}` as any);
     } catch (e: any) {
       setError(e?.message ? String(e.message) : t('checkout.failed'));
@@ -247,7 +254,7 @@ export default function Checkout() {
         <Row style={{ gap: 8, alignItems: 'flex-start' }}>
           <Ionicons name="lock-closed-outline" size={14} color={palette.inkFaint} style={{ marginTop: 2 }} />
           <AppText variant="small" tone="inkFaint" style={{ flex: 1, lineHeight: 19 }}>
-            {STRIPE_KEY ? t('checkout.cardNote') : t('checkout.stripePending')}
+            {t('checkout.cardNote')}
           </AppText>
         </Row>
 

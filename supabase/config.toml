@@ -1,0 +1,9 @@
+project_id = "tcyclvfinguwudztfgsb"
+
+[functions.stripe-checkout]
+verify_jwt = true
+
+# Stripe から呼ばれるので、こちらのJWTは付いてこない。
+# 代わりに Stripe 署名を関数内で検証している。
+[functions.stripe-webhook]
+verify_jwt = false

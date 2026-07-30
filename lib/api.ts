@@ -464,6 +464,53 @@ export async function createTrip(input: { title: string; visibility?: string; st
   return data.id;
 }
 
+/**
+ * 一緒に行った人（travel buddy）を旅に加える。
+ * trip_members に載った人は、その旅を見て記録も足せる。
+ * 追加できるのは持ち主だけ（RLS 側でも同じ条件をかけている）。
+ */
+export async function setTripBuddies(tripId: string, userIds: string[]): Promise<boolean> {
+  const uid = await currentUserId();
+  if (!uid) return false;
+  const keep = userIds.filter((x) => x && x !== uid);
+
+  // いま載っている人を読み、差分だけ足し引きする
+  const { data } = await supabase.from('trip_members').select('user_id').eq('trip_id', tripId);
+  const now = (data ?? []).map((r: any) => r.user_id as string).filter((x) => x !== uid);
+  const add = keep.filter((x) => !now.includes(x));
+  const drop = now.filter((x) => !keep.includes(x));
+
+  if (add.length) {
+    const { error } = await supabase
+      .from('trip_members')
+      .insert(add.map((user_id) => ({ trip_id: tripId, user_id, role: 'editor', invited_by: uid })));
+    if (error) return false;
+  }
+  if (drop.length) {
+    // 持ち主は落とさない（上で uid を除いてある）
+    const { error } = await supabase
+      .from('trip_members')
+      .delete()
+      .eq('trip_id', tripId)
+      .in('user_id', drop);
+    if (error) return false;
+  }
+  bump('trips');
+  return true;
+}
+
+/** その旅に載っている人（持ち主を除く）。 */
+export async function fetchTripBuddies(tripId: string): Promise<UserSummary[]> {
+  const uid = await currentUserId();
+  const { data } = await supabase
+    .from('trip_members')
+    .select('user_id, profiles!trip_members_user_id_fkey(id, username, display_name, avatar_url)')
+    .eq('trip_id', tripId);
+  return (data ?? [])
+    .filter((r: any) => r.user_id !== uid && r.profiles)
+    .map((r: any) => toUser(r.profiles));
+}
+
 export async function updateTrip(id: string, input: { title?: string; visibility?: string; startDate?: string | null; endDate?: string | null; coverPhotoUrl?: string }): Promise<boolean> {
   const patch: any = {};
   if (input.title !== undefined) patch.title = input.title;
@@ -1436,4 +1483,18 @@ export async function fetchVisitedPrefectureCodes(): Promise<number[]> {
   const { data, error } = await supabase.rpc('my_visited_prefectures');
   if (error || !data) return [];
   return (data as any[]).map((r) => (typeof r === 'number' ? r : r.my_visited_prefectures)).filter((n) => n != null);
+}
+
+/**
+ * 注文を Stripe の支払いページへ渡す。返るのはそのページのURL。
+ * 金額は渡さない。注文IDだけ渡し、サーバがDBの金額で組み立てる。
+ */
+export async function createStripeCheckout(orderId: string): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  const origin = typeof window === 'undefined' ? undefined : window.location.origin;
+  const { data, error } = await supabase.functions.invoke('stripe-checkout', {
+    body: { orderId, origin },
+  });
+  if (error || !data?.url) return null;
+  return data.url as string;
 }
