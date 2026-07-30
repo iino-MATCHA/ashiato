@@ -33,8 +33,6 @@ export function Splash({ onDone }: { onDone: () => void }) {
       </Animated.Text>
       <View style={{ height: 10 }} />
       <Animated.View style={{ height: 2, backgroundColor: palette.matcha, opacity: fade, width: line.interpolate({ inputRange: [0, 1], outputRange: [0, 128] }) }} />
-      <View style={{ height: space.md }} />
-      <Animated.Text style={[styles.tag, { color: palette.matcha, opacity: line }]}>日本を、あるく</Animated.Text>
     </Animated.View>
   );
 }

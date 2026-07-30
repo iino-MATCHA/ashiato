@@ -41,12 +41,9 @@ export function Landing() {
           <AppText variant="body" tone="inkSoft" center>{t('lp.sub')}</AppText>
 
           <Gap h={space.lg} />
-          <Button label={t('lp.cta')} tone="matcha" onPress={() => router.push('/(auth)/login')} />
-          <Gap h={space.sm} />
-          {/* 登録せずに中を見せる。何のアプリなのか分からないまま登録を求めない */}
-          <Pressable onPress={() => router.push('/(tabs)/explore')}>
-            <AppText variant="small" tone="matcha" center>{t('lp.browse')}</AppText>
-          </Pressable>
+          {/* 「始める」はログインを挟まずアプリの中へ。
+              記録しようとしたところで初めてログインを求める */}
+          <Button label={t('lp.cta')} tone="matcha" onPress={() => router.push('/(tabs)/map')} />
           <Gap h={space.sm} />
           <Pressable onPress={() => router.push('/(auth)/login')}>
             <AppText variant="small" tone="inkFaint" center>{t('lp.haveAccount')}</AppText>

@@ -26,11 +26,19 @@ const CSS = `
 .lp .mincho { font-family:'ShipporiMincho_700Bold','Shippori Mincho',serif; }
 .lp .brush  { font-family:'YujiSyuku_400Regular',serif; }
 
-/* --- 出現アニメーション（IntersectionObserverで .in が付く） --- */
-.lp .rv { opacity:0; transform:translateY(34px); transition:opacity .9s cubic-bezier(.2,.7,.2,1), transform .9s cubic-bezier(.2,.7,.2,1); }
-.lp .rv.in { opacity:1; transform:none; }
-.lp .rv.d1{transition-delay:.08s}.lp .rv.d2{transition-delay:.16s}.lp .rv.d3{transition-delay:.24s}
-.lp .rv.d4{transition-delay:.32s}.lp .rv.d5{transition-delay:.40s}
+/* --- 出現 ---------------------------------------------------------
+   **JSで出し入れしない。** 以前はスクロール位置を見て .in を付ける方式で、
+   その判定が一度でも走らないと本文も画像も透明のまま残った（実際に
+   15要素中14個が消えたページが本番に出ていた）。
+   いまは既定で見えていて、ヒーローだけ読み込み時にCSSでふわりと出す。
+   演出が動かなくても、中身は必ず見える。 */
+/* 動かすのは位置だけ。opacity には触れない。
+   透明にした瞬間、演出が止まったときに文字が消えるため。 */
+.lp .rv { opacity:1; transform:none; }
+.lp .hero .rv { animation:riseIn .9s cubic-bezier(.2,.7,.2,1) both; }
+.lp .hero .rv.d1{animation-delay:.10s}.lp .hero .rv.d2{animation-delay:.20s}
+.lp .hero .rv.d3{animation-delay:.30s}
+@keyframes riseIn { from { transform:translateY(22px) } to { transform:none } }
 
 /* --- ヒーロー --- */
 .lp .hero { position:relative; min-height:100dvh; display:flex; align-items:center;
@@ -165,8 +173,8 @@ const CSS = `
   overflow:hidden; box-shadow:0 16px 40px rgba(0,0,0,.16); transition:transform .8s cubic-bezier(.2,.7,.2,1); }
 .lp .paper.p3 { transform:rotate(7deg) translate(16px,10px); }
 .lp .paper.p2 { transform:rotate(-5deg) translate(-13px,5px); }
-.lp .papers.in .paper.p3 { transform:rotate(11deg) translate(30px,16px); }
-.lp .papers.in .paper.p2 { transform:rotate(-8deg) translate(-26px,9px); }
+.lp .papers .paper.p3 { transform:rotate(11deg) translate(30px,16px); }
+.lp .papers .paper.p2 { transform:rotate(-8deg) translate(-26px,9px); }
 .lp .paperTop { display:flex; flex-direction:column; height:100%; }
 .lp .paperHero { flex:5; overflow:hidden; }
 .lp .paperHero img { width:100%; height:100%; object-fit:cover; }
@@ -200,7 +208,7 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lp .rv { opacity:1; transform:none; transition:none; }
+  .lp .hero .rv { animation:none; }
   .lp .heroGrid img, .lp .mRow .marquee, .lp .scrollHint { animation:none; }
   .lp .heroGrid img { opacity:.62; }
 }
@@ -239,37 +247,21 @@ export function Landing() {
     const root = rootRef.current;
     if (!root) return;
 
-    // IntersectionObserverではなく位置で判定する。IOはタブが描画されていないと
-    // 発火せず、そのまま中身が透明のまま残る事故があるため。
-    // requestAnimationFrame も IntersectionObserver も、タブが描画されていないと
-    // 止まる／発火しない。中身が透明のまま残る事故を避けるため、
-    // scroll イベントの中で直接判定する（対象は最大14要素なので十分軽い）。
-    const targets = Array.from(root.querySelectorAll<HTMLElement>('.rv, .papers, .demo'));
-
-    const tick = () => {
-      const rootTop = root.getBoundingClientRect().top;
+    /**
+     * ヒーロー背景のパララックスだけ。
+     * 出現の演出はCSSに任せ、JSでは中身の表示可否に一切触れない
+     * （以前はここでの判定が走らないとページの中身が消えていた）。
+     */
+    const onScroll = () => {
       const h = root.clientHeight;
-      for (let i = targets.length - 1; i >= 0; i--) {
-        const el = targets[i];
-        if (el.getBoundingClientRect().top - rootTop < h * 0.92) {
-          el.classList.add('in');
-          targets.splice(i, 1); // 一度出したら監視から外す
-        }
-      }
       const y = root.scrollTop;
       if (heroRef.current && y < h * 1.2) {
-        // 背景をゆっくり流して奥行きを出す
         heroRef.current.style.transform = `rotate(-8deg) scale(1.25) translateY(${y * 0.16}px)`;
       }
     };
 
-    tick(); // 初期表示分
-    root.addEventListener('scroll', tick, { passive: true });
-    window.addEventListener('resize', tick);
-    return () => {
-      root.removeEventListener('scroll', tick);
-      window.removeEventListener('resize', tick);
-    };
+    root.addEventListener('scroll', onScroll, { passive: true });
+    return () => root.removeEventListener('scroll', onScroll);
   }, []);
 
   // 御朱印帳の見本。製本ページと同じ planBook / renderPage を使い、

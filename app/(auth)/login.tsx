@@ -102,8 +102,6 @@ export default function Login() {
       {/* Brand */}
       <View style={styles.hero}>
         <AppText style={styles.brand} tone="ink">My Japan</AppText>
-        <Gap h={space.xs} />
-        <AppText variant="eyebrow" tone="matcha">日本を、あるく</AppText>
         <Gap h={space.md} />
         <AppText variant="body" tone="inkSoft" center style={{ maxWidth: 280 }}>
           Where you walk becomes a map.{'\n'}Where you visit, a stamp is earned.
