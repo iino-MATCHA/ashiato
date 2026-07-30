@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { LP_PHOTOS } from '@/lib/lpPhotos';
 import { JapanSvgMap } from '@/components/JapanSvgMap';
+import { contentHeight } from '@/lib/ugc/geo';
 import { PENDING_PREFECTURES_KEY } from '@/lib/pendingPrefectures';
 import { TripMap } from '@/components/map/TripMap';
 import { LP_DEMO_STEPS, LP_DEMO_TRIP } from '@/lib/lpDemo';
@@ -21,7 +22,7 @@ import { useI18n } from '@/lib/i18n';
 const CSS = `
 /* シェルが 100dvh 固定なので、LP自身をスクロール領域にする */
 .lp { --ink:#14120F; --paper:#FBFAF7; --matcha:#69AF00; --shu:#C4432B; --gold:#C9A227; --slant:6vw;
-  height:100dvh; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;
+  height:100svh; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;
   background:var(--paper); color:var(--ink);
   font-family:'ZenKakuGothicNew_400Regular','Zen Kaku Gothic New',system-ui,sans-serif;
   -webkit-font-smoothing:antialiased; }
@@ -52,16 +53,16 @@ const CSS = `
 /* --- 都道府県の問いかけ --- */
 .lp section.quiz { text-align:center; background:var(--paper); }
 .lp section.quiz .lead { margin-left:auto; margin-right:auto; }
-.lp .quizMap { display:flex; justify-content:center; margin:34px 0 10px; }
+.lp .quizMap { display:flex; justify-content:center; margin:14px 0 8px; }
 .lp .quizCount { margin:0; font-size:13px; color:#6B6862; }
 
 /* --- 都道府県の中央モーダル --- */
 .lp .quizBack { position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center;
   padding:18px; background:rgba(12,12,10,.58); backdrop-filter:blur(3px); animation:quizFade .28s ease both; }
-.lp .quizSheet { position:relative; width:100%; max-width:460px; max-height:88dvh; overflow-y:auto;
-  background:var(--paper); color:var(--ink); border-radius:20px; padding:26px 20px 24px; text-align:center;
+.lp .quizSheet { position:relative; width:100%; max-width:500px; max-height:92svh; overflow-y:auto;
+  background:var(--paper); color:var(--ink); border-radius:20px; padding:20px 18px 20px; text-align:center;
   box-shadow:0 24px 70px rgba(0,0,0,.34); animation:quizUp .34s cubic-bezier(.2,.7,.2,1) both; }
-.lp .quizSheet h3 { margin:10px 0 0; font-size:21px; line-height:1.4; }
+.lp .quizSheet h3 { margin:8px 0 0; font-size:clamp(17px,4.4vw,21px); line-height:1.35; }
 .lp .quizClose { position:absolute; top:10px; right:12px; border:0; background:transparent; cursor:pointer;
   font-size:26px; line-height:1; color:#9B978F; padding:4px 8px; }
 .lp .quizClose:hover { color:var(--ink); }
@@ -69,7 +70,7 @@ const CSS = `
 @keyframes quizUp { from { opacity:0; transform:translateY(18px) scale(.97) } to { opacity:1; transform:none } }
 
 /* --- ヒーロー --- */
-.lp .hero { position:relative; min-height:100dvh; display:flex; align-items:center;
+.lp .hero { position:relative; min-height:100svh; display:flex; align-items:center;
   justify-content:center; overflow:hidden; background:#0B0F0A; }
 .lp .heroGrid { position:absolute; inset:-8%; display:grid; gap:6px;
   grid-template-columns:repeat(4,1fr); grid-auto-rows:1fr; transform:rotate(-8deg) scale(1.25); }
@@ -286,7 +287,31 @@ export function Landing() {
       return next;
     });
   }, []);
-  const quizW = typeof window === 'undefined' ? 340 : Math.min(window.innerWidth - 44, 420);
+  /**
+   * モーダルはスクロールさせない。
+   * 地図の大きさは幅ではなく「残りの高さ」から決める
+   * （見出し・県数・ボタン・余白の分を引いた高さに収まる幅を選ぶ）。
+   */
+  const [vp, setVp] = useState(() =>
+    typeof window === 'undefined' ? { w: 390, h: 760 } : { w: window.innerWidth, h: window.innerHeight }
+  );
+  useEffect(() => {
+    const on = () => setVp({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  // 状態ではなく、描くその瞬間の実寸から決める。
+  // resize イベントを取りこぼす場面（描画が止まっているタブなど）があり、
+  // 状態に持たせると開いたときの大きさが古いままになるため。
+  const quizMapW = () => {
+    const w = typeof window === 'undefined' ? vp.w : window.innerWidth;
+    const h = typeof window === 'undefined' ? vp.h : window.innerHeight;
+    const ratio = contentHeight() / 860;   // 地図の縦横比（沖縄を差し込んだ状態）
+    const chrome = 214;                    // 見出し＋県数＋ボタン＋上下の余白
+    const byHeight = Math.max(0, h * 0.9 - chrome) / ratio;
+    const byWidth = Math.min(w - 60, 460);
+    return Math.round(Math.max(150, Math.min(byWidth, byHeight)));
+  };
   const seeGoshuin = () => {
     try {
       localStorage.setItem(PENDING_PREFECTURES_KEY, JSON.stringify(Array.from(quizSel)));
@@ -559,7 +584,7 @@ export function Landing() {
             <div className="eyebrow">{t('lp.quizEyebrow')}</div>
             <h3 className="mincho">{t('lp.quizTitle')}</h3>
             <div className="quizMap">
-              <JapanSvgMap visited={quizSel} onToggle={toggleQuiz} width={quizW} okinawaInset />
+              <JapanSvgMap visited={quizSel} onToggle={toggleQuiz} width={quizMapW()} okinawaInset />
             </div>
             <p className="quizCount">{t('lp.quizCount', { n: quizSel.size })}</p>
             <button className="cta" style={{ marginTop: 18 }} onClick={seeGoshuin}>{t('lp.quizCta')} →</button>

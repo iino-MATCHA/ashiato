@@ -43,6 +43,11 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 @supports (height: 100dvh) { body { height: 100dvh; } }
+/* Chrome(Android/iOS) はURLバーの出入りで表示領域が伸び縮みする。
+   dvh は「今の高さ」なので、バーが降りてくる途中で土台が縦にはみ出し、
+   一番下のタブバーが隠れていた。svh は「バーが出ている前提の高さ」なので、
+   どの状態でも画面内に収まる。バーが消えたときに下が少し空くだけで済む。 */
+@supports (height: 100svh) { body { height: 100svh; } }
 #root { display: flex; flex-direction: column; height: 100%; width: 100%; }
 *, *:focus, *:focus-visible, *:focus-within { outline: none !important; }
 input, textarea, select, [contenteditable] {

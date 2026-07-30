@@ -13,7 +13,14 @@ import { useTheme } from '@/lib/useTheme';
 import { prefectureColor, PREFECTURE_KANA_BY_ID } from '@/lib/prefectures';
 import type { Goshuin } from '@/lib/mock';
 
-const SUMI = '#1A1714'; // 墨
+const SUMI = '#1A1714'; // 墨（明るい地の上）
+/**
+ * 暗い地の上の墨書き。
+ * 御朱印は紙を敷かずに地の上へ直接描いているので、墨のまま置くと
+ * 暗いテーマで背景と同化して「とうきょう」「とちぎ」が読めなくなる。
+ * 純白は目に刺さるので、生成り（未晒しの和紙の色）を使う。
+ */
+const SUMI_DARK = '#E8E0CE';
 
 export function Stamp({
   goshuin,
@@ -24,7 +31,7 @@ export function Stamp({
   size?: number;
   rotate?: number;
 }) {
-  const { palette } = useTheme();
+  const { palette, scheme } = useTheme();
   const acquired = goshuin.acquired;
   const seal = acquired ? prefectureColor(goshuin.prefectureId) : palette.rule;
   const kana = PREFECTURE_KANA_BY_ID[goshuin.prefectureId] ?? '';
@@ -68,7 +75,7 @@ export function Stamp({
               y={top + i * step + fontSize * 0.34}
               fontSize={fontSize}
               fontFamily={fonts.brush}
-              fill={SUMI}
+              fill={scheme === 'dark' ? SUMI_DARK : SUMI}
               textAnchor="middle"
             >
               {ch}

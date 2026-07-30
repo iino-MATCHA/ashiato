@@ -27,7 +27,14 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 @supports (height: 100dvh) {
-  body { height: 100dvh; } /* dynamic viewport = excludes browser chrome */
+  body { height: 100dvh; }
+/* Chrome(Android/iOS) はURLバーの出入りで表示領域が伸び縮みする。
+   dvh は「今の高さ」なので、バーが降りてくる途中で土台が縦にはみ出し、
+   一番下のタブバーが隠れていた。svh は「バーが出ている前提の高さ」。 */
+@supports (height: 100svh) {
+  body { height: 100svh; }
+}
+ /* dynamic viewport = excludes browser chrome */
 }
 #root { display: flex; flex-direction: column; height: 100%; width: 100%; }
 /* no browser focus ring anywhere — the app draws its own underline/borders.
