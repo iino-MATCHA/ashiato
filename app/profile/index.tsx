@@ -17,6 +17,7 @@ import { friends as mockFriends } from '@/lib/mock';
 import { useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/useSession';
 import { CountUp } from '@/components/CountUp';
+import { shareInvite } from '@/lib/invite';
 
 export default function ProfilePage() {
   const { palette } = useTheme();
@@ -27,6 +28,14 @@ export default function ProfilePage() {
   const { trips } = useTrips();
   const { codes: visited } = useVisitedPrefectures();
   const [rankOpen, setRankOpen] = useState(false);
+  // 招待カードを共有できない環境では文面をコピーするので、その旨を出す
+  const [invited, setInvited] = useState(false);
+  const invite = async () => {
+    if ((await shareInvite()) === 'copied') {
+      setInvited(true);
+      setTimeout(() => setInvited(false), 2600);
+    }
+  };
   const [unread, setUnread] = useState(0);
   const [friends, setFriends] = useState<UserSummary[]>(
     isSupabaseConfigured ? [] : mockFriends.map((f) => ({ id: f.id, name: f.name, username: f.username, avatarUrl: '' }))
@@ -119,6 +128,15 @@ export default function ProfilePage() {
             <AppText variant="small" tone="matcha">{t('common.seeAll')} →</AppText>
           </Pressable>
         </Row>
+        <Gap h={space.sm} />
+        {/* 招待カードを送る。小さく、囲まない */}
+        <Pressable onPress={invite} hitSlop={8}>
+          <Row style={{ gap: 5, alignItems: 'center' }}>
+            <Ionicons name="paper-plane-outline" size={13} color={palette.matcha} />
+            <AppText variant="small" tone="matcha" style={{ fontSize: 12 }}>{t('buddy.invite')}</AppText>
+          </Row>
+        </Pressable>
+        {invited && (<><Gap h={4} /><AppText variant="small" tone="inkFaint" style={{ fontSize: 11 }}>{t('buddy.inviteCopied')}</AppText></>)}
         <Gap h={space.md} />
         <Row style={{ gap: space.md, alignItems: 'center' }}>
           {friends.slice(0, 5).map((f) => (

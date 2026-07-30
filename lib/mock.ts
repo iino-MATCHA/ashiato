@@ -47,6 +47,11 @@ export interface Trip {
   authorId?: string;
   ownerUsername?: string;
   visibility?: 'private' | 'friends' | 'public';
+  /**
+   * 直せるかどうか。持ち主だけでなく travel buddy も true。
+   * 画面はこれだけを見る（authorId で判定すると buddy が締め出される）。
+   */
+  canEdit?: boolean;
   steps: Step[];
 }
 

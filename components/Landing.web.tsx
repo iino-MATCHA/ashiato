@@ -164,7 +164,8 @@ const CSS = `
 .lp .featBody p { margin:0; font-size:13px; line-height:1.75; color:#6B6862; }
 
 /* --- 御朱印帳（蛇腹・写真つき） --- */
-.lp .bookStage { display:flex; justify-content:center; margin-top:48px; }
+/* 見出しのすぐ下に置く。48pxも空けると本が沈んで見えた */
+.lp .bookStage { display:flex; justify-content:center; margin-top:22px; }
 /* 御朱印の説明。長くなるので字は小さく、行間は広く */
 .lp .goshuinNote { max-width:640px; margin:clamp(64px,9vw,104px) auto 0; text-align:left;
   border-top:1px solid rgba(255,255,255,.16); padding-top:30px; }
@@ -174,25 +175,9 @@ const CSS = `
 .lp .goshuinNote p { margin:0 0 12px; font-size:12.5px; line-height:2.05; color:rgba(255,255,255,.66); }
 .lp .goshuinNote .gnPitch { margin-top:20px; padding-top:18px; font-size:14px; line-height:1.95;
   color:#fff; border-top:1px solid rgba(255,255,255,.14); }
-.lp .book { display:flex; align-items:stretch; justify-content:center; perspective:1400px; margin-top:52px; }
-.lp .bookCover { width:clamp(88px,17vw,128px); background:linear-gradient(145deg,#22303F,#16202B);
-  border-radius:5px 2px 2px 5px; display:flex; align-items:center; justify-content:center;
-  box-shadow:0 18px 40px rgba(0,0,0,.42); flex:0 0 auto; }
-.lp .bookCover span { color:#EFE9DA; font-size:clamp(17px,3.6vw,25px); line-height:1.35; text-align:center;
-  border:1px solid rgba(239,233,218,.42); padding:14px 8px; }
-.lp .fold { width:clamp(78px,15vw,116px); flex:0 0 auto; background:#FCFBF6;
-  border-right:1px solid #E4DFD2; position:relative; overflow:hidden;
-  transform-origin:left center; box-shadow:inset -14px 0 22px -18px rgba(0,0,0,.5); }
-.lp .fold:nth-child(odd)  { transform:rotateY(19deg); background:#F6F2E7; }
-.lp .fold:nth-child(even) { transform:rotateY(-19deg); }
-.lp .foldPage { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
-  object-position:top center; }
-.lp .foldStamp { position:absolute; left:50%; bottom:11px; transform:translateX(-50%); }
-.lp .seal { width:clamp(40px,8vw,54px); aspect-ratio:1; border-radius:50%;
-  border:2px solid rgba(155,58,42,.82); display:flex; align-items:center; justify-content:center;
-  color:rgba(155,58,42,.82); font-size:clamp(15px,3vw,20px); background:rgba(255,255,255,.5); }
-.lp .sealSumi { position:absolute; left:50%; top:52%; transform:translate(-50%,-50%);
-  color:#1A1714; font-size:clamp(11px,2.2vw,14px); writing-mode:vertical-rl; letter-spacing:1px; }
+/* 蛇腹モックのCSSはここにあったが、モック自体を削除したあとも残っていた。
+   その中の .lp .book が BookPreview の .book に当たり、本が52px下へ
+   押し下げられて上に空白ができていたので、まとめて外した。 */
 
 /* --- ジャーナル（紙の重なり） --- */
 .lp .papers { position:relative; width:clamp(210px,44vw,282px); aspect-ratio:1/1.414; margin:46px auto 0; }

@@ -127,7 +127,7 @@ export default function EditTrip() {
         <Gap h={space.sm} />
         <AppText variant="small" tone="inkFaint" style={{ lineHeight: 20 }}>{t('buddy.lead')}</AppText>
         <Gap h={space.md} />
-        <BuddyPicker selected={buddies} onChange={setBuddies} />
+        <BuddyPicker selected={buddies} onChange={setBuddies} tripTitle={title.trim() || undefined} />
 
         <Gap h={space.xl} />
         <Eyebrow>{t('trip.visibility')}</Eyebrow>

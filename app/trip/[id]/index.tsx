@@ -61,7 +61,7 @@ export default function TripDetail() {
     setActive(0);
     scrollRef.current?.scrollTo({ x: 0, animated: false });
   }, [n]);
-  const canEdit = (trip?.authorId === 'me' || !trip?.authorId) && readonly !== '1';
+  const canEdit = (trip?.canEdit || trip?.authorId === 'me' || !trip?.authorId) && readonly !== '1';
   // 他人の旅は「サンプル」と「他の旅人の旅」で扱いを分ける
   const isSample = !!trip?.sample;
   const isFellow = !canEdit && !isSample;

@@ -10,19 +10,24 @@ import { AppText, Row, Gap } from '@/components/ui';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { fetchFriends, type UserSummary } from '@/lib/api';
+import { shareInvite } from '@/lib/invite';
 import { useI18n } from '@/lib/i18n';
 
 export function BuddyPicker({
   selected,
   onChange,
+  tripTitle,
 }: {
   selected: string[];
   onChange: (ids: string[]) => void;
+  /** 招待カードに載せる旅の名前。無ければアプリ全体への招待になる */
+  tripTitle?: string;
 }) {
   const { palette } = useTheme();
   const { t } = useI18n();
   const [friends, setFriends] = useState<UserSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -36,13 +41,46 @@ export function BuddyPicker({
   const toggle = (id: string) =>
     onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
 
+  const invite = async () => {
+    const r = await shareInvite(tripTitle);
+    if (r === 'copied') {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2600);
+    }
+  };
+
+  /** 「家族や友達を招待する」。小さく、罫線も枠も付けない */
+  const InviteLink = (
+    <View>
+      <Pressable onPress={invite} hitSlop={8}>
+        <Row style={{ gap: 5, alignItems: 'center' }}>
+          <Ionicons name="paper-plane-outline" size={13} color={palette.matcha} />
+          <AppText variant="small" tone="matcha" style={{ fontSize: 12 }}>{t('buddy.invite')}</AppText>
+        </Row>
+      </Pressable>
+      {copied && (
+        <>
+          <Gap h={4} />
+          <AppText variant="small" tone="inkFaint" style={{ fontSize: 11 }}>{t('buddy.inviteCopied')}</AppText>
+        </>
+      )}
+    </View>
+  );
+
   if (loading) return null;
 
   if (!friends.length) {
-    return <AppText variant="small" tone="inkFaint" style={{ lineHeight: 20 }}>{t('buddy.none')}</AppText>;
+    return (
+      <View>
+        <AppText variant="small" tone="inkFaint" style={{ lineHeight: 20 }}>{t('buddy.none')}</AppText>
+        <Gap h={space.sm} />
+        {InviteLink}
+      </View>
+    );
   }
 
   return (
+    <View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.md }}>
       {friends.map((f) => {
         const on = selected.includes(f.id);
@@ -74,6 +112,11 @@ export function BuddyPicker({
         );
       })}
     </ScrollView>
+      <Gap h={space.md} />
+      {InviteLink}
+      <Gap h={space.sm} />
+      <AppText variant="small" tone="inkFaint" style={{ fontSize: 11, lineHeight: 17 }}>{t('buddy.canEdit')}</AppText>
+    </View>
   );
 }
 

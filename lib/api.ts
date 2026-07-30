@@ -106,10 +106,15 @@ async function assembleTrips(tripRows: any[]): Promise<Trip[]> {
   );
 
   const membersByTrip = new Map<string, string[]>();
+  // 表示名だけでなくIDも控える。誰が直せるかの判定に使う
+  const memberIdsByTrip = new Map<string, Set<string>>();
   (members ?? []).forEach((m: any) => {
     const arr = membersByTrip.get(m.trip_id) ?? [];
     arr.push(m.profiles?.display_name ?? 'Traveller');
     membersByTrip.set(m.trip_id, arr);
+    const ids = memberIdsByTrip.get(m.trip_id) ?? new Set<string>();
+    ids.add(m.user_id);
+    memberIdsByTrip.set(m.trip_id, ids);
   });
 
   const usernameById = new Map<string, string>();
@@ -159,6 +164,8 @@ async function assembleTrips(tripRows: any[]): Promise<Trip[]> {
       ownerUsername,
       sample: ownerUsername === 'ashiato_demo',
       visibility: (trip.visibility as Trip['visibility']) ?? 'private',
+      // 持ち主か、その旅の travel buddy なら直せる
+      canEdit: !!uid && (trip.owner_id === uid || memberIdsByTrip.get(trip.id)?.has(uid) === true),
       steps,
     };
   });
