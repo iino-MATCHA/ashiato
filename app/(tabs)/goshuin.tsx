@@ -62,8 +62,9 @@ export default function GoshuinBook() {
       {guest && (
         <>
           <Gap h={space.lg} />
+          <Rule />
           <Pressable onPress={() => setAskSignIn(true)} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
-            <Row style={[styles.guestBand, { borderColor: palette.rule }]}>
+            <Row style={{ gap: space.sm, alignItems: 'center', paddingVertical: space.md }}>
               <Ionicons name="footsteps-outline" size={18} color={palette.matcha} />
               <AppText variant="small" tone="inkSoft" style={{ flex: 1, lineHeight: 20 }}>
                 {t('guest.goshuinBody')}
@@ -71,6 +72,7 @@ export default function GoshuinBook() {
               <Ionicons name="chevron-forward" size={16} color={palette.inkFaint} />
             </Row>
           </Pressable>
+          <Rule />
         </>
       )}
 
@@ -131,7 +133,6 @@ function LegendDot({ color, label, palette, border }: any) {
 const styles = StyleSheet.create({
   // 地図の右端・上下中ほど。行の高さに影響させないため絶対配置
   gaugeSlot: { position: 'absolute', right: 0, top: '26%' },
-  guestBand: { gap: space.sm, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: space.md },
   rankBand: { justifyContent: 'space-between', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: space.md },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: space.xl },
   cell: { width: '30%', alignItems: 'center' },

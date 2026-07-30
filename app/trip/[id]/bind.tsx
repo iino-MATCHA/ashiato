@@ -18,7 +18,6 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Eyebrow, Button } from '@/components/ui';
-import { WashiBackground } from '@/components/WashiBackground';
 import { space, fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip, useCart } from '@/lib/useData';
@@ -118,20 +117,20 @@ export default function TripBind() {
 
         {/* ② この一冊について ------------------------------------------ */}
         <View style={{ paddingHorizontal: space.lg }}>
+          {/* 説明は箱で囲わない。細い罫だけで区切る */}
           <Gap h={space.xl} />
-          <View style={[styles.about, { borderColor: palette.rule }]}>
-            <WashiBackground />
-            <View style={{ padding: space.lg }}>
-              <Row style={{ gap: 8, alignItems: 'center' }}>
-                <Ionicons name="book-outline" size={17} color={palette.shu} />
-                <AppText variant="bodyStrong" tone="ink">{t('bind.aboutTitle')}</AppText>
-              </Row>
-              <Gap h={space.sm} />
-              <AppText variant="small" tone="inkSoft" style={{ lineHeight: 23 }}>
-                {t('bind.aboutBody')}
-              </AppText>
-            </View>
-          </View>
+          <Rule />
+          <Gap h={space.lg} />
+          <Row style={{ gap: 8, alignItems: 'center' }}>
+            <Ionicons name="book-outline" size={17} color={palette.shu} />
+            <AppText variant="bodyStrong" tone="ink">{t('bind.aboutTitle')}</AppText>
+          </Row>
+          <Gap h={space.sm} />
+          <AppText variant="small" tone="inkSoft" style={{ lineHeight: 23 }}>
+            {t('bind.aboutBody')}
+          </AppText>
+          <Gap h={space.lg} />
+          <Rule />
 
           {/* ③ プラン ------------------------------------------------- */}
           <Gap h={space.xl} />
@@ -297,8 +296,6 @@ function PlanCard({ tier, name, price, badges, features, accent, palette, t, onP
 }
 
 const styles = StyleSheet.create({
-  // 谷折りの陰
-  about: { borderWidth: hairline, borderRadius: 14, overflow: 'hidden' },
   plan: { borderWidth: hairline * 2, borderRadius: 16, overflow: 'hidden' },
   planEdge: { height: 4, width: '100%' },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },

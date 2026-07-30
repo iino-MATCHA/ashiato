@@ -130,7 +130,7 @@ export default function Orders() {
         <Gap h={space.md} />
 
         {orders.length === 0 ? (
-          <Row style={[styles.empty, { borderColor: palette.rule }]}>
+          <Row style={{ gap: space.sm, alignItems: 'center', paddingVertical: space.md }}>
             <Ionicons name="cube-outline" size={20} color={palette.inkFaint} />
             <AppText variant="small" tone="inkFaint" style={{ flex: 1 }}>{t('orders.printedNone')}</AppText>
           </Row>
@@ -185,7 +185,6 @@ const styles = StyleSheet.create({
   row: { gap: space.md, alignItems: 'center', paddingVertical: space.md },
   thumbWrap: { borderRadius: 8, overflow: 'hidden' },
   thumb: { width: 52, height: 52, borderRadius: 8 },
-  empty: { gap: space.sm, alignItems: 'center', borderWidth: hairline, borderStyle: 'dashed', borderRadius: 10, padding: space.md },
   orderThumbWrap: { borderRadius: 3, overflow: 'hidden' },
   orderThumb: { width: 30, height: 42, borderRadius: 3 },
 });

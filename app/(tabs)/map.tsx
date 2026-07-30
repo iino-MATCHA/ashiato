@@ -140,16 +140,18 @@ export default function Home() {
           {guest && (
             <>
               {/* ゲストの一覧は空なので、代わりに行き先を示す */}
-              <View style={[styles.guestNote, { borderColor: palette.rule }]}>
-                <AppText variant="small" tone="inkSoft" style={{ lineHeight: 21 }}>{t('guest.mapBody')}</AppText>
-                <Gap h={space.md} />
-                <Pressable onPress={() => router.push('/(tabs)/explore')} hitSlop={8}>
-                  <Row style={{ gap: 6, alignItems: 'center' }}>
-                    <Ionicons name="compass-outline" size={16} color={palette.matcha} />
-                    <AppText variant="small" tone="matcha">{t('guest.seeOthers')} →</AppText>
-                  </Row>
-                </Pressable>
-              </View>
+              <Rule />
+              <Gap h={space.md} />
+              <AppText variant="small" tone="inkSoft" style={{ lineHeight: 21 }}>{t('guest.mapBody')}</AppText>
+              <Gap h={space.md} />
+              <Pressable onPress={() => router.push('/(tabs)/explore')} hitSlop={8}>
+                <Row style={{ gap: 6, alignItems: 'center' }}>
+                  <Ionicons name="compass-outline" size={16} color={palette.matcha} />
+                  <AppText variant="small" tone="matcha">{t('guest.seeOthers')} →</AppText>
+                </Row>
+              </Pressable>
+              <Gap h={space.md} />
+              <Rule />
               <Gap h={space.lg} />
             </>
           )}
@@ -271,5 +273,4 @@ const styles = StyleSheet.create({
   autoRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: 12 },
   autoIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   newTag: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
-  guestNote: { borderWidth: hairline, borderRadius: 12, padding: space.md },
 });

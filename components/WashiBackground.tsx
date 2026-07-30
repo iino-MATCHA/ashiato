@@ -30,10 +30,18 @@ const W = 400;
 const H = 700;
 const FIBRES = fibres(70, W, H);
 
-export function WashiBackground({ tone = 'light' }: { tone?: 'light' | 'dark' }) {
-  const { palette } = useTheme();
-  const base = tone === 'dark' ? '#1E1B17' : '#FBF8F0';
-  const fibre = tone === 'dark' ? '#8A8172' : '#8C7A5B';
+/**
+ * tone を渡さなければ端末のテーマに従う。
+ *
+ * 以前は常に明るい紙を敷いていたのに、上に乗る文字は palette.ink（暗所では
+ * 明るい色）だったので、ダークモードで見出しが紙に溶けて読めなかった。
+ * 紙の色と文字の色は必ず同じ方を向かせる。
+ */
+export function WashiBackground({ tone }: { tone?: 'light' | 'dark' }) {
+  const { palette, scheme } = useTheme();
+  const dark = (tone ?? scheme) === 'dark';
+  const base = dark ? '#1E1B17' : '#FBF8F0';
+  const fibre = dark ? '#8A8172' : '#8C7A5B';
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -46,7 +54,7 @@ export function WashiBackground({ tone = 'light' }: { tone?: 'light' | 'dark' })
             <FeColorMatrix type="saturate" values="0" />
           </Filter>
         </Defs>
-        <Rect x="0" y="0" width={W} height={H} filter="url(#washiNoise)" opacity={tone === 'dark' ? 0.16 : 0.1} />
+        <Rect x="0" y="0" width={W} height={H} filter="url(#washiNoise)" opacity={dark ? 0.16 : 0.1} />
         {/* 繊維 */}
         <G>
           {FIBRES.map((f, i) => (

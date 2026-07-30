@@ -95,7 +95,7 @@ export default function TripBook() {
           <>
             <Gap h={space.md} />
             {/* 制限ではなく「あと◯枚」の見せ方で、写真の投稿を促す */}
-            <Row style={[styles.notice, { borderColor: palette.matcha }]}>
+            <Row style={{ gap: space.sm, alignItems: 'center', paddingVertical: space.sm }}>
               <Ionicons name="images-outline" size={18} color={palette.matcha} />
               <View style={{ flex: 1 }}>
                 <AppText variant="bodyStrong" tone="ink">
@@ -176,7 +176,8 @@ export default function TripBook() {
           onPress={() => router.push(`/trip/${id}/bind`)}
           style={({ pressed }) => [pressed && { opacity: 0.7 }]}
         >
-          <Row style={[styles.printTeaser, { borderColor: palette.matcha, backgroundColor: palette.paper }]}>
+          <Rule />
+          <Row style={{ gap: space.sm, alignItems: 'center', paddingVertical: space.md }}>
             <Ionicons name="book-outline" size={20} color={palette.matcha} />
             <View style={{ flex: 1 }}>
               <AppText variant="bodyStrong" tone="ink">{t('book.printTitle')}</AppText>
@@ -184,6 +185,7 @@ export default function TripBook() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={palette.matcha} />
           </Row>
+          <Rule />
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -193,6 +195,4 @@ export default function TripBook() {
 const styles = StyleSheet.create({
   chapter: { alignItems: 'center', gap: space.sm, paddingVertical: space.md },
   thumb: { borderWidth: hairline, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  notice: { gap: space.sm, alignItems: 'center', borderWidth: hairline, borderRadius: 10, padding: space.md },
-  printTeaser: { gap: space.sm, alignItems: 'center', borderWidth: hairline, borderRadius: 10, padding: space.md },
 });
