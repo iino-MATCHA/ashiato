@@ -19,9 +19,6 @@ import { useI18n } from '@/lib/i18n';
  * 正規のホストへ揃えてから渡す。ローカルや他ドメインではその origin をそのまま使う。
  */
 const CANONICAL = 'https://www.my-japan-matcha.com';
-
-// Androidのブラウザには最初から「使えない」と書いておく
-const isAndroidWeb = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent ?? '');
 const redirectTo =
   typeof window === 'undefined'
     ? undefined
@@ -125,14 +122,6 @@ export default function Login() {
         <AppText variant="body" tone="inkSoft" center style={{ maxWidth: 280 }}>
           Where you walk becomes a map.{'\n'}Where you visit, a stamp is earned.
         </AppText>
-        {isAndroidWeb && (
-          <>
-            <Gap h={space.md} />
-            <AppText variant="small" tone="shu" center style={{ maxWidth: 300, lineHeight: 19 }}>
-              {t('auto.androidNote')}
-            </AppText>
-          </>
-        )}
       </View>
 
       {/* Centered auth card */}
