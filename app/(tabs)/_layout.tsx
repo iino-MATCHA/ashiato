@@ -44,19 +44,23 @@ export default function TabsLayout() {
         tabBarActiveTintColor: palette.matcha,
         // 生成り。inkFaint だと暗い地に沈んで読めなかった（実測 4.1:1）
         tabBarInactiveTintColor: palette.kinari,
+        /**
+         * ラベル（文字）は出さない。
+         * スマホのChromeはツールバーをページに重ねて描く状態があり、
+         * バーの下端は何をどう測っても最後の20px前後が欠け得る。
+         * そこで文字をやめてアイコンだけを**バーの上半分**に置き、
+         * 下側はただの余白にする。下半分が隠れても、失うものが無い。
+         */
+        tabBarShowLabel: false,
         tabBarStyle: {
           backgroundColor: palette.washi,
           borderTopColor: palette.rule,
           borderTopWidth: hairline,
           elevation: 0,
-          height: 68 + insets.bottom,
-          paddingTop: 8,
-          paddingBottom: 12 + insets.bottom,
-        },
-        tabBarLabelStyle: {
-          fontFamily: fonts.gothicMedium,
-          fontSize: 10,
-          letterSpacing: 1,
+          height: 72 + insets.bottom,
+          paddingTop: 10,
+          // 下側を厚めに空けておく（ここが欠けても表示は壊れない）
+          paddingBottom: 26 + insets.bottom,
         },
       }}
     >

@@ -46,6 +46,7 @@ export function JapanSvgMap({
   width = 320,
   tint,
   onToggle,
+  emptyFill,
   hideOkinawa = false,
   okinawaInset = false,
   intensity,
@@ -56,6 +57,8 @@ export function JapanSvgMap({
   tint?: string;
   /** 指定すると各県がタップ可能になり、prefecture_code を返す */
   onToggle?: (prefectureCode: number) => void;
+  /** 「まだ行っていない県」の塗り。常に明るい地に置くLPなどで、テーマに寄らず固定したいとき */
+  emptyFill?: string;
   /** 表示地図から沖縄を除外する */
   hideOkinawa?: boolean;
   /** 沖縄を千葉の下のインセットとして表示する（小さくOKINAWAラベルつき） */
@@ -79,11 +82,11 @@ export function JapanSvgMap({
           const isOki = slug === 'okinawa';
           if (hideOkinawa && isOki && !okinawaInset) return null;
           const on = set.has(slug);
-          let fill = on ? fillVisited : palette.mapEmpty;
+          let fill = on ? fillVisited : (emptyFill ?? palette.mapEmpty);
           if (intensity) {
             // 0 は無着色、1 に近づくほど濃く。薄い側でも見えるよう 0.12 を下限に。
             const v = intensity[PREFECTURE_ID_BY_SLUG[slug]] ?? 0;
-            fill = v > 0 ? withAlpha(fillVisited, 0.12 + v * 0.88) : palette.mapEmpty;
+            fill = v > 0 ? withAlpha(fillVisited, 0.12 + v * 0.88) : (emptyFill ?? palette.mapEmpty);
           }
           const path = (
             <Path

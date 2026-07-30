@@ -21,7 +21,7 @@ import { useI18n } from '@/lib/i18n';
 
 const CSS = `
 /* シェルが 100dvh 固定なので、LP自身をスクロール領域にする */
-.lp { --ink:#14120F; --paper:#FBFAF7; --matcha:#69AF00; --shu:#C4432B; --gold:#C9A227; --slant:6vw;
+.lp { --ink:#14120F; --paper:#FBFAF7; --matcha:#69AF00; --shu:#C4432B; --gold:#C9A227; --slant:clamp(34px,8vw,84px);
   height:var(--vh,100svh); overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;
   background:var(--paper); color:var(--ink);
   font-family:'ZenKakuGothicNew_400Regular','Zen Kaku Gothic New',system-ui,sans-serif;
@@ -119,6 +119,26 @@ const CSS = `
 /* 説明が続くので、このセクションだけ下の余白を詰める */
 .lp section.tight { padding-bottom:clamp(16px,2.4vw,32px); }
 .lp section.tight .feats { margin-top:28px; }
+
+/* --- 宙に浮くスマホ --- */
+.lp .mqHead { display:flex; align-items:center; justify-content:space-between; gap:26px; flex-wrap:wrap; }
+.lp .phoneFloat { perspective:1100px; margin:6px auto 0; }
+/* 斜めに上を向いた板。浮遊は transform だけで動かす（止まっても壊れない） */
+.lp .phone { width:216px; padding:20px 14px 16px; border-radius:30px; background:#101010;
+  box-shadow:0 34px 60px rgba(0,0,0,.30), 0 8px 18px rgba(0,0,0,.18);
+  transform:rotateX(11deg) rotateY(-16deg) rotateZ(5deg);
+  animation:phoneBob 5.2s ease-in-out infinite alternate; position:relative; }
+.lp .phone::before { content:''; position:absolute; inset:6px; border-radius:24px;
+  background:#FBFAF7; z-index:0; }
+.lp .phone > * { position:relative; z-index:1; }
+.lp .phoneNotch { width:74px; height:8px; border-radius:5px; background:#101010; margin:0 auto 12px; }
+.lp .phoneBrand { text-align:center; font-size:9px; letter-spacing:4px; color:#9B978F; margin-bottom:6px; }
+.lp .phoneMap { display:flex; justify-content:center; }
+.lp .phoneCount { text-align:center; font-size:11px; color:#6B6862; margin-top:8px; }
+.lp .phoneCount b { font-size:16px; color:#69AF00; }
+@keyframes phoneBob { from { transform:rotateX(11deg) rotateY(-16deg) rotateZ(5deg) translateY(0) }
+  to { transform:rotateX(9deg) rotateY(-13deg) rotateZ(4deg) translateY(-14px) } }
+@media (max-width:720px) { .lp .mqHead { justify-content:center; text-align:center; } }
 
 /* --- 無限マーキー --- */
 .lp .marquee { display:flex; gap:14px; width:max-content; }
@@ -238,6 +258,9 @@ export function Landing() {
   const { t } = useI18n();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const heroRef = useRef<HTMLDivElement | null>(null);
+
+  // スマホのモックで塗っておく県（東京から九州へ下る旅の跡に見える12県）
+  const PHONE_VISITED = [1, 13, 14, 22, 23, 26, 27, 28, 34, 40, 43, 46];
 
   // 写真は毎回同じ並びにしたいので、決め打ちの順で切り出す
   const photos = LP_PHOTOS;
@@ -412,9 +435,24 @@ export function Landing() {
       {/* ================= 写真の流れ ================= */}
       <section style={{ paddingTop: 0, paddingBottom: 0, marginTop: -1 }}>
         <div style={{ padding: '64px 0 8px' }}>
-          <div className="wrap rv" style={{ padding: '0 22px 26px' }}>
-            <div className="eyebrow">FROM TRAVELLERS IN JAPAN</div>
-            <h2 className="mincho">{t('lp.marqueeTitle')}</h2>
+          <div className="wrap rv mqHead" style={{ padding: '0 22px 26px' }}>
+            <div>
+              <div className="eyebrow">FROM TRAVELLERS IN JAPAN</div>
+              <h2 className="mincho">{t('lp.marqueeTitle')}</h2>
+            </div>
+            {/* ぱっと見で「日本地図を塗っていくアプリ」だと分かるように、
+                宙に浮いたスマホの画面に塗りかけの日本地図を見せる */}
+            <div className="phoneFloat" aria-hidden>
+              <div className="phone">
+                <div className="phoneNotch" />
+                <div className="phoneBrand">MY JAPAN</div>
+                <div className="phoneMap">
+                  {/* LPは常に明るい紙の上なので、テーマに寄らず明所の色で固定する */}
+                  <JapanSvgMap visited={PHONE_VISITED} width={168} okinawaInset tint="#69AF00" emptyFill="#EDEBE3" />
+                </div>
+                <div className="phoneCount"><b>12</b> / 47</div>
+              </div>
+            </div>
           </div>
           <div className="mRow a"><div className="marquee">{[...rowA, ...rowA].map((p, i) => <Card p={p} i={i} key={i} />)}</div></div>
           <div className="mRow b"><div className="marquee">{[...rowB, ...rowB].map((p, i) => <Card p={p} i={i} key={i} />)}</div></div>
@@ -575,7 +613,7 @@ export function Landing() {
             <div className="eyebrow">{t('lp.quizEyebrow')}</div>
             <h3 className="mincho">{t('lp.quizTitle')}</h3>
             <div className="quizMap">
-              <JapanSvgMap visited={quizSel} onToggle={toggleQuiz} width={quizMapW()} okinawaInset />
+              <JapanSvgMap visited={quizSel} onToggle={toggleQuiz} width={quizMapW()} okinawaInset tint="#69AF00" emptyFill="#EDEBE3" />
             </div>
             <p className="quizCount">{t('lp.quizCount', { n: quizSel.size })}</p>
             <button className="cta" style={{ marginTop: 18 }} onClick={seeGoshuin}>{t('lp.quizCta')} →</button>
