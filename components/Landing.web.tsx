@@ -232,7 +232,8 @@ const CSS = `
 
 /* --- 締め --- */
 .lp .closing { text-align:center; }
-.lp .closing h2 { white-space:pre-line; }
+/* 締めは叫ばない。ひとこと添えて、ボタンに繋ぐ */
+.lp .closing h2 { white-space:pre-line; font-size:clamp(19px,3.6vw,28px); }
 .lp footer { padding:38px 22px 52px; text-align:center; color:#9B978F; font-size:11px; letter-spacing:2.6px; }
 
 /* --- スマホ ---------------------------------------------------------
@@ -436,7 +437,7 @@ export function Landing() {
 
       {/* ================= 写真の流れ ================= */}
       <section style={{ paddingTop: 0, paddingBottom: 0, marginTop: -1 }}>
-        <div style={{ padding: '64px 0 8px' }}>
+        <div style={{ padding: '64px 0 clamp(56px, 9vw, 110px)' }}>
           <div className="wrap rv mqHead" style={{ padding: '0 22px 26px' }}>
             <div>
               <div className="eyebrow">FROM TRAVELLERS IN JAPAN</div>
@@ -538,7 +539,7 @@ export function Landing() {
       </section>
 
       {/* ================= 3つの柱 ================= */}
-      <section className="warm tight">
+      <section className="warm">
         <div className="wrap">
           <div className="rv">
             <div className="eyebrow">HOW IT WORKS</div>
@@ -603,7 +604,9 @@ export function Landing() {
       <section className="dark closing">
         <div className="wrap rv">
           <h2 className="mincho">{t('lp.closing')}</h2>
-
+          <div style={{ marginTop: 26 }}>
+            <button className="cta" onClick={go}>{t('lp.signup')}</button>
+          </div>
         </div>
       </section>
 

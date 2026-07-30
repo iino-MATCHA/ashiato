@@ -35,7 +35,7 @@ export function JapanBanner({
   const { t } = useI18n();
   const paperW = Math.min(width - 72, 330);
   const mapW = paperW - 44;
-  const paperH = mapW * 0.97 + 58; // 地図 + 下段（朱印と数）のぶん
+  const paperH = mapW * 0.97 + 48; // 地図 + 上下の数字・朱印のぶん
 
   return (
     <View
@@ -89,7 +89,7 @@ export function JapanBanner({
             borderRadius: 10,
             borderWidth: 1,
             borderColor: '#EEE9DA',
-            paddingTop: 18,
+            paddingTop: 40,
             alignItems: 'center',
             transform: [{ perspective: 900 }, { rotateX: '8deg' }, { rotateZ: '-2.2deg' }],
             // Webでは box-shadow、ネイティブでは shadow* が効く
@@ -101,25 +101,16 @@ export function JapanBanner({
         >
           <JapanSvgMap visited={visited} width={mapW} okinawaInset tint={MATCHA} emptyFill={EMPTY} />
 
-          {/* 下段: 集めた数と、右下の朱印 */}
-          <View
-            style={{
-              position: 'absolute',
-              left: 18,
-              right: 16,
-              bottom: 12,
-              flexDirection: 'row',
-              alignItems: 'flex-end',
-              justifyContent: 'space-between',
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
-              <AppText style={{ fontFamily: fonts.minchoBold, fontSize: 24, color: '#1B1815' }}>
-                {visited.length}
-              </AppText>
-              <AppText style={{ fontFamily: fonts.gothicRegular, fontSize: 11, color: '#8F887A' }}>/ 47</AppText>
-            </View>
-            {/* 朱印。枠だけの円に「旅」 */}
+          {/* 左上: 集めた数 */}
+          <View style={{ position: 'absolute', left: 18, top: 12, flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
+            <AppText style={{ fontFamily: fonts.minchoBold, fontSize: 24, color: '#1B1815' }}>
+              {visited.length}
+            </AppText>
+            <AppText style={{ fontFamily: fonts.gothicRegular, fontSize: 11, color: '#8F887A' }}>/ 47</AppText>
+          </View>
+
+          {/* 右下: 朱印。枠だけの円に「旅」 */}
+          <View style={{ position: 'absolute', right: 16, bottom: 12 }}>
             <View
               style={{
                 width: 34,
