@@ -24,10 +24,56 @@ import * as ImagePicker from 'expo-image-picker';
  * ネイティブ:
  *   expo-image-picker のライブラリを開く。カメラは開かない。
  */
-const PHOTO_TYPES = [
-  'image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp',
-  '.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp',
+/**
+ * iOS に渡す accept。
+ * ワイルドカードだと「写真を撮る」がシートに並ぶので、形式を列挙する。
+ */
+const PHOTO_TYPES_IOS = [
+  'image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/heif-sequence',
+  'image/webp', 'image/avif',
+  '.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp', '.avif',
 ].join(',');
+
+/**
+ * Android に渡す accept。
+ *
+ * **列挙してはいけない。** Android の選択画面は accept をそのまま
+ * MIME の絞り込みに使うので、端末が付けた MIME が列に無い写真は
+ * 灰色になって選べない。Android の写真の MIME は端末とアプリの組み合わせで
+ * まちまち（image/heif-sequence, image/x-adobe-dng, 空文字 など）で、
+ * 列挙で追いつけるものではない。実際に「Androidだと写真が選べない」が出た。
+ * iOS のような「写真を撮る」を避ける事情も Android には無いので、
+ * ここは image/* にする。
+ */
+const PHOTO_TYPES_ANDROID = 'image/*';
+
+/** iOS かどうか（iPadOS は Mac を名乗るので touch の有無も見る）。 */
+function isIOSBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  if (/iPhone|iPad|iPod/.test(ua)) return true;
+  return /Macintosh/.test(ua) && (navigator as any).maxTouchPoints > 1;
+}
+
+/**
+ * 明らかに写真ではないものだけ落とす。
+ *
+ * 以前は「image/ で始まる」か「既知の拡張子」でないと捨てていたが、
+ * Android は MIME を空で渡してくることがあり、名前も拡張子を持たない
+ * ことがある（コンテンツURI由来）。その結果、選んだのに一枚も残らず、
+ * 何も起きないように見えていた。
+ * 判断がつかないものは通して、後段（EXIF・圧縮）に任せる。
+ */
+function looksLikePhoto(f: File): boolean {
+  const type = (f.type || '').toLowerCase();
+  if (type.startsWith('image/')) return true;
+  if (type && !type.startsWith('image/')) return false;   // 動画・PDF・テキストなど
+  // MIME が空。名前で分かるなら使い、分からなければ通す
+  const name = (f.name || '').toLowerCase();
+  if (/\.(jpe?g|png|heic|heif|webp|avif|dng|tiff?)$/.test(name)) return true;
+  if (/\.[a-z0-9]{1,5}$/.test(name)) return false;        // 別の拡張子が付いている
+  return true;
+}
 export function PhotoPicker({
   onPick,
   multiple = false,
@@ -70,15 +116,15 @@ export function PhotoPicker({
 
   const input = React.createElement('input', {
     type: 'file',
-    // ワイルドカードにしない（iOSに「写真を撮る」を出させない）
-    accept: PHOTO_TYPES,
+    accept: isIOSBrowser() ? PHOTO_TYPES_IOS : PHOTO_TYPES_ANDROID,
     multiple,
     onChange: (e: any) => {
-      // accept を無視して渡してくる端末があるので、受け取り側でも写真だけに絞る
-      const files: File[] = Array.from<File>(e.target.files ?? []).filter(
-        (f) => /^image\//.test(f.type) || /\.(jpe?g|png|heic|heif|webp)$/i.test(f.name ?? '')
-      );
+      const all: File[] = Array.from<File>(e.target.files ?? []);
+      const files = all.filter(looksLikePhoto);
+      // 選ばれたのに一枚も残らなかった場合でも、黙って何も起きないのは避ける。
+      // 判断がつかないものは通す作りなので、ここに来るのは動画などを選んだとき
       if (files.length) onPick(files);
+      else if (all.length) onPick(all);
       e.target.value = ''; // 同じ写真を続けて選べるようにリセット
     },
     style: {
