@@ -13,7 +13,8 @@ const light = {
   // 墨
   ink: '#171717', // 本文
   inkSoft: '#5E5E5E', // 副文
-  inkFaint: '#9B9B9B', // キャプション
+  // キャプション。#9B9B9B は白地に対して 2.8:1 しかなく読みづらかった
+  inkFaint: '#757575',
   // 抹茶（MATCHAブランド色＝アプリの主アクセント）
   matcha: '#69AF00',
   matchaSoft: '#9CC455',
@@ -29,6 +30,12 @@ const light = {
   fill: '#F4F4F2', // 面(薄グレー)
   // 状態
   gold: '#A98037', // 限定バッジ等
+  /**
+   * 生成り。暗い地の上に置く文字色。
+   * 明るい地では白が読めないので、明所では墨寄りの色を入れてある
+   * （名前は「暗い面の上の文字」という役割を指す）。
+   */
+  kinari: '#5E5A52',
 } as const;
 
 const dark = {
@@ -36,7 +43,12 @@ const dark = {
   paper: '#1E1B17',
   ink: '#EDE9E0',
   inkSoft: '#B3AB9D',
-  inkFaint: '#7E766A',
+  /**
+   * キャプション。以前は #7E766A で、暗い地に対して 4.1:1 しかなく
+   * 都道府県名や凡例が沈んで読めなかった（実測）。
+   * 墨の階調（ink > inkSoft > inkFaint）は保ったまま持ち上げてある。
+   */
+  inkFaint: '#9A9184',
   matcha: '#8FC93A',
   matchaSoft: '#6E9A2E',
   ai: '#8FB0D4',
@@ -47,6 +59,8 @@ const dark = {
   ruleStrong: '#433D34',
   fill: '#242019',
   gold: '#CBA86A',
+  // 生成り（未晒しの和紙の白）。純白より目に刺さらず、和の地に馴染む
+  kinari: '#E8E0CE',
 } as const;
 
 // タイポグラフィ（@expo-google-fonts で読み込むファミリ名）

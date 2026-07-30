@@ -52,14 +52,17 @@ const CSS = `
 @keyframes bob { 0%,100%{transform:translate(-50%,0)} 50%{transform:translate(-50%,8px)} }
 
 /* --- ボタン --- */
+/* 光らせない。緑の影を敷くと蛍光灯のように見えるので、
+   影は落とさず、押したときだけ静かに沈む */
 .lp .cta { display:inline-flex; align-items:center; gap:10px; border:0; cursor:pointer;
   background:var(--matcha); color:#fff; padding:16px 30px; border-radius:999px;
-  font-size:15px; font-weight:600; box-shadow:0 10px 28px rgba(105,175,0,.34);
-  transition:transform .25s cubic-bezier(.2,.7,.2,1), box-shadow .25s; }
-.lp .cta:hover { transform:translateY(-3px) scale(1.03); box-shadow:0 16px 38px rgba(105,175,0,.44); }
+  font-size:15px; font-weight:600; box-shadow:none;
+  transition:background .2s, opacity .2s; }
+.lp .cta:hover { background:#5E9C00; }
+.lp .cta:active { opacity:.86; }
 .lp .ctaGhost { background:transparent; color:rgba(255,255,255,.82); box-shadow:none;
   border:1px solid rgba(255,255,255,.34); padding:13px 24px; font-size:13px; }
-.lp .ctaGhost:hover { background:rgba(255,255,255,.08); transform:none; }
+.lp .ctaGhost:hover { background:rgba(255,255,255,.08); }
 
 /* --- セクション --- */
 .lp section { padding:clamp(72px,13vw,140px) 22px; }
@@ -101,19 +104,6 @@ const CSS = `
   box-shadow:0 2px 8px rgba(0,0,0,.14); }
 .lp .demoTitle span { display:block; font-size:11px; color:#5E5B57; line-height:1.3; }
 .lp .demoTitle b { display:block; font-size:17px; color:#171717; line-height:1.35; }
-/* 下のカード。箱で囲わず、四方をぼかして地図になじませる */
-.lp .demoCard { position:absolute; left:26px; bottom:26px; z-index:3;
-  width:min(74%,320px); border-radius:14px; overflow:hidden;
-  -webkit-mask-image:radial-gradient(125% 120% at 50% 45%,#000 62%,rgba(0,0,0,.55) 82%,transparent 100%);
-  mask-image:radial-gradient(125% 120% at 50% 45%,#000 62%,rgba(0,0,0,.55) 82%,transparent 100%);
-  transform:translateY(26px); opacity:0; }
-.lp .demo.in .demoCard { animation:cardUp .8s .5s cubic-bezier(.2,.7,.2,1) forwards; }
-@keyframes cardUp { to { transform:none; opacity:1 } }
-.lp .demoCard .ph { height:150px; background-size:cover; background-position:center; }
-.lp .demoCard .bd { padding:13px 16px 17px; background:rgba(251,250,247,.93); backdrop-filter:blur(8px); }
-.lp .demoCard .kx { font-size:9.5px; letter-spacing:1.8px; color:#A5A19A; }
-.lp .demoCard .tt { font-size:19px; margin:4px 0 2px; color:#1B1815; }
-.lp .demoCard .sb { font-size:12px; color:#6B6862; }
 
 /* --- 説明の箇条書き --- */
 .lp .points { display:grid; gap:14px; margin-top:34px; }
@@ -196,9 +186,9 @@ const CSS = `
 .lp footer { padding:38px 22px 52px; text-align:center; color:#9B978F; font-size:11px; letter-spacing:2.6px; }
 
 /* --- スマホ ---------------------------------------------------------
-   デモの地図とその上のカードが画面を占めすぎて、肝心の「何ができるのか」
+   デモの地図が画面を占めすぎて、肝心の「何ができるのか」
    （その下の3点）が1画面目に入らなくなっていた。上の余白と地図の高さ、
-   カードの大きさを詰めて、説明が同じ画面に入るようにする。 */
+   説明が同じ画面に入るようにする。 */
 @media (max-width: 560px) {
   .lp section { padding-top:clamp(44px,9vw,72px); }
   .lp .lead { margin-top:12px; }
@@ -206,11 +196,7 @@ const CSS = `
   .lp .demoTitle { top:14px; left:14px; padding:6px 10px; }
   .lp .demoTitle span { font-size:10px; }
   .lp .demoTitle b { font-size:15px; }
-  .lp .demoCard { left:14px; bottom:14px; width:min(62%,232px); }
-  .lp .demoCard .ph { height:96px; }
-  .lp .demoCard .bd { padding:10px 12px 13px; }
-  .lp .demoCard .tt { font-size:16px; }
-  .lp .points { margin-top:22px; }
+          .lp .points { margin-top:22px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -311,8 +297,12 @@ export function Landing() {
     : Math.round(Math.min(560, Math.max(300, vw * 0.52)));
 
   const go = () => router.push('/(auth)/login');
-  // 登録せずに中を見せる。何のアプリなのか分からないまま登録を求めない
-  const browse = () => router.push('/(tabs)/explore');
+  /**
+   * 「始める」はログインを挟まずアプリの中へ入れる。
+   * 見るだけなら登録は要らず、記録しようとしたところで初めて
+   * SignInPrompt が出る（保存が要る操作の手前で止める設計）。
+   */
+  const browse = () => router.push('/(tabs)/map');
 
   const Card = ({ p, i }: { p: any; i: number }) => (
     <div className="mCard" key={`${p.src}-${i}`}>
@@ -339,8 +329,7 @@ export function Landing() {
           <h1 className="heroTitle mincho rv d1">{t('lp.tagline')}</h1>
           <p className="heroSub rv d2">{t('lp.sub')}</p>
           <div className="rv d3" style={{ marginTop: 34, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="cta" onClick={go}>{t('lp.cta')} →</button>
-            <button className="cta ctaGhost" onClick={browse}>{t('lp.browse')}</button>
+            <button className="cta" onClick={browse}>{t('lp.cta')} →</button>
             <button className="cta ctaGhost" onClick={go}>{t('lp.haveAccount')}</button>
           </div>
         </div>
@@ -377,7 +366,7 @@ export function Landing() {
               overview
               onSelect={() => {}}
               height={demoH}
-              bottomInset={Math.round(demoH * 0.34)}
+              bottomInset={Math.round(demoH * 0.12)}
             />
 
             {/* 左上のタイトルチップ */}
@@ -386,14 +375,6 @@ export function Landing() {
               <b className="mincho">{t('lp.demoTripTitle')}</b>
             </div>
 
-            {/* 下のカード。枠を持たせず四方をぼかして地図になじませる */}
-            <div className="demoCard">
-              <div className="ph" style={{ backgroundImage: `url(${LP_DEMO_STEPS[1].images[0]})` }} />
-              <div className="bd">
-                <div className="kx">STOP 2 / 3 · {LP_DEMO_STEPS[1].prefectureName.toUpperCase()}</div>
-                <div className="tt mincho">{LP_DEMO_STEPS[1].title}</div>
-              </div>
-            </div>
           </div>
 
           {/* 何ができるアプリなのかを、ここで言葉でも伝える */}
@@ -492,10 +473,7 @@ export function Landing() {
       <section className="dark closing">
         <div className="wrap rv">
           <h2 className="mincho">{t('lp.closing')}</h2>
-          <div style={{ marginTop: 34, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="cta" onClick={go}>{t('lp.cta')} →</button>
-            <button className="cta ctaGhost" onClick={browse}>{t('lp.browse')}</button>
-          </div>
+
         </div>
       </section>
 

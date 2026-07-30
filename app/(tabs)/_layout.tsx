@@ -1,5 +1,6 @@
 import { View, ActivityIndicator } from 'react-native';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
@@ -9,6 +10,12 @@ import { useSession } from '@/lib/useSession';
 export default function TabsLayout() {
   const { palette } = useTheme();
   const { t } = useI18n();
+  /**
+   * 画面下の安全領域（ホームバー・ブラウザの下部バー）。
+   * これを足さないと、タブの文字が端末の下端に貼りついて隠れる。
+   * バーの背景ごと安全領域まで伸ばし、文字はその上に置く。
+   */
+  const insets = useSafeAreaInsets();
 
   /**
    * ゲスト（未ログイン）でもタブの中に入れる。
@@ -35,15 +42,16 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: palette.matcha,
-        tabBarInactiveTintColor: palette.inkFaint,
+        // 生成り。inkFaint だと暗い地に沈んで読めなかった（実測 4.1:1）
+        tabBarInactiveTintColor: palette.kinari,
         tabBarStyle: {
           backgroundColor: palette.washi,
           borderTopColor: palette.rule,
           borderTopWidth: hairline,
           elevation: 0,
-          height: 64,
-          paddingTop: 6,
-          paddingBottom: 8,
+          height: 68 + insets.bottom,
+          paddingTop: 8,
+          paddingBottom: 12 + insets.bottom,
         },
         tabBarLabelStyle: {
           fontFamily: fonts.gothicMedium,

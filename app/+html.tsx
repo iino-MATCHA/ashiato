@@ -19,8 +19,9 @@ body {
   margin: 0;
   height: 100%;
   box-sizing: border-box; /* safe-area paddings are inside the height */
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
+  /* 安全領域は body では取らない。ここで余白を取ると、画面ごとの
+     SafeAreaView が同じぶんをもう一度足して二重になり、下のタブバーが
+     浮いて背景の帯が見える。安全領域は各画面とタブバーが自分で持つ。 */
   overflow-x: hidden;
   overscroll-behavior-y: none;
   -webkit-text-size-adjust: 100%;
