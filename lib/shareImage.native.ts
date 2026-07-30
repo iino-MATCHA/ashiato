@@ -74,3 +74,8 @@ export async function shareImage(
     return 'failed';
   }
 }
+
+/** ネイティブでは保存ボタン自体を出していない（共有シート経由で保存できる）。 */
+export async function saveImage(_dataUrl: string, _filename: string): Promise<ShareResult> {
+  return 'failed';
+}

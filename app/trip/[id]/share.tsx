@@ -10,7 +10,7 @@ import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
 import { exportShareCard } from '@/lib/shareCard';
-import { shareImage, type ShareTarget } from '@/lib/shareImage';
+import { shareImage, saveImage, type ShareTarget } from '@/lib/shareImage';
 import { captureCard } from '@/lib/cardShot';
 import { CopyLink } from '@/components/CopyLink';
 import { track } from '@/lib/analytics';
@@ -84,11 +84,9 @@ export default function TripShare() {
     setSaving(true);
     const dataUrl = await exportShareCard(cardMeta);
     setSaving(false);
-    if (!dataUrl) return;
-    const link = document.createElement('a');
-    link.download = `my-japan-${trip.id}.png`;
-    link.href = dataUrl;
-    link.click();
+    if (!dataUrl) return setNotice(t('share.failed'));
+    const res = await saveImage(dataUrl, `my-japan-${trip.id}.png`);
+    if (res === 'failed') setNotice(t('share.failed'));
   };
 
   /**

@@ -13,11 +13,30 @@ export function CopyLink({ url }: { url: string }) {
   const [done, setDone] = useState(false);
 
   const copy = async () => {
+    // clipboard API はジェスチャ切れや権限で普通に落ちる。
+    // 駄目なら選択→execCommand('copy') の古い道で拾う
+    let ok = false;
     try {
       await navigator.clipboard.writeText(url);
+      ok = true;
+    } catch {}
+    if (!ok) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ok = document.execCommand('copy');
+        ta.remove();
+      } catch {}
+    }
+    if (ok) {
       setDone(true);
       setTimeout(() => setDone(false), 1800);
-    } catch {}
+    }
   };
 
   return (

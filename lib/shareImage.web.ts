@@ -57,11 +57,56 @@ export async function shareImage(
 
   // ② 画像を保存して、投稿画面を開く
   try {
-    const link = document.createElement('a');
-    link.download = filename;
-    link.href = dataUrl;
-    link.click();
+    await downloadBlob(dataUrl, filename);
     window.open(WEB_INTENT[target](text), '_blank', 'noopener');
+    return 'downloaded';
+  } catch {
+    return 'failed';
+  }
+}
+
+/**
+ * data:URL を blob:URL に変えてから <a download> を踏む。
+ * iOS(WebKit) は data:URL の download 属性を無視するので、
+ * data のまま click() しても何も起きない（「保存できない」の正体）。
+ * blob ならデスクトップ・スマホとも保存が走る。
+ */
+async function downloadBlob(dataUrl: string, filename: string): Promise<void> {
+  const blob = await (await fetch(dataUrl)).blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);   // DOMに載せないと無視するブラウザがある
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+/**
+ * 「保存」ボタンの本体。
+ * スマホでは共有シートに画像だけを渡す（シートの「画像を保存」から
+ * カメラロールに入る。iOSのブラウザには直接保存する道が無い）。
+ * シートが無い・使えない環境では blob でのダウンロードに落ちる。
+ */
+export async function saveImage(dataUrl: string, filename: string): Promise<ShareResult> {
+  if (typeof navigator === 'undefined' || typeof document === 'undefined') return 'failed';
+
+  const touch = (navigator as any).maxTouchPoints > 0;
+  if (touch) {
+    const file = await toFile(dataUrl, filename);
+    if (file && (navigator as any).canShare?.({ files: [file] })) {
+      try {
+        await (navigator as any).share({ files: [file] });
+        return 'shared';
+      } catch (e: any) {
+        if (e?.name === 'AbortError') return 'cancelled';
+        // シートが開けなかったときはダウンロードへ落ちる
+      }
+    }
+  }
+  try {
+    await downloadBlob(dataUrl, filename);
     return 'downloaded';
   } catch {
     return 'failed';

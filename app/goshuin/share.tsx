@@ -11,7 +11,7 @@ import { useTheme } from '@/lib/useTheme';
 import { useVisitedPrefectures } from '@/lib/useData';
 import { PREFECTURE_TOTAL } from '@/lib/mock';
 import { exportJapanCard } from '@/lib/japanCard';
-import { shareImage, type ShareTarget } from '@/lib/shareImage';
+import { shareImage, saveImage, type ShareTarget } from '@/lib/shareImage';
 import { captureCard } from '@/lib/cardShot';
 import { CountUp } from '@/components/CountUp';
 import { CopyLink } from '@/components/CopyLink';
@@ -92,11 +92,9 @@ export default function GoshuinShare() {
     setSaving(true);
     const dataUrl = await exportJapanCard(cardMeta());
     setSaving(false);
-    if (!dataUrl) return;
-    const link = document.createElement('a');
-    link.download = `my-japan-${count}of${PREFECTURE_TOTAL}.png`;
-    link.href = dataUrl;
-    link.click();
+    if (!dataUrl) return setNotice(t('share.failed'));
+    const res = await saveImage(dataUrl, `my-japan-${count}of${PREFECTURE_TOTAL}.png`);
+    if (res === 'failed') setNotice(t('share.failed'));
   };
 
   return (
