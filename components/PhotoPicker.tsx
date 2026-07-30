@@ -35,17 +35,21 @@ const PHOTO_TYPES_IOS = [
 ].join(',');
 
 /**
- * Android に渡す accept。
+ * Android では accept を**付けない**。
  *
- * **列挙してはいけない。** Android の選択画面は accept をそのまま
- * MIME の絞り込みに使うので、端末が付けた MIME が列に無い写真は
- * 灰色になって選べない。Android の写真の MIME は端末とアプリの組み合わせで
- * まちまち（image/heif-sequence, image/x-adobe-dng, 空文字 など）で、
- * 列挙で追いつけるものではない。実際に「Androidだと写真が選べない」が出た。
- * iOS のような「写真を撮る」を避ける事情も Android には無いので、
- * ここは image/* にする。
+ * image/* を渡すと、Chrome は Android の「フォトピッカー」を開く。
+ * このピッカーは、位置情報の権限（ACCESS_MEDIA_LOCATION）を持たない
+ * アプリに写真を渡すとき **GPSをEXIFから剥がして渡す** 仕様で、
+ * ブラウザ上のWebアプリは絶対にこの権限を持てない。
+ * つまり Pixel のカメラで撮った位置つきJPEGを選んでも、
+ * こちらに届いた時点で位置が消えている。
+ * 「位置情報が入っているはずなのに、入っていませんと言われる」の正体。
+ *
+ * accept を付けなければ従来のファイル選択（ファイルアプリ）が開き、
+ * 元のバイト列がそのまま届く。写真以外も選べてしまうが、それは
+ * 受け取り側の looksLikePhoto で落とす。
  */
-const PHOTO_TYPES_ANDROID = 'image/*';
+const PHOTO_TYPES_ANDROID = undefined;
 
 /** iOS かどうか（iPadOS は Mac を名乗るので touch の有無も見る）。 */
 function isIOSBrowser(): boolean {
@@ -116,7 +120,7 @@ export function PhotoPicker({
 
   const input = React.createElement('input', {
     type: 'file',
-    accept: isIOSBrowser() ? PHOTO_TYPES_IOS : PHOTO_TYPES_ANDROID,
+    accept: isIOSBrowser() ? PHOTO_TYPES_IOS : PHOTO_TYPES_ANDROID,  // undefined = 属性を出さない
     multiple,
     onChange: (e: any) => {
       const all: File[] = Array.from<File>(e.target.files ?? []);

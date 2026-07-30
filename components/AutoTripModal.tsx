@@ -19,6 +19,10 @@ import { createTripFromPhotos, addStopsFromPhotos, type AutoTripProgress, type A
 
 type Phase = 'ask' | 'working' | 'done' | 'failed';
 
+/** Android のブラウザか。位置情報が剥がされる案内を出すためだけに見る */
+const isAndroidWeb =
+  typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent ?? '');
+
 export function AutoTripModal({
   visible,
   onClose,
@@ -182,6 +186,14 @@ export function AutoTripModal({
               <AppText variant="h3" tone="ink" center>{t(`auto.fail.${result?.failure ?? 'save-failed'}`)}</AppText>
               <Gap h={space.md} />
               <AppText variant="small" tone="ink" center style={{ lineHeight: 21, opacity: 0.86 }}>{t('auto.failHint')}</AppText>
+              {/* Androidのフォトピッカーは位置情報を剥がして渡すことがある。
+                  位置が読めなかったときは、ファイルアプリから選ぶ道を案内する */}
+              {isAndroidWeb && result?.failure === 'no-location' && (
+                <>
+                  <Gap h={space.md} />
+                  <AppText variant="small" tone="inkSoft" center style={{ lineHeight: 20 }}>{t('auto.failHintAndroid')}</AppText>
+                </>
+              )}
               <Gap h={space.xl} />
               <View style={{ alignSelf: 'stretch' }}>
                 <PhotoPicker onPick={run} multiple style={styles.pickWrap}>
