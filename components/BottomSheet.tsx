@@ -49,12 +49,15 @@ export function BottomSheet({
   collapsedHeight,
   expandedHeight,
   children,
+  onOpenChange,
 }: {
   /** たたんだときに見えている高さ */
   collapsedHeight: number;
   /** 伸ばしきったときの高さ */
   expandedHeight: number;
   children: React.ReactNode;
+  /** 全面まで開いているかを外へ知らせる（戻る矢印の出し分けに使う） */
+  onOpenChange?: (open: boolean) => void;
 }) {
   const { palette } = useTheme();
   const travel = Math.max(0, expandedHeight - collapsedHeight);
@@ -106,8 +109,9 @@ export function BottomSheet({
     (px: number) => {
       place(px, true);
       setOpen(px === 0);
+      onOpenChange?.(px === 0);
     },
-    [place]
+    [place, onOpenChange]
   );
 
   // 画面の大きさが変わったら、いまの状態に合わせて置き直す
@@ -209,8 +213,8 @@ export function BottomSheet({
         WEB ? { transform: [{ translateY: webY }] } : { transform: [{ translateY: anim }] },
       ]}
     >
-      {/* 和紙。明るいテーマでも暗いテーマでも同じ紙を敷く */}
-      <WashiBackground />
+      {/* 和紙。明るいテーマでも暗いテーマでも紙に見えるようにする */}
+      <WashiBackground base={palette.washiPaper} />
 
       {/* つまみ。ここだけが掴める */}
       <View ref={gripRef} {...pan.panHandlers} style={styles.grip}>
@@ -228,14 +232,11 @@ export function BottomSheet({
         <SheetOpenContext.Provider value={open}>{children}</SheetOpenContext.Provider>
 
         {/*
-          たたんでいる間は、中身に触れた時点で全面に伸ばす。
-          触れた指をそのまま中身のボタンへ通すと、伸びながら別の画面へ
-          飛んでしまうので、**最初のひと触りは受け止めるだけ**にする。
-          伸びたあとはこの膜が消えるので、二度目からは普通に押せる。
+          たたんでいる間も中身は普通に押せる。
+          以前はここに「触れたら全面に伸ばす膜」を敷いていたが、
+          その膜がボタンへのタップを全部飲み込んでいた。
+          伸ばしたいときはつまみを掴んでもらう。
         */}
-        {!open && (
-          <Pressable onPress={() => snapTo(0)} style={StyleSheet.absoluteFill} accessibilityLabel="expand" />
-        )}
       </View>
     </Wrapper>
   );

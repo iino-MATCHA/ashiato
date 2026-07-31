@@ -37,10 +37,10 @@ const FIBRES = fibres(70, W, H);
  * 明るい色）だったので、ダークモードで見出しが紙に溶けて読めなかった。
  * 紙の色と文字の色は必ず同じ方を向かせる。
  */
-export function WashiBackground({ tone }: { tone?: 'light' | 'dark' }) {
+export function WashiBackground({ tone, base: baseOverride }: { tone?: 'light' | 'dark'; base?: string }) {
   const { palette, scheme } = useTheme();
   const dark = (tone ?? scheme) === 'dark';
-  const base = dark ? '#1E1B17' : '#FBF8F0';
+  const base = baseOverride ?? (dark ? '#1E1B17' : '#FBF8F0');
   const fibre = dark ? '#8A8172' : '#8C7A5B';
 
   return (

@@ -19,7 +19,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppText, Row } from '@/components/ui';
 import { JapanSvgMap } from '@/components/JapanSvgMap';
 import { CoverageGauge } from '@/components/CoverageGauge';
-import { WashiBackground } from '@/components/WashiBackground';
 import { BottomSheet } from '@/components/BottomSheet';
 import { TripsPane } from '@/components/home/TripsPane';
 import { GoshuinPane } from '@/components/home/GoshuinPane';
@@ -41,6 +40,8 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
   const count = visited.length;
 
   const [view, setView] = useState<HomeView>(initialView);
+  // シートが全面のときは「＜」を出さない（紙の途中に浮いて見えるため）
+  const [sheetOpen, setSheetOpen] = useState(false);
   const pathname = usePathname();
 
   /**
@@ -80,9 +81,7 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
   const expanded = Math.round(usable); // 伸ばしきったら上まで覆う
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: palette.washiPaper }} edges={['top']}>
-      {/* 地もシートと同じ和紙。全面に伸ばしたとき継ぎ目が出ない */}
-      <WashiBackground />
+    <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top']}>
 
       {/* ---------------- 上半分（動かない） ---------------- */}
       <View style={{ alignItems: 'center', paddingTop: space.sm }}>
@@ -107,7 +106,7 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
       </View>
 
       {/* ---------------- 下半分（ボトムシート） ---------------- */}
-      <BottomSheet collapsedHeight={collapsed} expandedHeight={expanded}>
+      <BottomSheet collapsedHeight={collapsed} expandedHeight={expanded} onOpenChange={setSheetOpen}>
         <Animated.View style={{ flex: 1, opacity: fade }}>
           {view === 'goshuin' ? (
             <GoshuinPane visited={visited} />
@@ -121,7 +120,7 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
         「＜」はシートの外。たたんだときのシートの左上あたりに浮かせる。
         シートの中に置くと、つまみが pointer を捕まえてタップが届かない。
       */}
-      {view === 'goshuin' && (
+      {view === 'goshuin' && !sheetOpen && (
         <Pressable
           onPress={backToMap}
           hitSlop={14}
