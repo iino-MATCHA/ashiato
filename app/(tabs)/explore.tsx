@@ -80,7 +80,8 @@ export default function Explore() {
       <Gap h={space.md} />
       <AppText variant="eyebrow" tone="matcha">EXPLORE</AppText>
       <Gap h={space.sm} />
-      <AppText variant="h2" tone="ink">{t('explore.heading')}</AppText>
+      {/* 端末が狭いと最後の一文字だけ次の行に落ちるので、一段小さくする */}
+      <AppText variant="h3" tone="ink">{t('explore.heading')}</AppText>
 
       <Gap h={space.lg} />
       <Row style={[styles.search, { borderColor: palette.ruleStrong }]}>

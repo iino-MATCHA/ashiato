@@ -51,6 +51,12 @@ const CSS = `
   padding-top:calc(clamp(72px,13vw,140px) + var(--slant)); }
 
 /* --- 都道府県の問いかけ --- */
+/* 運営元。主張しすぎず、しかし読ませる。地は少し落とす */
+.lp section.matcha { background:#F4F1E8; }
+.lp .matchaLink { display:inline-block; margin-top:20px; color:var(--matcha); font-size:14px;
+  text-decoration:none; border-bottom:1px solid rgba(105,175,0,.4); padding-bottom:2px; }
+.lp .matchaLink:hover { border-bottom-color:var(--matcha); }
+
 .lp section.quiz { text-align:center; background:var(--paper); }
 .lp section.quiz .lead { margin-left:auto; margin-right:auto; }
 /* 地図の窓。ここで切り抜き、中のSVGを transform で動かす。
@@ -749,6 +755,18 @@ export function Landing() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ================= 運営（MATCHA） ================= */}
+      <section className="matcha">
+        <div className="wrap rv">
+          <div className="eyebrow">{t('lp.matchaEyebrow')}</div>
+          <h2 className="mincho">{t('lp.matchaTitle')}</h2>
+          <p className="lead">{t('lp.matchaBody')}</p>
+          <a className="matchaLink" href="https://company.matcha-jp.com/" target="_blank" rel="noreferrer">
+            {t('lp.matchaLink')} →
+          </a>
         </div>
       </section>
 
