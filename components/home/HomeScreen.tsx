@@ -11,9 +11,9 @@
  * 地の色はシートと同じ和紙。全面まで伸ばしたときに継ぎ目が出ず、
  * そのまま一枚の紙になる。
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { router, usePathname } from 'expo-router';
-import { Animated, Easing, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText, Row } from '@/components/ui';
@@ -28,16 +28,13 @@ import { PREFECTURE_TOTAL } from '@/lib/mock';
 import { useVisitedPrefectures } from '@/lib/useData';
 import { contentHeight, VB_W } from '@/lib/ugc/geo';
 import { useI18n } from '@/lib/i18n';
-import { useStampPress } from '@/lib/stampPress';
 
 /**
- * 演出はCSSに任せる。
- * この画面の Animated は Web で走らないことがある（シートで実測）。
- * 値は素の style に入れて確定させ、間を滑らかにするのはブラウザに任せる。
- * 演出が動かなくても、最終的な見え方は必ず正しい。
+ * 中身が入れ替わったときのフェードだけ、CSS に任せる。
+ * この画面の Animated は Web で走らないことがある（シートで実測）ため、
+ * ブラウザ側の keyframes に持たせる。動かなくても中身は必ず見える。
  */
 const HOME_CSS = `
-[data-mjmap="1"] { transition: opacity .28s ease, transform .28s cubic-bezier(.2,.7,.2,1); }
 [data-mjfade="1"] { animation: mjFadeIn .26s ease both; }
 @keyframes mjFadeIn { from { opacity: 0 } to { opacity: 1 } }
 `;
@@ -79,33 +76,6 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
   // タブを踏み直したときは、その入口の中身に戻す
   useEffect(() => setView(initialView), [initialView]);
 
-  /**
-   * 新しい県が増えた瞬間をつかまえる。
-   * ここ一か所で見ておけば、手で足したときも写真から起こしたときも
-   * 都道府県を選び直したときも、同じ演出になる。
-   */
-  const { pressStamp } = useStampPress();
-  const [flash, setFlash] = useState<number[]>([]);
-  const seen = useRef<Set<number> | null>(null);
-  useEffect(() => {
-    if (seen.current === null) {
-      // 最初の読み込みは「増えた」ではないので、記録するだけ
-      seen.current = new Set(visited);
-      return;
-    }
-    const added = visited.filter((c) => !seen.current!.has(c));
-    if (!added.length) return;
-    seen.current = new Set(visited);
-    setFlash(added);
-    // 印を押す（1県ぶん。まとめて増えたときは先頭を代表にする）
-    pressStamp(added[0]);
-    // 動きが走らなくても必ず消えるよう、時間で片付ける
-    const timer = setTimeout(() => setFlash([]), 1400);
-    return () => clearTimeout(timer);
-  }, [visited.join(',')]);
-
-  /** シートを上げている間、地図は半歩だけ奥へ引く（値はCSSが繋ぐ） */
-  const depthStyle = { opacity: sheetOpen ? 0.55 : 1, transform: [{ scale: sheetOpen ? 0.96 : 1 }] };
 
   /**
    * 高さの割り振り。
@@ -127,12 +97,9 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top']}>
 
       {/* ---------------- 上半分（動かない） ---------------- */}
-      <View
-        {...(Platform.OS === 'web' ? ({ dataSet: { mjmap: '1' } } as any) : null)}
-        style={[{ alignItems: 'center', paddingTop: space.sm }, depthStyle]}
-      >
+      <View style={{ alignItems: 'center', paddingTop: space.sm }}>
         <View style={{ width: mapW }}>
-          <JapanSvgMap visited={visited} width={mapW} okinawaInset flash={flash} />
+          <JapanSvgMap visited={visited} width={mapW} okinawaInset />
 
           {/* 集めた数。北海道の左隣、地図の空いている所に置く */}
           <View style={styles.countSlot} pointerEvents="none">

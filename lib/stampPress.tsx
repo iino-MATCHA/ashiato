@@ -8,12 +8,6 @@
 import React, { createContext, useContext, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, View, Platform } from 'react-native';
 
-/**
- * Web では useNativeDriver が効かず、動きがまったく走らないことがある
- * （ボトムシートで実測。離した位置に取り残されて終わった）。
- * ここも同じなので、Web では JS ドライバに落とす。
- */
-const NATIVE = Platform.OS !== 'web';
 import { AppText, Gap } from '@/components/ui';
 import { Stamp } from '@/components/Stamp';
 import { PREFECTURE_EN_BY_ID, PREFECTURE_KANJI_BY_ID } from '@/lib/prefectures';
@@ -50,26 +44,26 @@ export function StampPressProvider({ children }: { children: React.ReactNode }) 
     drop.setValue(0); veil.setValue(0); ink.setValue(0); shake.setValue(0); label.setValue(0);
 
     Animated.sequence([
-      Animated.timing(veil, { toValue: 1, duration: 180, useNativeDriver: NATIVE }),
+      Animated.timing(veil, { toValue: 1, duration: 180, useNativeDriver: true }),
       // 落下 → 着弾（少しめり込む）
-      Animated.timing(drop, { toValue: 1, duration: 260, easing: Easing.in(Easing.cubic), useNativeDriver: NATIVE }),
+      Animated.timing(drop, { toValue: 1, duration: 260, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
       Animated.parallel([
         // 一度だけ短く震える
         Animated.sequence([
-          Animated.timing(shake, { toValue: 1, duration: 45, useNativeDriver: NATIVE }),
-          Animated.timing(shake, { toValue: -1, duration: 45, useNativeDriver: NATIVE }),
-          Animated.timing(shake, { toValue: 0, duration: 45, useNativeDriver: NATIVE }),
+          Animated.timing(shake, { toValue: 1, duration: 45, useNativeDriver: true }),
+          Animated.timing(shake, { toValue: -1, duration: 45, useNativeDriver: true }),
+          Animated.timing(shake, { toValue: 0, duration: 45, useNativeDriver: true }),
         ]),
         // 沈み込みから弾んで静止
-        Animated.spring(drop, { toValue: 2, friction: 5, tension: 140, useNativeDriver: NATIVE }),
+        Animated.spring(drop, { toValue: 2, friction: 5, tension: 140, useNativeDriver: true }),
         // 朱がにじむ
-        Animated.timing(ink, { toValue: 1, duration: 520, easing: Easing.out(Easing.quad), useNativeDriver: NATIVE }),
+        Animated.timing(ink, { toValue: 1, duration: 520, easing: Easing.out(Easing.quad), useNativeDriver: true }),
       ]),
-      Animated.timing(label, { toValue: 1, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: NATIVE }),
+      Animated.timing(label, { toValue: 1, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
       Animated.delay(1100),
       Animated.parallel([
-        Animated.timing(veil, { toValue: 0, duration: 340, useNativeDriver: NATIVE }),
-        Animated.timing(label, { toValue: 0, duration: 240, useNativeDriver: NATIVE }),
+        Animated.timing(veil, { toValue: 0, duration: 340, useNativeDriver: true }),
+        Animated.timing(label, { toValue: 0, duration: 240, useNativeDriver: true }),
       ]),
     ]).start(() => {
       if (timer.current) clearTimeout(timer.current);
