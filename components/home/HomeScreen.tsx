@@ -22,8 +22,8 @@ import { CoverageGauge } from '@/components/CoverageGauge';
 import { BottomSheet } from '@/components/BottomSheet';
 import { TripsPane } from '@/components/home/TripsPane';
 import { GoshuinPane } from '@/components/home/GoshuinPane';
-import { space, fonts } from '@/lib/theme';
-import { useTheme } from '@/lib/useTheme';
+import { palettes, space, fonts } from '@/lib/theme';
+import { ThemeScope, useTheme } from '@/lib/useTheme';
 import { PREFECTURE_TOTAL } from '@/lib/mock';
 import { useVisitedPrefectures } from '@/lib/useData';
 import { contentHeight, VB_W } from '@/lib/ugc/geo';
@@ -106,15 +106,18 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
       </View>
 
       {/* ---------------- 下半分（ボトムシート） ---------------- */}
-      <BottomSheet collapsedHeight={collapsed} expandedHeight={expanded} onOpenChange={setSheetOpen}>
-        <Animated.View style={{ flex: 1, opacity: fade }}>
-          {view === 'goshuin' ? (
-            <GoshuinPane visited={visited} />
-          ) : (
-            <TripsPane visited={visited} onOpenGoshuin={() => setView('goshuin')} />
-          )}
-        </Animated.View>
-      </BottomSheet>
+      {/* シートの中は常に和紙＋墨。端末が暗いテーマでも紙は肌色のまま */}
+      <ThemeScope scheme="light">
+        <BottomSheet collapsedHeight={collapsed} expandedHeight={expanded} onOpenChange={setSheetOpen}>
+          <Animated.View style={{ flex: 1, opacity: fade }}>
+            {view === 'goshuin' ? (
+              <GoshuinPane visited={visited} />
+            ) : (
+              <TripsPane visited={visited} onOpenGoshuin={() => setView('goshuin')} />
+            )}
+          </Animated.View>
+        </BottomSheet>
+      </ThemeScope>
 
       {/*
         「＜」はシートの外。たたんだときのシートの左上あたりに浮かせる。
@@ -127,10 +130,10 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
           accessibilityLabel="back"
           style={[
             styles.back,
-            { bottom: collapsed + 10, backgroundColor: palette.washiPaper, borderColor: palette.rule },
+            { bottom: collapsed + 10, backgroundColor: palettes.light.washiPaper, borderColor: palettes.light.rule },
           ]}
         >
-          <Ionicons name="chevron-back" size={20} color={palette.ink} />
+          <Ionicons name="chevron-back" size={24} color={palettes.light.ink} />
         </Pressable>
       )}
     </SafeAreaView>
@@ -142,12 +145,13 @@ const styles = StyleSheet.create({
   countSlot: { position: 'absolute', left: 0, top: '4%' },
   // 地図の右端・上下中ほど（この高さは海しか無いので絵に重ならない）
   gaugeSlot: { position: 'absolute', right: -6, top: '26%' },
+  // 丸ではなく、角を丸めた正方形。指で押しやすい大きさにする
   back: {
     position: 'absolute',
     left: space.lg,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
