@@ -6,7 +6,7 @@
  * 無限マーキー、Ken Burns）がCSSの方が圧倒的に軽く滑らかなため。
  * 言語はブラウザ設定から自動判定するので、切替UIは置かない。
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { LP_PHOTOS } from '@/lib/lpPhotos';
 import { JapanSvgMap } from '@/components/JapanSvgMap';
@@ -53,7 +53,22 @@ const CSS = `
 /* --- 都道府県の問いかけ --- */
 .lp section.quiz { text-align:center; background:var(--paper); }
 .lp section.quiz .lead { margin-left:auto; margin-right:auto; }
-.lp .quizMap { display:flex; justify-content:center; margin:14px 0 8px; }
+/* 地図の窓。ここで切り抜き、中のSVGを transform で動かす。
+   touch-action:none にしないと、ブラウザ側のスクロールに持っていかれる */
+.lp .quizMap { position:relative; margin:14px 0 8px; overflow:hidden; border-radius:12px;
+  touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none; }
+.lp .quizMap.grabbing { cursor:grabbing; }
+.lp .quizMap > .pan { transform-origin:center center; will-change:transform; }
+.lp .quizMap > .pan.eased { transition:transform .2s ease-out; }
+/* ＋ / − と リセット。地図の右下に小さく重ねる */
+.lp .zoomBtns { position:absolute; right:8px; bottom:8px; display:flex; flex-direction:column; gap:6px; z-index:3; }
+.lp .zoomBtns button { width:30px; height:30px; border-radius:8px; border:1px solid #E2DED2;
+  background:rgba(255,255,255,.92); color:#3A3427; font-size:17px; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; padding:0; }
+.lp .zoomBtns button:hover { background:#fff; }
+.lp .zoomBtns button:disabled { opacity:.4; cursor:default; }
+.lp .zoomHint { position:absolute; left:10px; bottom:10px; z-index:3; font-size:10.5px;
+  color:#8F887A; background:rgba(255,255,255,.82); border-radius:6px; padding:3px 7px; pointer-events:none; }
 .lp .quizCount { margin:0; font-size:13px; color:#6B6862; }
 
 /* --- 都道府県の中央モーダル --- */
@@ -62,6 +77,7 @@ const CSS = `
 .lp .quizSheet { position:relative; width:100%; max-width:500px; max-height:calc(var(--vh,100svh)*0.92); overflow-y:auto;
   background:var(--paper); color:var(--ink); border-radius:20px; padding:20px 18px 20px; text-align:center;
   box-shadow:0 24px 70px rgba(0,0,0,.34); animation:quizUp .34s cubic-bezier(.2,.7,.2,1) both; }
+.lp .quizSheet .quizMap { margin-left:auto; margin-right:auto; }
 .lp .quizSheet h3 { margin:8px 0 0; font-size:clamp(17px,4.4vw,21px); line-height:1.35; }
 .lp .quizClose { position:absolute; top:10px; right:12px; border:0; background:transparent; cursor:pointer;
   font-size:26px; line-height:1; color:#9B978F; padding:4px 8px; }
@@ -256,6 +272,142 @@ const CSS = `
   .lp .heroGrid img { opacity:.62; }
 }
 `;
+
+/**
+ * 日本地図をつまんで動かせるようにする窓。
+ *
+ * ライブラリは足さない。窓で切り抜いて、中身に translate+scale をかけるだけ。
+ * （MATCHA eSIM の地図と同じ作り方に合わせてある）
+ *
+ * 動かしたあとの「離した瞬間のクリック」で県が選ばれてしまうと操作にならないので、
+ * 一定以上動いていたら次のクリックだけ握りつぶす。
+ */
+function ZoomPan({
+  width,
+  height,
+  children,
+}: {
+  width: number;
+  height: number;
+  children: React.ReactNode;
+}) {
+  const MIN = 1;
+  const MAX = 4;
+  const [view, setView] = useState({ x: 0, y: 0, k: 1 });
+  const [grabbing, setGrabbing] = useState(false);
+  const [eased, setEased] = useState(true);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const start = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
+  const pinch = useRef<{ dist: number; k: number } | null>(null);
+  const moved = useRef(false);
+
+  /** 拡大していない方向へは動かさない。端まで行ったらそこで止める */
+  const clamp = (v: { x: number; y: number; k: number }) => {
+    const k = Math.min(MAX, Math.max(MIN, v.k));
+    const mx = ((k - 1) * width) / 2;
+    const my = ((k - 1) * height) / 2;
+    return { k, x: Math.min(mx, Math.max(-mx, v.x)), y: Math.min(my, Math.max(-my, v.y)) };
+  };
+
+  /**
+   * 窓の中心を軸に倍率を変える（ボタン・ホイール用）。
+   * 倍率は必ず「ひとつ前の値」から作る。closure の view を見て計算すると、
+   * 続けて押したときに古い倍率から何度も同じ計算をしてしまう。
+   */
+  const zoomBy = (factor: number) => {
+    setEased(true);
+    setView((v) => {
+      const k = Math.min(MAX, Math.max(MIN, v.k * factor));
+      return clamp({ x: (v.x * k) / v.k, y: (v.y * k) / v.k, k });
+    });
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    // 捕捉に失敗しても操作は続けさせる（環境によっては例外を投げる）
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    } catch {}
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    moved.current = false;
+    setEased(false);
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      pinch.current = { dist: Math.hypot(a.x - b.x, a.y - b.y), k: view.k };
+      start.current = null;
+    } else {
+      start.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
+      setGrabbing(true);
+    }
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointers.current.size === 2 && pinch.current) {
+      const [a, b] = [...pointers.current.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      const k = (pinch.current.k * d) / (pinch.current.dist || 1);
+      moved.current = true;
+      setView((v) => clamp({ ...v, k }));
+      return;
+    }
+    const st = start.current;
+    if (!st) return;
+    const dx = e.clientX - st.x;
+    const dy = e.clientY - st.y;
+    if (Math.hypot(dx, dy) > 6) moved.current = true;
+    setView((v) => clamp({ ...v, x: st.vx + dx, y: st.vy + dy }));
+  };
+
+  const endPointer = (e: React.PointerEvent) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinch.current = null;
+    if (pointers.current.size === 0) {
+      start.current = null;
+      setGrabbing(false);
+      setEased(true);
+    }
+  };
+
+  const onWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    setEased(false);
+    setView((v) => clamp({ ...v, k: v.k * (e.deltaY < 0 ? 1.12 : 1 / 1.12) }));
+  };
+
+  return (
+    <div
+      className={`quizMap${grabbing ? ' grabbing' : ''}`}
+      style={{ width, height }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endPointer}
+      onPointerCancel={endPointer}
+      onWheel={onWheel}
+      // 動かした直後のクリックは県の選択に回さない
+      onClickCapture={(e) => {
+        if (moved.current) {
+          e.stopPropagation();
+          e.preventDefault();
+          moved.current = false;
+        }
+      }}
+    >
+      <div
+        className={`pan${eased ? ' eased' : ''}`}
+        style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})` }}
+      >
+        {children}
+      </div>
+
+      <div className="zoomBtns">
+        <button type="button" aria-label="zoom in" disabled={view.k >= MAX} onClick={() => zoomBy(1.5)}>+</button>
+        <button type="button" aria-label="zoom out" disabled={view.k <= MIN} onClick={() => zoomBy(1 / 1.5)}>−</button>
+      </div>
+    </div>
+  );
+}
 
 export function Landing() {
   const { t } = useI18n();
@@ -617,9 +769,9 @@ export function Landing() {
             <button className="quizClose" onClick={() => setQuizOpen(false)} aria-label="close">×</button>
             <div className="eyebrow">{t('lp.quizEyebrow')}</div>
             <h3 className="mincho">{t('lp.quizTitle')}</h3>
-            <div className="quizMap">
+            <ZoomPan width={quizMapW()} height={Math.round(quizMapW() * (contentHeight() / 860))}>
               <JapanSvgMap visited={quizSel} onToggle={toggleQuiz} width={quizMapW()} okinawaInset tint="#69AF00" emptyFill="#EDEBE3" />
-            </div>
+            </ZoomPan>
             <p className="quizCount">{t('lp.quizCount', { n: quizSel.size })}</p>
             <button className="cta" style={{ marginTop: 18 }} onClick={seeGoshuin}>{t('lp.quizCta')} →</button>
           </div>
