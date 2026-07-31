@@ -9,6 +9,7 @@
  * 描き直されないので、切り替えても地図が一瞬消えたりしない。
  */
 import { useEffect, useRef, useState } from 'react';
+import { router, usePathname } from 'expo-router';
 import { Animated, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,6 +40,17 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
 
   const [view, setView] = useState<HomeView>(initialView);
   const [rankOpen, setRankOpen] = useState(false);
+  const pathname = usePathname();
+
+  /**
+   * 「＜」で旅の面へ戻る。
+   * /goshuin を直接開いていた場合は、面を切り替えるだけでは経路が
+   * 御朱印のままになるので、/map の画面そのものへ戻す。
+   */
+  const backToMap = () => {
+    if (pathname?.includes('goshuin')) router.replace('/(tabs)/map');
+    else setView('map');
+  };
 
   // タブを踏み直したときは、その入口の中身に戻す
   useEffect(() => setView(initialView), [initialView]);
@@ -107,7 +119,7 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
         background={view === 'goshuin' ? <WashiBackground /> : undefined}
         header={
           view === 'goshuin' ? (
-            <Pressable onPress={() => setView('map')} hitSlop={12} style={styles.back}>
+            <Pressable onPress={backToMap} hitSlop={12} style={styles.back}>
               <Ionicons name="chevron-back" size={22} color={palette.ink} />
             </Pressable>
           ) : undefined

@@ -73,15 +73,9 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="goshuin"
-        options={{
-          title: t('tab.goshuin'),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="ribbon-outline" size={size - 2} color={color} />
-          ),
-        }}
-      />
+      {/* 御朱印は /map の中のボトムシートで見せるので、タブには並べない。
+          直接開いたときのために経路だけ残す（href: null で下のバーから隠す） */}
+      <Tabs.Screen name="goshuin" options={{ href: null }} />
       <Tabs.Screen
         name="explore"
         options={{
