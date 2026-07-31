@@ -21,10 +21,13 @@ import { SignInPrompt } from '@/components/SignInPrompt';
 import { useSession } from '@/lib/useSession';
 import { useRippleNav } from '@/lib/transition';
 import { useI18n, t } from '@/lib/i18n';
+import { useSheetOpen } from '@/components/BottomSheet';
 
 export function TripsPane({ visited, onOpenGoshuin }: { visited: number[]; onOpenGoshuin: () => void }) {
   const { palette } = useTheme();
   useI18n(); // 言語切替の再レンダー購読
+  // たたんでいる間は動かさない。中を見るにはシートを上げてもらう
+  const sheetOpen = useSheetOpen();
   const { trips } = useTrips();
   const { trips: publicTrips } = usePublicTrips();
   const { profile } = useProfile();
@@ -59,6 +62,7 @@ export function TripsPane({ visited, onOpenGoshuin }: { visited: number[]; onOpe
   return (
     <>
       <ScrollView
+        scrollEnabled={sheetOpen}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl }}
       >
@@ -109,6 +113,14 @@ export function TripsPane({ visited, onOpenGoshuin }: { visited: number[]; onOpe
           >
             <Ionicons name="ribbon-outline" size={17} color={palette.shu} />
             <AppText variant="bodyStrong" tone="ink">{t('tab.goshuin')}</AppText>
+          </Pressable>
+          {/* ここまでの旅路をシェアする。言葉は置かず、共有の印だけ */}
+          <Pressable
+            onPress={() => (guest ? setAskSignIn(true) : router.push('/goshuin/share'))}
+            accessibilityLabel={t('goshuin.share')}
+            style={({ pressed }) => [styles.iconBtn, { borderColor: palette.ruleStrong }, pressed && { opacity: 0.6 }]}
+          >
+            <Ionicons name="share-outline" size={19} color={palette.ink} />
           </Pressable>
         </Row>
 
@@ -271,4 +283,5 @@ const styles = StyleSheet.create({
   autoRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: 12 },
   autoIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   btn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 44, borderRadius: 10 },
+  iconBtn: { width: 44, height: 44, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth * 2, alignItems: 'center', justifyContent: 'center' },
 });

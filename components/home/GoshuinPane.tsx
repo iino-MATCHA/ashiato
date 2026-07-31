@@ -5,9 +5,8 @@
  */
 import { useState } from 'react';
 import { View, Pressable, ScrollView, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AppText, Row, Rule, Gap, Button } from '@/components/ui';
+import { AppText, Row, Rule, Gap } from '@/components/ui';
 import { Stamp } from '@/components/Stamp';
 import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
@@ -15,16 +14,20 @@ import { goshuinList } from '@/lib/mock';
 import { SignInPrompt } from '@/components/SignInPrompt';
 import { useSession } from '@/lib/useSession';
 import { useI18n } from '@/lib/i18n';
+import { useSheetOpen } from '@/components/BottomSheet';
 
 export function GoshuinPane({ visited }: { visited: number[] }) {
   const { palette } = useTheme();
   const { t } = useI18n();
   const { guest } = useSession();
+  // たたんでいる間は動かさない
+  const sheetOpen = useSheetOpen();
   const [askSignIn, setAskSignIn] = useState(false);
   const visitedSet = new Set(visited);
 
   return (
     <ScrollView
+      scrollEnabled={sheetOpen}
       contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl }}
       showsVerticalScrollIndicator={false}
     >
@@ -46,14 +49,8 @@ export function GoshuinPane({ visited }: { visited: number[] }) {
         </>
       )}
 
-      <Button
-        label={t('goshuin.share')}
-        tone="matcha"
-        onPress={() => (guest ? setAskSignIn(true) : router.push('/goshuin/share'))}
-      />
       <SignInPrompt visible={askSignIn} onClose={() => setAskSignIn(false)} reason="collect" />
 
-      <Gap h={space.xl} />
       <View style={styles.grid}>
         {goshuinList.map((g, i) => {
           const acquired = visitedSet.has(g.prefectureId);

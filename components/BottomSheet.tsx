@@ -12,11 +12,19 @@
  * 寄せる動きは CSS の transition に任せる。
  * ネイティブは従来どおり PanResponder + Animated。
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/lib/useTheme';
 
 const WEB = Platform.OS === 'web';
+
+/**
+ * シートが全面まで開いているか。
+ * 中身の一覧は「開いているときだけ」スクロールさせたいので、
+ * 各ペインがこれを見て scrollEnabled を決める。
+ */
+const SheetOpenContext = createContext(false);
+export const useSheetOpen = () => useContext(SheetOpenContext);
 
 /**
  * 寄せる動きは CSS に任せる。ブラウザ側が動かすので、
@@ -194,7 +202,7 @@ export function BottomSheet({
       dataSet={WEB ? { mjsheet: '1', dragging: dragging ? '1' : '0' } : undefined}
       style={[
         styles.sheet,
-        { height: expandedHeight, backgroundColor: palette.washi, borderColor: palette.rule },
+        { height: expandedHeight, backgroundColor: palette.sheet, borderColor: palette.ruleStrong },
         WEB ? { transform: [{ translateY: webY }] } : { transform: [{ translateY: anim }] },
       ]}
     >
@@ -210,11 +218,17 @@ export function BottomSheet({
         >
           <View style={[styles.bar, { backgroundColor: palette.ruleStrong }]} />
         </Pressable>
-        {header}
       </View>
 
+      {/*
+        つまみに重ねるもの（戻る矢印）は、つまみの**外**に置く。
+        中に入れると、つまみが pointer を捕まえてしまってこちらのタップが
+        届かない（実機で「＜が効かない」が出た）。
+      */}
+      {header}
+
       <View style={{ flex: 1 }}>
-        {children}
+        <SheetOpenContext.Provider value={open}>{children}</SheetOpenContext.Provider>
 
         {/*
           たたんでいる間は、中身に触れた時点で全面に伸ばす。

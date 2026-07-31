@@ -69,7 +69,7 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
    */
   const usable = height - insets.top - 72 - insets.bottom; // タブバーぶんを除いた高さ
   const collapsed = Math.round(Math.max(150, usable * 0.26));
-  const expanded = Math.round(usable - 56);
+  const expanded = Math.round(usable); // 伸ばしきったら上まで覆う
   const ratio = contentHeight() / VB_W;
   const topRoom = usable - collapsed - 84; // ランクの帯と余白のぶん
   const mapW = Math.round(Math.max(180, Math.min(width - space.lg * 2, 380, topRoom / ratio)));
