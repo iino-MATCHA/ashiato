@@ -12,7 +12,7 @@ import { RankModal, rankFor } from '@/components/RankModal';
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { fetchUnreadCount, fetchFriends, fetchFriendRequests, fetchMyAdminRole, type UserSummary } from '@/lib/api';
+import { fetchFriends, fetchFriendRequests, fetchMyAdminRole, type UserSummary } from '@/lib/api';
 import { friends as mockFriends } from '@/lib/mock';
 import { useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/useSession';
@@ -30,7 +30,6 @@ export default function ProfilePage() {
   const [rankOpen, setRankOpen] = useState(false);
   // 共有シートが無い環境では文面がクリップボードへ入る。通知は出さない
   const invite = () => { shareInvite(); };
-  const [unread, setUnread] = useState(0);
   const [friends, setFriends] = useState<UserSummary[]>(
     isSupabaseConfigured ? [] : mockFriends.map((f) => ({ id: f.id, name: f.name, username: f.username, avatarUrl: '' }))
   );
@@ -40,7 +39,6 @@ export default function ProfilePage() {
   useFocusEffect(useCallback(() => {
     aliveRef.current = true;
     if (isSupabaseConfigured) {
-      fetchUnreadCount().then((n) => aliveRef.current && setUnread(n));
       fetchFriends().then((f) => aliveRef.current && setFriends(f)).catch(() => {});
       fetchFriendRequests().then((r) => aliveRef.current && setPendingReq(r.length)).catch(() => {});
       fetchMyAdminRole().then((r) => aliveRef.current && setAdminRole(r)).catch(() => {});
@@ -160,7 +158,6 @@ export default function ProfilePage() {
         <Gap h={space.md} />
         <Rule />
         {[
-          { icon: 'notifications-outline', label: t('settings.notifications'), onPress: () => router.push('/notifications'), badge: unread },
           { icon: 'map-outline', label: t('settings.editPrefectures'), onPress: () => router.push('/(auth)/prefectures?edit=1') },
           { icon: 'share-social-outline', label: t('settings.shareCard'), onPress: () => router.push('/goshuin/share') },
           { icon: 'receipt-outline', label: t('settings.orders'), onPress: () => router.push('/orders' as any) },

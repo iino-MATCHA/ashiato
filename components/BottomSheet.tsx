@@ -208,7 +208,8 @@ export function BottomSheet({
           // 全面まで伸びたら角を落として、地の和紙とそのまま一枚になる
           borderTopLeftRadius: open ? 0 : 18,
           borderTopRightRadius: open ? 0 : 18,
-          borderTopWidth: open ? 0 : StyleSheet.hairlineWidth,
+          // 色差を控えめにしたので、境目はこの罫が受け持つ
+          borderTopWidth: open ? 0 : StyleSheet.hairlineWidth * 2,
         },
         WEB ? { transform: [{ translateY: webY }] } : { transform: [{ translateY: anim }] },
       ]}
