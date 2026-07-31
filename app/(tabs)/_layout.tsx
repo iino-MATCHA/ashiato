@@ -91,6 +91,16 @@ export default function TabsLayout() {
           ),
         }}
       />
+      {/* 設定の奥だと気づかれないので、お知らせはタブに出す */}
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: t('tab.notifications'),
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="notifications-outline" size={size - 2} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

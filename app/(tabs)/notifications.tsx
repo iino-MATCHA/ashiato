@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScrollView, Swipeable } from 'react-native-gesture-handler';
-import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap } from '@/components/ui';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
@@ -35,7 +34,10 @@ export default function Notifications() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header title={t('noti.header')} />
+      {/* タブの画面なので戻る矢印は置かない（戻り先が無い） */}
+      <View style={{ paddingHorizontal: space.lg, paddingVertical: space.md }}>
+        <AppText variant="h2" tone="ink">{t('noti.header')}</AppText>
+      </View>
       <Rule />
       <ScrollView contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxl, alignItems: 'center' }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {loading ? (
