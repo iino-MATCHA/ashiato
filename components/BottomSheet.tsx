@@ -203,7 +203,12 @@ export function BottomSheet({
         styles.sheet,
         {
           height: expandedHeight,
-          backgroundColor: palette.washiPaper,
+          /**
+           * たたんでいるときは「地の上に置かれた紙」。
+           * 全面まで伸びたら、他の画面と同じ地の色にして馴染ませる
+           * （ここだけ紙色のままだと、タブを移った瞬間に色が飛ぶ）。
+           */
+          backgroundColor: open ? palette.washi : palette.washiPaper,
           borderColor: palette.ruleStrong,
           // 全面まで伸びたら角を落として、地の和紙とそのまま一枚になる
           borderTopLeftRadius: open ? 0 : 18,
@@ -215,7 +220,7 @@ export function BottomSheet({
       ]}
     >
       {/* 和紙。明るいテーマでも暗いテーマでも紙に見えるようにする */}
-      <WashiBackground base={palette.washiPaper} />
+      <WashiBackground base={open ? palette.washi : palette.washiPaper} />
 
       {/* つまみ。ここだけが掴める */}
       <View ref={gripRef} {...pan.panHandlers} style={styles.grip}>

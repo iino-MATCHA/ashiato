@@ -13,7 +13,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { router, usePathname } from 'expo-router';
-import { Animated, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText, Row } from '@/components/ui';
@@ -28,6 +28,27 @@ import { PREFECTURE_TOTAL } from '@/lib/mock';
 import { useVisitedPrefectures } from '@/lib/useData';
 import { contentHeight, VB_W } from '@/lib/ugc/geo';
 import { useI18n } from '@/lib/i18n';
+import { useStampPress } from '@/lib/stampPress';
+
+/**
+ * 演出はCSSに任せる。
+ * この画面の Animated は Web で走らないことがある（シートで実測）。
+ * 値は素の style に入れて確定させ、間を滑らかにするのはブラウザに任せる。
+ * 演出が動かなくても、最終的な見え方は必ず正しい。
+ */
+const HOME_CSS = `
+[data-mjmap="1"] { transition: opacity .28s ease, transform .28s cubic-bezier(.2,.7,.2,1); }
+[data-mjfade="1"] { animation: mjFadeIn .26s ease both; }
+@keyframes mjFadeIn { from { opacity: 0 } to { opacity: 1 } }
+`;
+let homeCssInjected = false;
+function injectHomeCss() {
+  if (Platform.OS !== 'web' || homeCssInjected || typeof document === 'undefined') return;
+  homeCssInjected = true;
+  const tag = document.createElement('style');
+  tag.textContent = HOME_CSS;
+  document.head.appendChild(tag);
+}
 
 export type HomeView = 'map' | 'goshuin';
 
@@ -39,6 +60,7 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
   const { codes: visited } = useVisitedPrefectures();
   const count = visited.length;
 
+  injectHomeCss();
   const [view, setView] = useState<HomeView>(initialView);
   // シートが全面のときは「＜」を出さない（紙の途中に浮いて見えるため）
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -57,12 +79,33 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
   // タブを踏み直したときは、その入口の中身に戻す
   useEffect(() => setView(initialView), [initialView]);
 
-  /** 中身が入れ替わったら、静かに浮かび上がらせる */
-  const fade = useRef(new Animated.Value(1)).current;
+  /**
+   * 新しい県が増えた瞬間をつかまえる。
+   * ここ一か所で見ておけば、手で足したときも写真から起こしたときも
+   * 都道府県を選び直したときも、同じ演出になる。
+   */
+  const { pressStamp } = useStampPress();
+  const [flash, setFlash] = useState<number[]>([]);
+  const seen = useRef<Set<number> | null>(null);
   useEffect(() => {
-    fade.setValue(0);
-    Animated.timing(fade, { toValue: 1, duration: 260, useNativeDriver: true }).start();
-  }, [view]);
+    if (seen.current === null) {
+      // 最初の読み込みは「増えた」ではないので、記録するだけ
+      seen.current = new Set(visited);
+      return;
+    }
+    const added = visited.filter((c) => !seen.current!.has(c));
+    if (!added.length) return;
+    seen.current = new Set(visited);
+    setFlash(added);
+    // 印を押す（1県ぶん。まとめて増えたときは先頭を代表にする）
+    pressStamp(added[0]);
+    // 動きが走らなくても必ず消えるよう、時間で片付ける
+    const timer = setTimeout(() => setFlash([]), 1400);
+    return () => clearTimeout(timer);
+  }, [visited.join(',')]);
+
+  /** シートを上げている間、地図は半歩だけ奥へ引く（値はCSSが繋ぐ） */
+  const depthStyle = { opacity: sheetOpen ? 0.55 : 1, transform: [{ scale: sheetOpen ? 0.96 : 1 }] };
 
   /**
    * 高さの割り振り。
@@ -84,9 +127,12 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top']}>
 
       {/* ---------------- 上半分（動かない） ---------------- */}
-      <View style={{ alignItems: 'center', paddingTop: space.sm }}>
+      <View
+        {...(Platform.OS === 'web' ? ({ dataSet: { mjmap: '1' } } as any) : null)}
+        style={[{ alignItems: 'center', paddingTop: space.sm }, depthStyle]}
+      >
         <View style={{ width: mapW }}>
-          <JapanSvgMap visited={visited} width={mapW} okinawaInset />
+          <JapanSvgMap visited={visited} width={mapW} okinawaInset flash={flash} />
 
           {/* 集めた数。北海道の左隣、地図の空いている所に置く */}
           <View style={styles.countSlot} pointerEvents="none">
@@ -107,13 +153,14 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
 
       {/* ---------------- 下半分（ボトムシート） ---------------- */}
       <BottomSheet collapsedHeight={collapsed} expandedHeight={expanded} onOpenChange={setSheetOpen}>
-        <Animated.View style={{ flex: 1, opacity: fade }}>
+        {/* key を変えて作り直し、CSSのフェードを毎回走らせる */}
+        <View key={view} {...(Platform.OS === 'web' ? ({ dataSet: { mjfade: '1' } } as any) : null)} style={{ flex: 1 }}>
           {view === 'goshuin' ? (
             <GoshuinPane visited={visited} />
           ) : (
             <TripsPane visited={visited} onOpenGoshuin={() => setView('goshuin')} />
           )}
-        </Animated.View>
+        </View>
       </BottomSheet>
 
       {/*

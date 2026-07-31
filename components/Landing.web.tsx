@@ -592,7 +592,7 @@ export function Landing() {
         <div style={{ padding: '64px 0 clamp(56px, 9vw, 110px)' }}>
           <div className="wrap rv mqHead" style={{ padding: '0 22px 26px' }}>
             <div>
-              <div className="eyebrow">FROM TRAVELLERS IN JAPAN</div>
+              <div className="eyebrow">{t('lp.marqueeEyebrow')}</div>
               <h2 className="mincho">{t('lp.marqueeTitle')}</h2>
             </div>
             {/* ぱっと見で「日本地図を塗っていくアプリ」だと分かるように、
@@ -694,7 +694,7 @@ export function Landing() {
       <section className="warm">
         <div className="wrap">
           <div className="rv">
-            <div className="eyebrow">HOW IT WORKS</div>
+            <div className="eyebrow">{t('lp.howEyebrow')}</div>
             <h2 className="mincho">{t('lp.howTitle')}</h2>
             <p className="lead">{t('lp.howLead')}</p>
           </div>
