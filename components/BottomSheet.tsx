@@ -15,6 +15,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/lib/useTheme';
+import { WashiBackground } from '@/components/WashiBackground';
 
 const WEB = Platform.OS === 'web';
 
@@ -48,18 +49,12 @@ export function BottomSheet({
   collapsedHeight,
   expandedHeight,
   children,
-  background,
-  header,
 }: {
   /** たたんだときに見えている高さ */
   collapsedHeight: number;
   /** 伸ばしきったときの高さ */
   expandedHeight: number;
   children: React.ReactNode;
-  /** 敷きたい背景（和紙など）。無ければ紙色 */
-  background?: React.ReactNode;
-  /** つまみの帯に重ねて置くもの（戻る矢印など） */
-  header?: React.ReactNode;
 }) {
   const { palette } = useTheme();
   const travel = Math.max(0, expandedHeight - collapsedHeight);
@@ -202,11 +197,20 @@ export function BottomSheet({
       dataSet={WEB ? { mjsheet: '1', dragging: dragging ? '1' : '0' } : undefined}
       style={[
         styles.sheet,
-        { height: expandedHeight, backgroundColor: palette.sheet, borderColor: palette.ruleStrong },
+        {
+          height: expandedHeight,
+          backgroundColor: palette.washiPaper,
+          borderColor: palette.ruleStrong,
+          // 全面まで伸びたら角を落として、地の和紙とそのまま一枚になる
+          borderTopLeftRadius: open ? 0 : 18,
+          borderTopRightRadius: open ? 0 : 18,
+          borderTopWidth: open ? 0 : StyleSheet.hairlineWidth,
+        },
         WEB ? { transform: [{ translateY: webY }] } : { transform: [{ translateY: anim }] },
       ]}
     >
-      {background}
+      {/* 和紙。明るいテーマでも暗いテーマでも同じ紙を敷く */}
+      <WashiBackground />
 
       {/* つまみ。ここだけが掴める */}
       <View ref={gripRef} {...pan.panHandlers} style={styles.grip}>
@@ -219,13 +223,6 @@ export function BottomSheet({
           <View style={[styles.bar, { backgroundColor: palette.ruleStrong }]} />
         </Pressable>
       </View>
-
-      {/*
-        つまみに重ねるもの（戻る矢印）は、つまみの**外**に置く。
-        中に入れると、つまみが pointer を捕まえてしまってこちらのタップが
-        届かない（実機で「＜が効かない」が出た）。
-      */}
-      {header}
 
       <View style={{ flex: 1 }}>
         <SheetOpenContext.Provider value={open}>{children}</SheetOpenContext.Provider>

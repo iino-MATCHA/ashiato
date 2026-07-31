@@ -1,12 +1,15 @@
 /**
  * /map と /goshuin をひとつにした画面。
  *
- * 上半分は動かない ―― 日本地図・制覇ゲージ・ランクの帯。
+ * 上半分は動かない ―― 日本地図と制覇ゲージ。
  * 下半分はボトムシートで、中身だけが「旅」と「御朱印」で入れ替わる。
  * 地図を見たまま切り替えられるので、行った県と集めた印が地続きになる。
  *
  * 切り替えは画面遷移ではなく中身の差し替えにしてある。上の地図が
  * 描き直されないので、切り替えても地図が一瞬消えたりしない。
+ *
+ * 地の色はシートと同じ和紙。全面まで伸ばしたときに継ぎ目が出ず、
+ * そのまま一枚の紙になる。
  */
 import { useEffect, useRef, useState } from 'react';
 import { router, usePathname } from 'expo-router';
@@ -16,7 +19,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppText, Row } from '@/components/ui';
 import { JapanSvgMap } from '@/components/JapanSvgMap';
 import { CoverageGauge } from '@/components/CoverageGauge';
-import { RankModal, rankFor } from '@/components/RankModal';
 import { WashiBackground } from '@/components/WashiBackground';
 import { BottomSheet } from '@/components/BottomSheet';
 import { TripsPane } from '@/components/home/TripsPane';
@@ -39,7 +41,6 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
   const count = visited.length;
 
   const [view, setView] = useState<HomeView>(initialView);
-  const [rankOpen, setRankOpen] = useState(false);
   const pathname = usePathname();
 
   /**
@@ -64,18 +65,25 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
 
   /**
    * 高さの割り振り。
-   * シートは既定で画面の下 1/4。地図はその残りに収まる一番大きな寸法にする
-   * （幅で決め打ちにすると、縦の短い端末で地図がシートに潜り込む）。
+   * まず地図の寸法を決め、シートは**そのすぐ下**から始める。
+   * ランクの帯を外したぶん、シートを上へ寄せられる。
+   * 上げすぎると地図に被り、下げすぎるとシートの中身が読めないので、
+   * 使える高さの 34〜62% の間に収める。
    */
   const usable = height - insets.top - 72 - insets.bottom; // タブバーぶんを除いた高さ
-  const collapsed = Math.round(Math.max(150, usable * 0.26));
-  const expanded = Math.round(usable); // 伸ばしきったら上まで覆う
   const ratio = contentHeight() / VB_W;
-  const topRoom = usable - collapsed - 84; // ランクの帯と余白のぶん
-  const mapW = Math.round(Math.max(180, Math.min(width - space.lg * 2, 380, topRoom / ratio)));
+  const mapW = Math.round(Math.max(180, Math.min(width - space.lg * 2, 380, (usable * 0.54) / ratio)));
+  const mapH = mapW * ratio;
+  const collapsed = Math.round(
+    Math.min(usable * 0.62, Math.max(usable * 0.34, usable - (mapH + space.sm + 12)))
+  );
+  const expanded = Math.round(usable); // 伸ばしきったら上まで覆う
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: palette.washiPaper }} edges={['top']}>
+      {/* 地もシートと同じ和紙。全面に伸ばしたとき継ぎ目が出ない */}
+      <WashiBackground />
+
       {/* ---------------- 上半分（動かない） ---------------- */}
       <View style={{ alignItems: 'center', paddingTop: space.sm }}>
         <View style={{ width: mapW }}>
@@ -98,33 +106,8 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
         </View>
       </View>
 
-      {/* ランクの帯 */}
-      <View style={{ paddingHorizontal: space.lg, marginTop: space.sm }}>
-        <Pressable onPress={() => setRankOpen(true)} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
-          <Row style={[styles.rankBand, { borderColor: palette.ruleStrong }]}>
-            <AppText variant="eyebrow" tone="inkFaint">{t('goshuin.rank')}</AppText>
-            <Row style={{ gap: 6, alignItems: 'center' }}>
-              <AppText variant="h3" tone="ai">{rankFor(count)}</AppText>
-              <Ionicons name="information-circle-outline" size={16} color={palette.inkFaint} />
-            </Row>
-          </Row>
-        </Pressable>
-      </View>
-      <RankModal visible={rankOpen} onClose={() => setRankOpen(false)} count={count} />
-
       {/* ---------------- 下半分（ボトムシート） ---------------- */}
-      <BottomSheet
-        collapsedHeight={collapsed}
-        expandedHeight={expanded}
-        background={view === 'goshuin' ? <WashiBackground /> : undefined}
-        header={
-          view === 'goshuin' ? (
-            <Pressable onPress={backToMap} hitSlop={12} style={styles.back}>
-              <Ionicons name="chevron-back" size={22} color={palette.ink} />
-            </Pressable>
-          ) : undefined
-        }
-      >
+      <BottomSheet collapsedHeight={collapsed} expandedHeight={expanded}>
         <Animated.View style={{ flex: 1, opacity: fade }}>
           {view === 'goshuin' ? (
             <GoshuinPane visited={visited} />
@@ -133,6 +116,24 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
           )}
         </Animated.View>
       </BottomSheet>
+
+      {/*
+        「＜」はシートの外。たたんだときのシートの左上あたりに浮かせる。
+        シートの中に置くと、つまみが pointer を捕まえてタップが届かない。
+      */}
+      {view === 'goshuin' && (
+        <Pressable
+          onPress={backToMap}
+          hitSlop={14}
+          accessibilityLabel="back"
+          style={[
+            styles.back,
+            { bottom: collapsed + 10, backgroundColor: palette.washiPaper, borderColor: palette.rule },
+          ]}
+        >
+          <Ionicons name="chevron-back" size={20} color={palette.ink} />
+        </Pressable>
+      )}
     </SafeAreaView>
   );
 }
@@ -142,12 +143,15 @@ const styles = StyleSheet.create({
   countSlot: { position: 'absolute', left: 0, top: '4%' },
   // 地図の右端・上下中ほど（この高さは海しか無いので絵に重ならない）
   gaugeSlot: { position: 'absolute', right: -6, top: '26%' },
-  rankBand: {
-    justifyContent: 'space-between',
+  back: {
+    position: 'absolute',
+    left: space.lg,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingVertical: space.sm,
+    justifyContent: 'center',
+    zIndex: 20,
   },
-  back: { position: 'absolute', left: space.md, top: 2, padding: 4 },
 });
