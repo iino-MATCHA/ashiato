@@ -54,7 +54,7 @@ const CSS = `
 /* 運営元。主張しすぎず、しかし読ませる。地は少し落とす */
 .lp section.matcha { background:#F4F1E8; }
 /* ロゴは左端に。高さで揃え、幅は成り行きに任せる */
-.lp .matchaLogo { display:block; height:30px; width:auto; margin:0 0 22px; }
+.lp .matchaLogo { display:block; height:30px; width:auto; margin:26px 0 0; }
 .lp .matchaLink { display:inline-block; margin-top:20px; color:var(--matcha); font-size:14px;
   text-decoration:none; border-bottom:1px solid rgba(105,175,0,.4); padding-bottom:2px; }
 .lp .matchaLink:hover { border-bottom-color:var(--matcha); }
@@ -764,13 +764,13 @@ export function Landing() {
       {/* ================= 運営（MATCHA） ================= */}
       <section className="matcha">
         <div className="wrap rv">
-          <img className="matchaLogo" src="/matcha-logo.svg" alt="MATCHA" width={336} height={41} />
           <div className="eyebrow">{t('lp.matchaEyebrow')}</div>
           <h2 className="mincho">{t('lp.matchaTitle')}</h2>
           <p className="lead">{t('lp.matchaBody')}</p>
           <a className="matchaLink" href="https://company.matcha-jp.com/" target="_blank" rel="noreferrer">
             {t('lp.matchaLink')} →
           </a>
+          <img className="matchaLogo" src="/matcha-logo.svg" alt="MATCHA" width={336} height={41} />
         </div>
       </section>
 

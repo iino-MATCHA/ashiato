@@ -15,10 +15,11 @@ const FILE = 'dist/index.html';
 // apex は www へ 301 されるので、正規のホストは www 側。
 const ORIGIN = (process.env.SITE_ORIGIN || 'https://www.my-japan-matcha.com').replace(/\/$/, '');
 
-const TITLE = 'My Japan — 日本の旅を、かたちに残そう';
+const TITLE = 'My Japan — 日本旅行の写真と記録をまとめよう';
+/** リンクを貼ったときカードに出る文章。ここが読まれる本文になる */
 const DESC =
-  'Record your Japan trip, collect a goshuin for every prefecture, and keep it all as a journal. ' +
-  '歩いた場所を記録して、御朱印を集めて、旅をジャーナルに。';
+  '訪れた場所を記録して、旅の写真をアルバムに残せます。' +
+  'あなたの写真も追加して、一緒にアルバムを完成させませんか？';
 
 /**
  * アプリの土台になるCSS。app/+html.tsx にも同じものが書いてあるが、
