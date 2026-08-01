@@ -9,8 +9,7 @@ import { DateInput } from '@/components/DateInput';
 import { space, fonts, type } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { createTrip, setTripBuddies } from '@/lib/api';
-import { BuddyPicker } from '@/components/BuddyPicker';
+import { createTrip } from '@/lib/api';
 import { track } from '@/lib/analytics';
 
 import { useI18n } from '@/lib/i18n';
@@ -21,8 +20,7 @@ export default function NewTrip() {
   const [start, setStart] = useState(''); // YYYY-MM-DD
   const [end, setEnd] = useState('');
   const [isPublic, setIsPublic] = useState(true); // default: public ON
-  // 一緒に行った人。旅を作ったあとに trip_members へ載せる
-  const [buddies, setBuddies] = useState<string[]>([]);
+
   const [saving, setSaving] = useState(false);
 
   const canSave = title.trim().length > 0 && start.length > 0;
@@ -37,8 +35,7 @@ export default function NewTrip() {
         startDate: start,
         endDate: end || undefined,
       });
-      if (id) track('trip_created', { buddies: buddies.length });
-      if (id && buddies.length) await setTripBuddies(id, buddies);
+      if (id) track('trip_created');
       setSaving(false);
       if (id) return router.replace(`/trip/${id}`);
     }
@@ -85,10 +82,6 @@ export default function NewTrip() {
         </Row>
 
         <Gap h={space.xl} />
-        <Eyebrow>{t('buddy.title')}</Eyebrow>
-        <Gap h={space.md} />
-        <BuddyPicker selected={buddies} onChange={setBuddies} tripTitle={title.trim() || undefined} />
-
         <Gap h={space.xl} />
         <Eyebrow>{t('trip.visibility')}</Eyebrow>
         <Gap h={space.md} />

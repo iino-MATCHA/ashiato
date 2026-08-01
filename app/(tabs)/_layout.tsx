@@ -2,7 +2,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { fonts, hairline } from '@/lib/theme';
+import { fonts, hairline, space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/useSession';
@@ -52,15 +52,43 @@ export default function TabsLayout() {
          * 下側はただの余白にする。下半分が隠れても、失うものが無い。
          */
         tabBarShowLabel: false,
+        /**
+         * 画面の下端に貼りつけず、少し浮かせて角を丸める。
+         * 端末の安全領域ぶんだけ床から離し、左右にも余白を取る。
+         */
         tabBarStyle: {
+          position: 'absolute',
+          left: space.md,
+          right: space.md,
+          bottom: Math.max(insets.bottom, 10),
+          height: 62,
+          paddingTop: 0,
+          paddingBottom: 0,
+          borderRadius: 22,
           backgroundColor: palette.washi,
-          borderTopColor: palette.rule,
-          borderTopWidth: hairline,
-          elevation: 0,
-          height: 72 + insets.bottom,
-          paddingTop: 10,
-          // 下側を厚めに空けておく（ここが欠けても表示は壊れない）
-          paddingBottom: 26 + insets.bottom,
+          borderTopWidth: 0,
+          borderWidth: hairline,
+          borderColor: palette.rule,
+          elevation: 12,
+          shadowColor: '#000',
+          shadowOpacity: 0.14,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 6 },
+        },
+        /**
+         * 選ばれている項目だけ、薄い面で囲う。
+         * アイコン側に水玉を仕込む手も試したが、react-navigation は
+         * focused の有無で二重に描くため、全部のタブに水玉が出た（実測）。
+         * ライブラリ側の「選択中の背景」を使えば一つだけに掛かる。
+         */
+        tabBarActiveBackgroundColor: palette.fill,
+        tabBarItemStyle: {
+          height: 46,
+          marginVertical: 8,
+          marginHorizontal: 8,
+          borderRadius: 16,
+          // 背景は内側のリンク要素に付くので、ここで丸く切り抜く
+          overflow: 'hidden',
         },
       }}
     >

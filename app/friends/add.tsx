@@ -8,7 +8,7 @@ import { AppText, Row, Rule, Gap, Eyebrow } from '@/components/ui';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { searchUsers, fetchSuggestedUsers, sendFriendRequest, type UserSummary } from '@/lib/api';
+import { searchUsers, sendFriendRequest, type UserSummary } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 
 export default function AddFriend() {
@@ -16,15 +16,17 @@ export default function AddFriend() {
   const { t } = useI18n();
   const [q, setQ] = useState('');
   const [results, setResults] = useState<UserSummary[]>([]);
-  const [suggested, setSuggested] = useState<UserSummary[]>([]);
   const [searching, setSearching] = useState(false);
   const [sent, setSent] = useState<Record<string, boolean>>({});
   const alive = useRef(true);
 
-  // suggested users on open
+  /**
+   * 開いた時点では誰も出さない。
+   * 以前は「おすすめ」を並べていたが、まったく知らない人へその場で
+   * 申請できてしまうので、**検索した結果だけ**を出す。
+   */
   useFocusEffect(useCallback(() => {
     alive.current = true;
-    if (isSupabaseConfigured) fetchSuggestedUsers().then((u) => alive.current && setSuggested(u)).catch(() => {});
     return () => { alive.current = false; };
   }, []));
 
@@ -46,7 +48,7 @@ export default function AddFriend() {
     if (!ok) setSent((s) => ({ ...s, [id]: false }));
   };
 
-  const list = q.trim() ? results : suggested;
+  const list = q.trim() ? results : [];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
@@ -68,9 +70,15 @@ export default function AddFriend() {
         </Row>
 
         <Gap h={space.xl} />
-        <Eyebrow>{q.trim() ? 'Results' : 'Suggested'}</Eyebrow>
-        <Gap h={space.md} />
-        <Rule />
+        {!q.trim() ? (
+          <AppText variant="small" tone="inkFaint" style={{ lineHeight: 20 }}>{t('friends.searchHint')}</AppText>
+        ) : (
+          <>
+            <Eyebrow>{t('friends.results')}</Eyebrow>
+            <Gap h={space.md} />
+            <Rule />
+          </>
+        )}
         {list.map((u) => (
           <View key={u.id}>
             <Row style={styles.row}>

@@ -14,6 +14,12 @@ import type { PropsWithChildren } from 'react';
 const css = `
 /* Fixed-height app shell: the app always fits the VISIBLE viewport exactly,
    so the bottom tab bar is never cut off. Screens scroll internally. */
+/* 画面の外側にも同じ地の色を敷く。
+   キーボードが出て土台(--vh)が縮むと、その下から素の白が覗いていた。 */
+html, body { background-color: #FFFFFF; }
+@media (prefers-color-scheme: dark) {
+  html, body { background-color: #151310; }
+}
 html { height: 100%; }
 body {
   margin: 0;

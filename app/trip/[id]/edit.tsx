@@ -10,8 +10,7 @@ import { PhotoPicker } from '@/components/PhotoPicker';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { updateTrip, deleteTrip, uploadTripCover, setTripBuddies, fetchTripBuddies } from '@/lib/api';
-import { BuddyPicker } from '@/components/BuddyPicker';
+import { updateTrip, deleteTrip, uploadTripCover, fetchTripBuddies, type UserSummary } from '@/lib/api';
 import { useTrip } from '@/lib/useData';
 
 import { useI18n } from '@/lib/i18n';
@@ -29,7 +28,7 @@ export default function EditTrip() {
   const [coverPreview, setCoverPreview] = useState<string | null>(trip?.steps[0]?.images[0] ?? null);
   const [ready, setReady] = useState(false);
   // 一緒に行った人。いま載っている人を読んでから編集する
-  const [buddies, setBuddies] = useState<string[]>([]);
+  const [buddyList, setBuddyList] = useState<UserSummary[]>([]);
 
   // trip loads async — prefill the form once it arrives
   useEffect(() => {
@@ -46,7 +45,7 @@ export default function EditTrip() {
   useEffect(() => {
     if (!id) return;
     let alive = true;
-    fetchTripBuddies(id).then((b) => alive && setBuddies(b.map((x) => x.id))).catch(() => {});
+    fetchTripBuddies(id).then((b) => alive && setBuddyList(b)).catch(() => {});
     return () => { alive = false; };
   }, [id]);
 
@@ -67,7 +66,6 @@ export default function EditTrip() {
         endDate: end || null,
         coverPhotoUrl,
       });
-      await setTripBuddies(id, buddies);
       setSaving(false);
     }
     router.back();
@@ -131,7 +129,35 @@ export default function EditTrip() {
         <Gap h={space.xl} />
         <Eyebrow>{t('buddy.title')}</Eyebrow>
         <Gap h={space.md} />
-        <BuddyPicker selected={buddies} onChange={setBuddies} tripTitle={title.trim() || undefined} />
+        {/* いる人は顔で見せる。いなければ足しに行く導線だけ置く */}
+        {buddyList.length > 0 && (
+          <>
+            <Row style={{ gap: space.md }}>
+              {buddyList.map((b) => (
+                <View key={b.id} style={{ alignItems: 'center', width: 62 }}>
+                  <View style={[styles.buddy, { backgroundColor: palette.fill, borderColor: palette.rule }]}>
+                    {b.avatarUrl ? (
+                      <Image source={{ uri: b.avatarUrl }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
+                    ) : (
+                      <Ionicons name="person" size={20} color={palette.matcha} />
+                    )}
+                  </View>
+                  <Gap h={5} />
+                  <AppText variant="small" tone="inkFaint" numberOfLines={1} center style={{ fontSize: 11 }}>
+                    {b.name}
+                  </AppText>
+                </View>
+              ))}
+            </Row>
+            <Gap h={space.md} />
+          </>
+        )}
+        <Pressable onPress={() => id && router.push(`/trip/${id}/buddies` as any)} hitSlop={8}>
+          <Row style={{ gap: 5, alignItems: 'center' }}>
+            <Ionicons name="person-add-outline" size={15} color={palette.matcha} />
+            <AppText variant="small" tone="matcha">{t('buddy.add')} →</AppText>
+          </Row>
+        </Pressable>
 
         <Gap h={space.xl} />
         <Eyebrow>{t('trip.visibility')}</Eyebrow>
@@ -172,6 +198,7 @@ function Field({ label, value, onChangeText, palette }: any) {
 }
 
 const styles = StyleSheet.create({
+  buddy: { width: 48, height: 48, borderRadius: 24, borderWidth: StyleSheet.hairlineWidth * 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   titleInput: { fontFamily: fonts.minchoBold, fontSize: type.h1, lineHeight: type.h1 * 1.3, paddingBottom: space.sm, minHeight: 44 },
   cover: { height: 150, borderRadius: 12, overflow: 'hidden', borderWidth: hairline, alignItems: 'center', justifyContent: 'center' },
   coverBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
