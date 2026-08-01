@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, TextInput, Pressable, Switch, StyleSheet, Image, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Button, Eyebrow } from '@/components/ui';
@@ -42,12 +42,18 @@ export default function EditTrip() {
     }
   }, [trip, ready]);
 
-  useEffect(() => {
-    if (!id) return;
-    let alive = true;
-    fetchTripBuddies(id).then((b) => alive && setBuddyList(b)).catch(() => {});
-    return () => { alive = false; };
-  }, [id]);
+  /**
+   * バディーは画面に戻るたび読み直す。
+   * 一度きりの読み込みだと、選ぶ画面から戻っても顔が増えなかった。
+   */
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      let alive = true;
+      fetchTripBuddies(id).then((b) => alive && setBuddyList(b)).catch(() => {});
+      return () => { alive = false; };
+    }, [id])
+  );
 
   const pickCover = (files: File[]) => {
     const f = files[0];

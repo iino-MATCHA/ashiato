@@ -89,7 +89,17 @@ export default function TabsLayout() {
           borderRadius: 16,
           // 背景は内側のリンク要素に付くので、ここで丸く切り抜く
           overflow: 'hidden',
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingTop: 0,
+          paddingBottom: 0,
         },
+        /**
+         * 文字を出さない設定でも、react-navigation はラベルのぶんの
+         * 隙間を下に残す。実測で上14px・下22pxとずれていたので、
+         * その差の半分だけ下げて中央に置く。
+         */
+        tabBarIconStyle: { marginTop: 4, marginBottom: 0 },
       }}
     >
       <Tabs.Screen

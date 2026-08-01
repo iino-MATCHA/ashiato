@@ -64,7 +64,8 @@ export function TripsPane({ visited, onOpenGoshuin }: { visited: number[]; onOpe
       <ScrollView
         scrollEnabled={sheetOpen}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl }}
+        // 浮いたタブバーに最後の行が隠れないよう、下を厚めに空ける
+        contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl * 2 }}
       >
         {/* プロフィールへの入口 */}
         <Pressable

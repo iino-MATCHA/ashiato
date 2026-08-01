@@ -28,7 +28,8 @@ export function GoshuinPane({ visited }: { visited: number[] }) {
   return (
     <ScrollView
       scrollEnabled={sheetOpen}
-      contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl }}
+      // 浮いたタブバーに最後の行が隠れないよう、下を厚めに空ける
+      contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl * 2 }}
       showsVerticalScrollIndicator={false}
     >
       {/* ゲストの帳面は真っ白なので、なぜ空なのかをここで言う */}

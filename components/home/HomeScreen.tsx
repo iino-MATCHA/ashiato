@@ -84,7 +84,12 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
    * 上げすぎると地図に被り、下げすぎるとシートの中身が読めないので、
    * 使える高さの 34〜62% の間に収める。
    */
-  const usable = height - insets.top - 72 - insets.bottom; // タブバーぶんを除いた高さ
+  /**
+   * タブバーは浮いていて画面の上に重なるので、画面そのものは下まで使える。
+   * 以前はここでバーのぶん(72)を引いていたため、全面まで伸ばしても
+   * 上が72px余っていた。
+   */
+  const usable = height - insets.top;
   const ratio = contentHeight() / VB_W;
   const mapW = Math.round(Math.max(180, Math.min(width - space.lg * 2, 380, (usable * 0.54) / ratio)));
   const mapH = mapW * ratio;
