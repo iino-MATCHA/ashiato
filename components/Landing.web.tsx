@@ -53,6 +53,8 @@ const CSS = `
 /* --- 都道府県の問いかけ --- */
 /* 運営元。主張しすぎず、しかし読ませる。地は少し落とす */
 .lp section.matcha { background:#F4F1E8; }
+/* ロゴは左端に。高さで揃え、幅は成り行きに任せる */
+.lp .matchaLogo { display:block; height:30px; width:auto; margin:0 0 22px; }
 .lp .matchaLink { display:inline-block; margin-top:20px; color:var(--matcha); font-size:14px;
   text-decoration:none; border-bottom:1px solid rgba(105,175,0,.4); padding-bottom:2px; }
 .lp .matchaLink:hover { border-bottom-color:var(--matcha); }
@@ -256,7 +258,8 @@ const CSS = `
 .lp .closing { text-align:center; }
 /* 締めは叫ばない。ひとこと添えて、ボタンに繋ぐ */
 .lp .closing h2 { white-space:pre-line; font-size:clamp(19px,3.6vw,28px); }
-.lp footer { padding:38px 22px 52px; text-align:center; color:#9B978F; font-size:11px; letter-spacing:2.6px; }
+.lp .footLogo { display:block; height:22px; width:auto; margin:0 0 16px; opacity:.55; }
+.lp footer { padding:38px 22px 52px; text-align:left; color:#9B978F; font-size:11px; letter-spacing:2.6px; }
 
 /* --- スマホ ---------------------------------------------------------
    デモの地図が画面を占めすぎて、肝心の「何ができるのか」
@@ -761,6 +764,7 @@ export function Landing() {
       {/* ================= 運営（MATCHA） ================= */}
       <section className="matcha">
         <div className="wrap rv">
+          <img className="matchaLogo" src="/matcha-logo.svg" alt="MATCHA" width={336} height={41} />
           <div className="eyebrow">{t('lp.matchaEyebrow')}</div>
           <h2 className="mincho">{t('lp.matchaTitle')}</h2>
           <p className="lead">{t('lp.matchaBody')}</p>
@@ -797,6 +801,8 @@ export function Landing() {
       )}
 
       <footer>
+        <img className="footLogo" src="/matcha-logo.svg" alt="MATCHA" width={336} height={41} />
+        
         MY JAPAN BY{' '}
         <a href="https://matcha-jp.com" target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>
           MATCHA, INC.
