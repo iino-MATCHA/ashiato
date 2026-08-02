@@ -161,7 +161,9 @@ export default function EditTrip() {
         <Pressable onPress={() => id && router.push(`/trip/${id}/buddies` as any)} hitSlop={8}>
           <Row style={{ gap: 5, alignItems: 'center' }}>
             <Ionicons name="person-add-outline" size={15} color={palette.matcha} />
-            <AppText variant="small" tone="matcha">{t('buddy.add')} →</AppText>
+            <AppText variant="small" tone="matcha">
+              {buddyList.length > 0 ? t('buddy.editTitle') : t('buddy.add')} →
+            </AppText>
           </Row>
         </Pressable>
 

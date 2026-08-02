@@ -7,7 +7,7 @@ import { AppText, Screen, Row, Rule, Gap, Eyebrow } from '@/components/ui';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { usePublicTrips } from '@/lib/useData';
-import { searchTourismAreas, fetchTrendingAreas, type TourismArea } from '@/lib/api';
+import { searchTourismAreas, fetchTrendingAreas, type TourismArea, fetchFriends } from '@/lib/api';
 import { useRippleNav } from '@/lib/transition';
 import { type Trip } from '@/lib/mock';
 import { PREFECTURE_EN_BY_ID } from '@/lib/prefectures';
@@ -19,6 +19,18 @@ import { useI18n, localizeMatchaUrl } from '@/lib/i18n';
  * The list is then rotated by the ISO-ish week number so the top pick changes
  * roughly once a week, keeping Explore fresh without manual curation.
  */
+/**
+ * 注目の旅に載せる条件。
+ * 見ず知らずの人の旅を無差別に並べても参考にならないので、
+ * **友だちの旅**に限り、さらに**地点が2つ以上**あるものだけにする。
+ * 地点が1つの旅は「行った」だけで、道のりとして読めない。
+ */
+function featurable(trip: Trip, friendIds: Set<string>): boolean {
+  if (!trip.authorId || trip.authorId === 'me') return false;
+  if (!friendIds.has(trip.authorId)) return false;
+  return trip.steps.length >= 2;
+}
+
 function weeklyFeatured(trips: Trip[]): Trip[] {
   const score = (t: Trip) => t.distanceKm * 0.01 + t.steps.length * 3 + t.prefectures.length * 2;
   const ranked = [...trips].sort((a, b) => score(b) - score(a));
@@ -37,6 +49,15 @@ export default function Explore() {
   const [areas, setAreas] = useState<TourismArea[]>([]);
   const [trending, setTrending] = useState<TourismArea[]>([]);
   const [searching, setSearching] = useState(false);
+  // 誰が友だちかを知らないと、注目にも友だちの旅にも絞り込めない
+  const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let alive = true;
+    fetchFriends()
+      .then((f) => alive && setFriendIds(new Set(f.map((x) => x.id))))
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   // Trending spots も DB（チェックイン数で並べた観光エリア）から引く
   useEffect(() => {
@@ -71,8 +92,18 @@ export default function Explore() {
     }
   };
 
-  const featured = useMemo(() => weeklyFeatured(trips), [trips]);
-  const friendTrips = trips.filter((t) => t.authorId && t.authorId !== 'me');
+  const featured = useMemo(
+    () => weeklyFeatured(trips.filter((tr) => featurable(tr, friendIds))),
+    [trips, friendIds]
+  );
+  /**
+   * 「友だちの旅」は地点の数で絞らない。
+   * まだ何も足していなくても、友だちの旅は友だちの旅なので出す。
+   */
+  const friendTrips = useMemo(
+    () => trips.filter((tr) => tr.authorId && tr.authorId !== 'me' && friendIds.has(tr.authorId)),
+    [trips, friendIds]
+  );
   const searchMode = q.trim().length > 0;
 
   return (

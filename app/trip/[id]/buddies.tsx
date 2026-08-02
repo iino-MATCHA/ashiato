@@ -62,11 +62,19 @@ export default function TripBuddies() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header title={t('buddy.title')} />
+      <Header title={t('buddy.editTitle')} />
       <Rule />
       <ScrollView contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl }} keyboardShouldPersistTaps="handled">
         <Gap h={space.lg} />
         <AppText variant="small" tone="inkFaint" style={{ lineHeight: 20 }}>{t('buddy.pickLead')}</AppText>
+        <Gap h={space.md} />
+        {/* 友だちにまだ居ない人は、ここから誘う */}
+        <Pressable onPress={() => shareInvite()} hitSlop={8}>
+          <Row style={{ gap: 5, alignItems: 'center' }}>
+            <Ionicons name="paper-plane-outline" size={14} color={palette.matcha} />
+            <AppText variant="small" tone="matcha">{t('buddy.invite')}</AppText>
+          </Row>
+        </Pressable>
 
         <Gap h={space.lg} />
         <Row style={[styles.search, { borderColor: palette.ruleStrong }]}>
