@@ -60,16 +60,16 @@ const COPY = {
     bodySize: 23,
   },
   en: {
-    head: ['Keep your Japan trip', 'in one album'],
+    head: ['Keep all your Japan', 'memories in one place'],
     body: [
-      'Record the places you visit and keep the photos',
-      'from your trip in one album. Add your own photos',
-      'and finish it together.',
+      'Track the places you visit and save your',
+      'favorite travel photos in a single',
+      'digital album.',
     ],
     headFamily: "Georgia,'Times New Roman',serif",
-    headSize: 56,
-    headLead: 70,
-    headTop: 236,
+    headSize: 48,
+    headLead: 62,
+    headTop: 228,
     bodySize: 22,
   },
 };

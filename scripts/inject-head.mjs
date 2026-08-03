@@ -15,11 +15,12 @@ const FILE = 'dist/index.html';
 // apex は www へ 301 されるので、正規のホストは www 側。
 const ORIGIN = (process.env.SITE_ORIGIN || 'https://www.my-japan-matcha.com').replace(/\/$/, '');
 
-const TITLE = 'My Japan — 日本旅行の写真と記録をまとめよう';
-/** リンクを貼ったときカードに出る文章。ここが読まれる本文になる */
+const TITLE = 'My Japan — Keep all your Japan memories in one place';
+/** リンクを貼ったときカードに出る文章。ここが読まれる本文になる。
+    画像と同じく1種類しおけないので、訪日客に合わせて英語で持つ */
 const DESC =
-  '訪れた場所を記録して、旅の写真をアルバムに残せます。' +
-  'あなたの写真も追加して、一緒にアルバムを完成させませんか？';
+  'Track the places you visit and save your favorite travel photos ' +
+  'in a single digital album.';
 
 /**
  * アプリの土台になるCSS。app/+html.tsx にも同じものが書いてあるが、
@@ -123,12 +124,12 @@ const HEAD = `${GA}
     <meta property="og:site_name" content="My Japan" />
     <meta property="og:title" content="${TITLE}" />
     <meta property="og:description" content="${DESC}" />
-    <meta property="og:image" content="${ORIGIN}/og.png" />
+    <meta property="og:image" content="${ORIGIN}/og-en.png" />
     <meta property="og:url" content="${ORIGIN}/" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${TITLE}" />
-    <meta name="twitter:description" content="Turn your Japan trip into a keepsake." />
-    <meta name="twitter:image" content="${ORIGIN}/og.png" />
+    <meta name="twitter:description" content="${DESC}" />
+    <meta name="twitter:image" content="${ORIGIN}/og-en.png" />
     <style id="app-shell">${CSS}</style>
     <script id="app-vh">${VH_SCRIPT}</script>
 `;
