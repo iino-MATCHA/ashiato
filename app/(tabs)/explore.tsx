@@ -21,13 +21,14 @@ import { useI18n, localizeMatchaUrl } from '@/lib/i18n';
  */
 /**
  * 注目の旅に載せる条件。
- * 見ず知らずの人の旅を無差別に並べても参考にならないので、
- * **友だちの旅**に限り、さらに**地点が2つ以上**あるものだけにする。
+ *
+ * ここは**知らない人の旅**を見る場所。友だちがいない人にこそ必要なので、
+ * 友だちかどうかでは絞らない（友だちの旅は下に別の枠がある）。
+ * 代わりに中身で絞る ―― 地点が2つ以上あるものだけ。
  * 地点が1つの旅は「行った」だけで、道のりとして読めない。
  */
-function featurable(trip: Trip, friendIds: Set<string>): boolean {
+function featurable(trip: Trip): boolean {
   if (!trip.authorId || trip.authorId === 'me') return false;
-  if (!friendIds.has(trip.authorId)) return false;
   return trip.steps.length >= 2;
 }
 
@@ -92,10 +93,7 @@ export default function Explore() {
     }
   };
 
-  const featured = useMemo(
-    () => weeklyFeatured(trips.filter((tr) => featurable(tr, friendIds))),
-    [trips, friendIds]
-  );
+  const featured = useMemo(() => weeklyFeatured(trips.filter(featurable)), [trips]);
   /**
    * 「友だちの旅」は地点の数で絞らない。
    * まだ何も足していなくても、友だちの旅は友だちの旅なので出す。

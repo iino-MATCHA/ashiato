@@ -16,7 +16,7 @@ import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { fetchFriends, fetchTripBuddies, setTripBuddies, type UserSummary } from '@/lib/api';
-import { shareInvite } from '@/lib/invite';
+import { shareInvite, inviteUrl } from '@/lib/invite';
 import { useI18n } from '@/lib/i18n';
 
 export default function TripBuddies() {
@@ -28,6 +28,12 @@ export default function TripBuddies() {
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
   const alive = useRef(true);
+  /**
+   * 招待リンクは先に取っておく。共有シートは押した流れの中でしか開けず、
+   * 押してから合鍵を取りに行くと流れが切れてシートが出ない。
+   */
+  const [link, setLink] = useState<string | null>(null);
+  useEffect(() => { if (id) inviteUrl(id).then(setLink).catch(() => {}); }, [id]);
 
   useEffect(() => {
     alive.current = true;
@@ -69,7 +75,7 @@ export default function TripBuddies() {
         <AppText variant="small" tone="inkFaint" style={{ lineHeight: 20 }}>{t('buddy.pickLead')}</AppText>
         <Gap h={space.md} />
         {/* 友だちにまだ居ない人は、ここから誘う */}
-        <Pressable onPress={() => shareInvite()} hitSlop={8}>
+        <Pressable onPress={() => shareInvite(undefined, link ?? undefined)} hitSlop={8}>
           <Row style={{ gap: 5, alignItems: 'center' }}>
             <Ionicons name="paper-plane-outline" size={14} color={palette.matcha} />
             <AppText variant="small" tone="matcha">{t('buddy.invite')}</AppText>

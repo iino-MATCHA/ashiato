@@ -507,6 +507,34 @@ export async function setTripBuddies(tripId: string, userIds: string[]): Promise
 }
 
 /** その旅に載っている人（持ち主を除く）。 */
+/**
+ * 旅ごとの合鍵。招待リンクに載せる。
+ * 持ち主とバディーだけが引ける（RLSが旅そのものを守っている）。
+ */
+export async function fetchInviteToken(tripId: string): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data } = await supabase.from('trips').select('invite_token').eq('id', tripId).maybeSingle();
+  return (data as any)?.invite_token ?? null;
+}
+
+/** 合鍵から旅のidを引く。リンクを開いた時点ではidを知らない */
+export async function tripIdByInvite(token: string): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data } = await supabase.rpc('trip_id_by_invite', { p_token: token });
+  return (data as string) ?? null;
+}
+
+/**
+ * 合鍵を持っている人を、その旅のバディーとして入れる。
+ * 登録を終えた直後に呼ぶ。すでに入っていれば何も起きない。
+ */
+export async function joinTripByInvite(token: string): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('trip_join_by_invite', { p_token: token });
+  if (error) return null;
+  return (data as string) ?? null;
+}
+
 export async function fetchTripBuddies(tripId: string): Promise<UserSummary[]> {
   const uid = await currentUserId();
   const { data } = await supabase

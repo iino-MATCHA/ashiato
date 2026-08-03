@@ -18,6 +18,9 @@ import { transportLabel, type Step, type TransportMode } from '@/lib/mock';
 import { useI18n } from '@/lib/i18n';
 import { AutoTripModal } from '@/components/AutoTripModal';
 import { SignInPrompt } from '@/components/SignInPrompt';
+import { InviteJoin } from '@/components/InviteJoin';
+import { setInviteToken } from '@/lib/supabase';
+import { bump as bumpRefresh } from '@/lib/refresh';
 import { useSession } from '@/lib/useSession';
 
 const transportIcon: Record<TransportMode, any> = {
@@ -30,7 +33,14 @@ const CARD_GAP = 68;
 export default function TripDetail() {
   const { palette } = useTheme();
   const { width, height: winH } = useWindowDimensions();
-  const { id, readonly } = useLocalSearchParams<{ id: string; readonly?: string }>();
+  const { id, readonly, invite } = useLocalSearchParams<{ id: string; readonly?: string; invite?: string }>();
+  /**
+   * 招待リンクの合鍵。
+   * 読み取りの前に差し込む。これが載っていれば、ログインしていなくても
+   * RLS（0024）がこの旅だけを通す。以降の問い合わせは何も変えなくてよい。
+   */
+  const invited = typeof invite === 'string' && invite.length > 0 ? invite : null;
+  if (invited) setInviteToken(invited);
   const { trip, loading } = useTrip(id);
   const { navigate } = useRippleNav();
   const { t } = useI18n();
@@ -48,6 +58,8 @@ export default function TripDetail() {
   // 未ログイン閲覧（共有リンク経由）を許すので、案内を出し分ける
   const { signedIn, guest } = useSession();
   const [askSignIn, setAskSignIn] = useState<null | 'save' | 'order'>(null);
+  // 招待リンクで来た人に出す、その場で登録する窓
+  const [askJoin, setAskJoin] = useState(false);
   const [notice, setNotice] = useState<{ title: string; body: string } | null>(null);
   const [modes, setModes] = useState<TransportMode[]>([]);
   const scrollRef = useRef<ScrollView | null>(null);
@@ -62,10 +74,17 @@ export default function TripDetail() {
     scrollRef.current?.scrollTo({ x: 0, animated: false });
   }, [n]);
   const canEdit = (trip?.canEdit || trip?.authorId === 'me' || !trip?.authorId) && readonly !== '1';
+  /**
+   * 招待リンクで来て、まだ登録していない人。
+   * 中身は見えるが書けない。足そうとした時点で登録の窓を出す。
+   */
+  const invitedGuest = !!invited && signedIn === false;
   // 他人の旅は「サンプル」と「他の旅人の旅」で扱いを分ける
   const isSample = !!trip?.sample;
-  const isFellow = !canEdit && !isSample;
+  const isFellow = !canEdit && !isSample && !invitedGuest;
   const effModes = modes.length === n && n > 0 ? modes : steps.map((s) => s.transport);
+  /** 書けない人が書こうとしたとき。招待客は登録へ、それ以外は今までどおり */
+  const blockedBy = (): void => { if (invitedGuest) setAskJoin(true); else setBlocked(true); };
   const sideInset = (width - CARD_W) / 2;
 
   if (!trip) {
@@ -135,9 +154,9 @@ export default function TripDetail() {
             <>
               <Glass onPress={() => router.push(`/trip/${trip.id}/share`)} icon="share-outline" palette={palette} />
               <Glass onPress={() => (guest ? setAskSignIn('order') : router.push(`/trip/${trip.id}/bind` as any))} icon="book-outline" palette={palette} />
-              <Glass onPress={() => (canEdit ? router.push(`/trip/${trip.id}/edit`) : setBlocked(true))} icon="settings-outline" palette={palette} />
+              <Glass onPress={() => (canEdit ? router.push(`/trip/${trip.id}/edit`) : blockedBy())} icon="settings-outline" palette={palette} />
               {/* 写真を選ぶだけで立ち寄り先を足す。手入力の「＋」は下のドックに残す */}
-              <Glass onPress={() => (canEdit ? setFromPhotos(true) : setBlocked(true))} icon="images-outline" palette={palette} />
+              <Glass onPress={() => (canEdit ? setFromPhotos(true) : blockedBy())} icon="images-outline" palette={palette} />
             </>
           )}
         </View>
@@ -178,7 +197,7 @@ export default function TripDetail() {
             <View key={s.id} style={{ width: CARD_W, marginRight: CARD_GAP }}>
               {/* connector to the previous stop (leg i) — not before the first stop */}
               {i > 0 && (
-                <Connector mode={effModes[i]} gap={CARD_GAP} editable={canEdit} palette={palette} onPress={() => (canEdit ? setPicker(i) : setBlocked(true))} />
+                <Connector mode={effModes[i]} gap={CARD_GAP} editable={canEdit} palette={palette} onPress={() => (canEdit ? setPicker(i) : blockedBy())} />
               )}
               <LocationCard step={s} index={i} total={n} palette={palette} onOpen={(e: any) => navigate(`/trip/${trip.id}/step/${s.id}${canEdit ? '' : '?readonly=1'}`, e)} />
             </View>
@@ -190,7 +209,7 @@ export default function TripDetail() {
             <View style={{ width: CARD_W, marginRight: CARD_GAP }}>
               <Connector mode={'car'} gap={CARD_GAP} editable={false} palette={palette} onPress={() => {}} plus />
               <Pressable
-                onPress={() => (canEdit ? router.push(`/trip/${trip.id}/step/new`) : setBlocked(true))}
+                onPress={() => (canEdit ? router.push(`/trip/${trip.id}/step/new`) : blockedBy())}
                 style={[styles.addCard, { borderColor: palette.matcha }]}
               >
                 <Ionicons name="add-circle" size={34} color={palette.matcha} />
@@ -279,6 +298,24 @@ export default function TripDetail() {
       {/* 写真から立ち寄り先を足す。閉じたらこの旅に留まる（useTrip が拾い直す） */}
       <AutoTripModal visible={fromPhotos} tripId={trip.id} onClose={() => setFromPhotos(false)} />
       <SignInPrompt visible={askSignIn !== null} onClose={() => setAskSignIn(null)} reason={askSignIn ?? 'save'} />
+
+      {/* 招待リンクで来た人。ここで登録すると、そのままバディーになって書けるようになる */}
+      {/* visible={false} でも中身がDOMに残るので、開いている間だけ組み立てる
+          （製本ページで同じことが起きた） */}
+      {invited && askJoin && (
+        <InviteJoin
+          visible
+          token={invited}
+          tripTitle={trip.title}
+          onClose={() => setAskJoin(false)}
+          onJoined={() => {
+            setAskJoin(false);
+            // バディーになったので合鍵はもう要らない。自分の権限で読み直す
+            setInviteToken(null);
+            bumpRefresh('trips');
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
