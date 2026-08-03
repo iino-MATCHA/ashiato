@@ -22,12 +22,24 @@ type Phase = 'ask' | 'working' | 'done' | 'failed';
 
 /**
  * Android のブラウザか。
- * AndroidのフォトピッカーはWebアプリへ渡す写真からGPSを剥がすため、
- * ウェブ版では位置つきの写真を受け取れない。対応するまで、その旨を
- * モーダルに注記する。
+ *
+ * Android の Chrome は <input type="file"> にファイルアプリを開き、
+ * 写真アプリを開かない。仮に写真へ辿り着いても、Android のフォトピッカーは
+ * ウェブアプリへ渡す画像から位置情報を剥がすため、旅として組み立てられない。
+ * どちらも端末側の仕様で、ウェブからは越えられない。
+ *
+ * だから Android では写真を選ばせない。誰も使わないファイルアプリを
+ * 開かせて詰まらせるより、できないと言い切ってアプリへ案内する。
  */
 const isAndroidWeb =
   typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent ?? '');
+
+/**
+ * Android版アプリの配布先。
+ * 公開前に URL を入れると、案内にそのままボタンが出る。
+ * 空のままなら「準備中」として出す（死んだリンクは置かない）。
+ */
+const ANDROID_STORE_URL = '';
 
 export function AutoTripModal({
   visible,
@@ -108,25 +120,50 @@ export function AutoTripModal({
               </AppText>
 
               <Gap h={space.lg} />
-              {/* 実物の <input type=file> を敷いているので、Pressable では包まない */}
-              <PhotoPicker onPick={run} multiple style={styles.pickWrap}>
-                <View style={[styles.pick, { backgroundColor: palette.matcha }]}>
-                  <Ionicons name="sparkles" size={16} color="#fff" />
-                  <AppText variant="bodyStrong" style={{ color: '#fff' }}>{t('auto.pick')}</AppText>
+
+              {/* Android は写真を選ばせない。開くのはファイルアプリで、
+                  そこから旅は作れない。行き止まりを見せる前に止める。 */}
+              {isAndroidWeb ? (
+                <View style={[styles.androidNote, { borderColor: palette.rule }]}>
+                  <Ionicons name="phone-portrait-outline" size={22} color={palette.matcha} />
+                  <Gap h={space.sm} />
+                  <AppText variant="bodyStrong" tone="ink" center>
+                    {t('auto.androidTitle')}
+                  </AppText>
+                  <Gap h={space.xs} />
+                  <AppText variant="small" tone="inkFaint" center style={{ lineHeight: 19 }}>
+                    {t('auto.androidBody')}
+                  </AppText>
+                  <Gap h={space.md} />
+                  {ANDROID_STORE_URL ? (
+                    <Button
+                      label={t('auto.androidGet')}
+                      tone="matcha"
+                      onPress={() => {
+                        track('android_app_cta');
+                        if (typeof window !== 'undefined') window.open(ANDROID_STORE_URL, '_blank');
+                      }}
+                    />
+                  ) : (
+                    <AppText variant="small" tone="matcha" center>{t('auto.androidSoon')}</AppText>
+                  )}
                 </View>
-              </PhotoPicker>
+              ) : (
+                /* 実物の <input type=file> を敷いているので、Pressable では包まない */
+                <PhotoPicker onPick={run} multiple style={styles.pickWrap}>
+                  <View style={[styles.pick, { backgroundColor: palette.matcha }]}>
+                    <Ionicons name="sparkles" size={16} color="#fff" />
+                    <AppText variant="bodyStrong" style={{ color: '#fff' }}>{t('auto.pick')}</AppText>
+                  </View>
+                </PhotoPicker>
+              )}
+
               <Gap h={space.md} />
               <Pressable onPress={close} hitSlop={8}>
-                <AppText variant="small" tone="inkFaint" center>{t('auto.notYet')}</AppText>
+                <AppText variant="small" tone="inkFaint" center>
+                  {t(isAndroidWeb ? 'auto.androidClose' : 'auto.notYet')}
+                </AppText>
               </Pressable>
-              {isAndroidWeb && (
-                <>
-                  <Gap h={space.md} />
-                  <AppText variant="small" tone="inkFaint" center style={{ fontSize: 11, lineHeight: 17 }}>
-                    {t('auto.androidNote')}
-                  </AppText>
-                </>
-              )}
             </>
           )}
 
@@ -285,6 +322,8 @@ const styles = StyleSheet.create({
   },
   title: { fontFamily: fonts.minchoBold, fontSize: 26, lineHeight: 36 },
   pickWrap: { borderRadius: 10 },
+  // Android向けの案内。押せる面ではないので、枠ではなく地の色で沈める
+  androidNote: { borderRadius: 12, borderWidth: hairline, padding: space.lg, alignItems: 'center' },
   pick: { height: 50, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   bar: { alignSelf: 'stretch', height: 4, borderRadius: 999, overflow: 'hidden' },
   stack: { height: 168, alignItems: 'center', justifyContent: 'center' },

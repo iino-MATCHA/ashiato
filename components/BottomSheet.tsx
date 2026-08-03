@@ -66,6 +66,12 @@ export function BottomSheet({
   const [open, setOpen] = useState(false);
   const at = useRef(travel); // いまの下げ幅（0 = 全面、travel = たたんだ状態）
   const gripRef = useRef<View | null>(null);
+  const sheetRef = useRef<View | null>(null);
+  // たたんでいる間は中がスクロールしないので、面のどこを掴んでも動かせる。
+  // ハンドラは掴んだ時点の open を見るため、ref で最新を持つ
+  const openRef = useRef(false);
+  // 指で動かしている最中かどうか。置き直しの効果がこれを見て手を引く
+  const draggingRef = useRef(false);
   const anim = useRef(new Animated.Value(travel)).current; // ネイティブ用
 
   /**
@@ -108,65 +114,107 @@ export function BottomSheet({
   const snapTo = useCallback(
     (px: number) => {
       place(px, true);
+      openRef.current = px === 0;
       setOpen(px === 0);
       onOpenChange?.(px === 0);
     },
     [place, onOpenChange]
   );
 
-  // 画面の大きさが変わったら、いまの状態に合わせて置き直す
+  /**
+   * 画面の大きさが変わったら、いまの状態に合わせて置き直す。
+   *
+   * 触っている最中は置き直さない。ChromeのURLバーは指を動かすと出入りし、
+   * そのたびに height が変わって travel が変わる。素直に置き直すと、
+   * 上げようとした瞬間にシートが元へ戻され「動かない」ように感じる（実測）。
+   *
+   * 開いているかは openRef を見る。この効果は open を依存に持たないので、
+   * 状態変数を読むと閉じていた頃の値が残り、開けた直後に閉じてしまう。
+   */
   useEffect(() => {
-    place(open ? 0 : travel, false);
+    if (draggingRef.current) return;
+    place(openRef.current ? 0 : travel, false);
   }, [travel, place]);
 
-  /** 離したときの寄せ先。勢いがあればその向き、無ければ近い方へ */
+  /**
+   * 離したときの寄せ先。勢いがあればその向き、無ければ近い方へ。
+   * しきい値は 0.4px/ms だと、ゆっくり払ったぶんが全部「近い方」に
+   * 落ちて重く感じたので下げてある。
+   */
   const settle = useCallback(
     (from: number, moved: number, speed: number) => {
-      if (speed < -0.4) return snapTo(0);
-      if (speed > 0.4) return snapTo(travel);
+      if (speed < -0.22) return snapTo(0);
+      if (speed > 0.22) return snapTo(travel);
       snapTo(from + moved < travel / 2 ? 0 : travel);
     },
     [snapTo, travel]
   );
 
-  // ---- Web: つまみの DOM に pointer イベントを直接つける ----
+  // ---- Web: シートの DOM に pointer イベントを直接つける ----
   useEffect(() => {
     if (!WEB) return;
-    const node = gripRef.current as unknown as HTMLElement | null;
+    const node = sheetRef.current as unknown as HTMLElement | null;
+    const grip = gripRef.current as unknown as HTMLElement | null;
     if (!node?.addEventListener) return;
+
+    const START = 6; // ここを超えて初めて「掴んだ」と見なす（下の値はタップ）
 
     let startY = 0;
     let startAt = 0;
     let startTime = 0;
-    let dragging = false;
+    let armed = false;    // 指が乗っている
+    let dragging = false; // 実際に動かし始めた
+    let fromGrip = false;
     let movedBy = 0;
+    let pointer = -1;
 
     const down = (e: PointerEvent) => {
-      dragging = true;
+      fromGrip = !!grip && !!e.target && grip.contains(e.target as Node);
+      // 開いているときに面から始めると中のスクロールと喧嘩する。
+      // つまみからだけ受ける。たたんでいるときは中が動かないので、どこでもよい
+      if (!fromGrip && openRef.current) return;
+      armed = true;
+      dragging = false;
+      draggingRef.current = true;
       movedBy = 0;
       startY = e.clientY;
       startAt = at.current;
       startTime = e.timeStamp;
-      try { node.setPointerCapture(e.pointerId); } catch {}
+      pointer = e.pointerId;
     };
+
     const move = (e: PointerEvent) => {
-      if (!dragging) return;
+      if (!armed) return;
       movedBy = e.clientY - startY;
+      if (!dragging) {
+        // まだタップかもしれない間は動かさない。中のボタンを押せなくなる
+        if (Math.abs(movedBy) < START) return;
+        dragging = true;
+        try { node.setPointerCapture(pointer); } catch {}
+      }
       place(Math.min(travel, Math.max(0, startAt + movedBy)), false);
     };
+
     const up = (e: PointerEvent) => {
-      if (!dragging) return;
-      dragging = false;
-      // ほとんど動いていなければタップ扱いで開閉を反転させる
-      if (Math.abs(movedBy) < 6) return snapTo(startAt === 0 ? travel : 0);
-      settle(startAt, movedBy, movedBy / Math.max(1, e.timeStamp - startTime));
+      if (!armed) return;
+      armed = false;
+      draggingRef.current = false;
+      if (dragging) {
+        dragging = false;
+        settle(startAt, movedBy, movedBy / Math.max(1, e.timeStamp - startTime));
+        return;
+      }
+      // 動かなかった場合。つまみを押したときだけ開閉を反転させる
+      // （面のタップは中のボタンのものなので、ここでは何もしない）
+      if (fromGrip) snapTo(startAt === 0 ? travel : 0);
     };
 
     node.addEventListener('pointerdown', down);
     node.addEventListener('pointermove', move);
     node.addEventListener('pointerup', up);
     node.addEventListener('pointercancel', up);
-    (node.style as any).touchAction = 'none'; // 掴んでいる間にページごと動かない
+    // 掴んでいる間にページごと動かない。縦は自分で受け、横は端末に任せる
+    if (grip) (grip.style as any).touchAction = 'none';
     return () => {
       node.removeEventListener('pointerdown', down);
       node.removeEventListener('pointermove', move);
@@ -198,6 +246,7 @@ export function BottomSheet({
 
   return (
     <Wrapper
+      ref={sheetRef}
       dataSet={WEB ? { mjsheet: '1', dragging: dragging ? '1' : '0' } : undefined}
       style={[
         styles.sheet,
@@ -266,7 +315,8 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   // 掴める帯は広めに取る（細いと指が乗らない）
-  grip: { height: 34, alignItems: 'center', justifyContent: 'center', cursor: 'grab' } as any,
-  gripHit: { paddingHorizontal: 40, paddingVertical: 10 },
-  bar: { width: 42, height: 4, borderRadius: 2 },
+  // つまみは掴む的なので大きく取る。34pxだと指では狙えなかった
+  grip: { height: 44, alignItems: 'center', justifyContent: 'center', cursor: 'grab' } as any,
+  gripHit: { paddingHorizontal: 60, paddingVertical: 14 },
+  bar: { width: 48, height: 5, borderRadius: 3 },
 });
