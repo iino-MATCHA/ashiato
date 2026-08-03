@@ -30,7 +30,8 @@ export default function StepDetail() {
   const { trip } = useTrip(id);
   const { profile } = useProfile();
   const step = trip?.steps.find((s) => s.id === stepId);
-  const canEdit = (trip?.authorId === 'me' || !trip?.authorId) && readonly !== '1';
+  // バディーも持ち主と同じように直せる。canEdit が「持ち主か同行者か」を持っている
+  const canEdit = (trip?.canEdit || trip?.authorId === 'me' || !trip?.authorId) && readonly !== '1';
 
   const [hero, setHero] = useState(0);
   // null にしない。取得前や取得失敗でも空の状態を持っておくことで、

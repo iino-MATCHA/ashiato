@@ -4,11 +4,11 @@
  * シートの外（画面上部）に出ているので、ここでは繰り返さない。
  */
 import { useState } from 'react';
-import { View, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { View, Modal, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { AppText, Row, Rule, Gap } from '@/components/ui';
+import { AppText, Row, Rule, Gap, Button } from '@/components/ui';
 import { Stamp } from '@/components/Stamp';
-import { space } from '@/lib/theme';
+import { space, fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { goshuinList } from '@/lib/mock';
 import { SignInPrompt } from '@/components/SignInPrompt';
@@ -23,6 +23,8 @@ export function GoshuinPane({ visited }: { visited: number[] }) {
   // たたんでいる間は動かさない
   const sheetOpen = useSheetOpen();
   const [askSignIn, setAskSignIn] = useState(false);
+  // 「これは本物の御朱印なのか」に、押したときだけ答える
+  const [about, setAbout] = useState(false);
   const visitedSet = new Set(visited);
 
   return (
@@ -32,6 +34,17 @@ export function GoshuinPane({ visited }: { visited: number[] }) {
       contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl * 2 }}
       showsVerticalScrollIndicator={false}
     >
+      {/* このアプリの御朱印は、寺社でいただく本物とは別のもの。
+          誤解されると信用に関わるので、一覧の先頭で断っておく。
+          ただし読ませるのは押した人にだけ ―― 面を説明で埋めない。 */}
+      <Pressable onPress={() => setAbout(true)} hitSlop={6} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+        <Row style={{ gap: 6, alignItems: 'center', paddingVertical: space.sm }}>
+          <Ionicons name="information-circle-outline" size={16} color={palette.matcha} />
+          <AppText variant="small" tone="matcha">{t('goshuin.aboutLink')}</AppText>
+        </Row>
+      </Pressable>
+      <Gap h={space.sm} />
+
       {/* ゲストの帳面は真っ白なので、なぜ空なのかをここで言う */}
       {guest && (
         <>
@@ -52,6 +65,40 @@ export function GoshuinPane({ visited }: { visited: number[] }) {
 
       <SignInPrompt visible={askSignIn} onClose={() => setAskSignIn(false)} reason="collect" />
 
+      {/* visible={false} でも中身がDOMに残るので、開いている間だけ組み立てる */}
+      {about && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setAbout(false)}>
+          <Pressable style={styles.backdrop} onPress={() => setAbout(false)}>
+            <Pressable
+              style={[styles.sheet, { backgroundColor: palette.paper, borderColor: palette.rule }]}
+              onPress={() => {}}
+            >
+              <View style={{ alignItems: 'center' }}>
+                <Ionicons name="bookmark-outline" size={30} color={palette.shu} />
+                <Gap h={space.md} />
+                <AppText style={[styles.aboutTitle, { color: palette.ink }]} center>
+                  {t('goshuin.aboutTitle')}
+                </AppText>
+              </View>
+              <Gap h={space.lg} />
+              <AppText variant="small" tone="ink" style={{ lineHeight: 22, opacity: 0.88 }}>
+                {t('goshuin.aboutWhat')}
+              </AppText>
+              <Gap h={space.md} />
+              <AppText variant="small" tone="ink" style={{ lineHeight: 22, opacity: 0.88 }}>
+                {t('goshuin.aboutOurs')}
+              </AppText>
+              <Gap h={space.md} />
+              <AppText variant="small" tone="inkFaint" style={{ lineHeight: 20 }}>
+                {t('goshuin.aboutReal')}
+              </AppText>
+              <Gap h={space.xl} />
+              <Button label={t('common.close')} tone="matcha" onPress={() => setAbout(false)} />
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
+
       <View style={styles.grid}>
         {goshuinList.map((g, i) => {
           const acquired = visitedSet.has(g.prefectureId);
@@ -71,6 +118,12 @@ export function GoshuinPane({ visited }: { visited: number[] }) {
 }
 
 const styles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: space.lg },
+  sheet: {
+    width: '100%', maxWidth: 360, borderRadius: 18, padding: space.lg, borderWidth: hairline,
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 12,
+  },
+  aboutTitle: { fontFamily: fonts.minchoBold, fontSize: 22, lineHeight: 31 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: space.xl },
   cell: { width: '30%', alignItems: 'center' },
 });

@@ -136,7 +136,13 @@ export default function TripDetail() {
 
       {/* Header — back + title stay top-left; action icons float top-right */}
       <View style={styles.headerZone} pointerEvents="box-none">
-        <Glass onPress={() => router.back()} icon="arrow-back" palette={palette} />
+        {/* 招待リンクや共有リンクから直接来ると戻る先が無く、押しても何も
+            起きなかった。history が無いときは旅の一覧へ逃がす */}
+        <Glass
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/map' as any))}
+          icon="arrow-back"
+          palette={palette}
+        />
         <Gap h={space.sm} />
         {/* fixed dark text — the pill is always white-ish, even in dark mode.
             スマホでは地図が狭いので、チップを小さく・半透明にして地図を隠さない */}

@@ -13,7 +13,7 @@
  */
 import { readPhotoMeta, type PhotoMeta } from './exif';
 import {
-  createTrip, createStep, nearestMunicipality, resortTripStops, yieldToUi,
+  createTrip, createStep, nearestMunicipality, resortTripStops, yieldToUi, updateTrip, fetchTrip,
   haversineKm, type NearestPlace,
 } from './api';
 
@@ -126,7 +126,24 @@ export async function addStopsFromPhotos(
   const photos = await writeStops(tripId, stops, onProgress);
   // 足した写真が古い日付でも、並びが崩れないようにする
   await resortTripStops(tripId);
+  // 写真の日付が旅の期間の外に出たら、期間のほうを広げる。
+  // 手で作った旅に後から写真を足したとき、日程が空のままになっていた
+  await widenTripDates(tripId, plan.startDate, plan.endDate);
   return { tripId, failure: null, stops: stops.length, photos, skipped };
+}
+
+/**
+ * 旅の日程を、写真の日付が収まるところまで広げる。
+ * 縮めることはしない ―― 旅の前後に予定を入れている人の指定を消さない。
+ */
+async function widenTripDates(tripId: string, from: string, to: string): Promise<void> {
+  if (!from && !to) return;
+  const trip = await fetchTrip(tripId);
+  if (!trip) return;
+  const start = !trip.startDate || (from && from < trip.startDate) ? from : trip.startDate;
+  const end = !trip.endDate || (to && to > trip.endDate) ? to : trip.endDate;
+  if (start === trip.startDate && end === trip.endDate) return;
+  await updateTrip(tripId, { startDate: start, endDate: end });
 }
 
 /** 写真 → 立ち寄り先の候補。保存はしない。 */

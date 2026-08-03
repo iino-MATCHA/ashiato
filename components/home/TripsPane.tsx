@@ -207,7 +207,9 @@ function TripCard({ trip, palette, onEdit }: { trip: Trip; palette: any; onEdit:
   const { navigate } = useRippleNav();
   const cover = trip.steps[0]?.images[0];
   const ongoing = isOnTheRoad(trip);
-  const mine = trip.authorId === 'me' || !trip.authorId;
+  // バディーの旅も自分の旅と同じ扱い。読み取り専用で開くと、
+  // 招かれた人が写真も地点も足せなくなる
+  const mine = trip.canEdit || trip.authorId === 'me' || !trip.authorId;
   const editable = !trip.sample && mine; // sample & others' trips can't be edited/deleted
   const href = `/trip/${trip.id}${editable ? '' : '?readonly=1'}`;
   return (

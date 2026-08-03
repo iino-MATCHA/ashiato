@@ -94,7 +94,7 @@ export function InviteJoin({
           onPress={() => {}}
         >
           <View style={{ alignItems: 'center' }}>
-            <Ionicons name="images-outline" size={32} color={palette.matcha} />
+            <Ionicons name="footsteps-outline" size={34} color={palette.matcha} />
             <Gap h={space.md} />
             <AppText style={[styles.title, { color: palette.ink }]} center>
               {t('invite.joinTitle')}
@@ -145,18 +145,17 @@ export function InviteJoin({
             />
           )}
 
-          <Gap h={space.md} />
-          <Pressable onPress={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setError(null); setNotice(null); }}>
-            <AppText variant="small" tone="ai" center>
-              {t(mode === 'signup' ? 'login.toSignin' : 'login.toSignup')}
-            </AppText>
-          </Pressable>
+          <Gap h={space.sm} />
+          <Button
+            label={t(mode === 'signup' ? 'common.signin' : 'guest.signUp')}
+            tone="ink"
+            variant="outline"
+            onPress={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setError(null); setNotice(null); }}
+          />
 
           <Gap h={space.md} />
-          <Rule />
-          <Gap h={space.md} />
           <Pressable onPress={onClose} hitSlop={8}>
-            <AppText variant="small" tone="inkFaint" center>{t('invite.keepLooking')}</AppText>
+            <AppText variant="small" tone="inkFaint" center>{t('guest.keepLooking')}</AppText>
           </Pressable>
         </Pressable>
       </Pressable>
@@ -164,10 +163,17 @@ export function InviteJoin({
   );
 }
 
+/**
+ * 見た目は SignInPrompt（ゲストが保存を押したときの窓）と揃える。
+ * 同じ「登録してください」の場面で別の顔が出ると、同じアプリに見えない。
+ */
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: space.lg },
-  sheet: { width: '100%', maxWidth: 380, borderRadius: 16, borderWidth: hairline, padding: space.lg },
-  title: { fontFamily: fonts.minchoBold, fontSize: 21, lineHeight: 29 },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: space.lg },
+  sheet: {
+    width: '100%', maxWidth: 360, borderRadius: 18, padding: space.lg, borderWidth: hairline,
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 12,
+  },
+  title: { fontFamily: fonts.minchoBold, fontSize: 24, lineHeight: 33 },
   input: {
     height: 46,
     borderWidth: hairline * 2,
