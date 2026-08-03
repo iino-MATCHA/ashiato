@@ -105,7 +105,7 @@ export default function Orders() {
                 <Pressable style={{ flex: 1 }} onPress={() => router.push(`/trip/${trip.id}/book`)}>
                   <AppText variant="bodyStrong" tone="ink" numberOfLines={1}>{trip.title}</AppText>
                   <AppText variant="small" tone="inkFaint">
-                    {trip.startDate.replace(/-/g, '.')} · {plan.pages.length}p · {plan.totalPhotos} photos
+                    {trip.startDate.replace(/-/g, '.')} · {plan.pages.length}p · {t('orders.photosCount', { n: plan.totalPhotos })}
                   </AppText>
                 </Pressable>
                 {few ? (

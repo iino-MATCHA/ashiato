@@ -220,6 +220,8 @@ export default function Explore() {
 }
 
 function FeaturedCarousel({ trips, palette, screenW }: { trips: Trip[]; palette: any; screenW: number }) {
+  // この中では t を「旅」に使っているので、訳語は tr で受ける
+  const { t: tr } = useI18n();
   const { navigate } = useRippleNav();
   const ref = useRef<ScrollView | null>(null);
   const [idx, setIdx] = useState(0);
@@ -262,7 +264,7 @@ function FeaturedCarousel({ trips, palette, screenW }: { trips: Trip[]; palette:
                   <AppText variant="h1" style={{ color: '#fff' }} numberOfLines={2}>{t.title}</AppText>
                   <Gap h={space.xs} />
                   <Row style={{ gap: space.md }}>
-                    <Meta icon="footsteps-outline" text={`${t.steps.length} stops`} />
+                    <Meta icon="footsteps-outline" text={tr('trip.stopsCount', { n: t.steps.length })} />
                     <Meta icon="navigate-outline" text={`${t.distanceKm} km`} />
                     <Meta icon="person-circle-outline" text={t.members[0] ?? 'Traveller'} />
                   </Row>

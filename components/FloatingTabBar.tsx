@@ -40,7 +40,9 @@ const ICONS: Record<string, any> = {
 };
 
 const BAR_H = 62;
-const DOT = 44;
+// 丸ではなく角の丸いチップ。横に広いぶん、アイコンの左右に余白が残る
+const DOT_W = 54;
+const DOT_H = 38;
 
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const { palette } = useTheme();
@@ -125,6 +127,6 @@ const styles = StyleSheet.create({
   },
   // 一区画ぶんの枠。これを割合で動かす
   dotSlot: { position: 'absolute', top: 0, height: BAR_H, alignItems: 'center', justifyContent: 'center' },
-  dot: { width: DOT, height: DOT, borderRadius: DOT / 2 },
+  dot: { width: DOT_W, height: DOT_H, borderRadius: 13 },
   item: { flex: 1, height: BAR_H, alignItems: 'center', justifyContent: 'center' },
 });

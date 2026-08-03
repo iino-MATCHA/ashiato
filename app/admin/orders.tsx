@@ -8,11 +8,11 @@
  * 画面から paid にできてしまうと、入金していない注文が発送に流れる。
  */
 import { useCallback, useMemo, useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Pressable, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Header } from '@/components/Header';
+import { AdminShell } from '@/components/admin/AdminShell';
+import { useAdmin } from '@/lib/useAdmin';
 import { AppText, Row, Rule, Gap, Eyebrow } from '@/components/ui';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
@@ -36,6 +36,7 @@ const LABEL: Record<string, string> = {
 
 export default function AdminOrders() {
   const { palette } = useTheme();
+  const { role } = useAdmin();
   const [orders, setOrders] = useState<any[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
@@ -86,17 +87,25 @@ export default function AdminOrders() {
     return [...shown].sort((a, b) => rank(a.status) - rank(b.status));
   }, [orders, onlyOpen]);
 
+  /**
+   * 手が離れていない注文の数。
+   * 入金済み（未着手）だけでなく印刷中も数える。印刷に出したまま
+   * 「すべて対応済み」と出ると、届け終わったように読めてしまう。
+   */
   const waiting = (orders ?? []).filter((o) => o.status === 'paid').length;
+  const inFlight = (orders ?? []).filter((o) => o.status === 'printing').length;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header title="注文" />
-      <Rule />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxl }}>
+    <AdminShell title="Orders" role={role}>
+      <>
         {/* いま何冊刷ればいいのか。ここだけ見れば分かるようにする */}
         <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
           <AppText variant="h2" tone="ink">
-            {waiting > 0 ? `${waiting}件 未着手` : 'すべて対応済み'}
+            {waiting > 0
+              ? `${waiting}件 未着手`
+              : inFlight > 0
+                ? `${inFlight}件 印刷中`
+                : 'すべて対応済み'}
           </AppText>
           <Pressable onPress={() => setOnlyOpen((v) => !v)} hitSlop={8}>
             <AppText variant="small" tone="matcha">{onlyOpen ? 'すべて表示' : '未対応のみ'}</AppText>
@@ -229,8 +238,8 @@ export default function AdminOrders() {
             );
           })
         )}
-      </ScrollView>
-    </SafeAreaView>
+      </>
+    </AdminShell>
   );
 }
 

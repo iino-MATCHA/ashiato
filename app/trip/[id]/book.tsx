@@ -146,7 +146,7 @@ export default function TripBook() {
                   {ch.prefEn}{ch.visitNo > 1 ? ` (visit ${ch.visitNo})` : ''}
                 </AppText>
                 <AppText variant="small" tone="inkFaint">
-                  {ch.stops.length} stops · {ch.photoCount} photos · {ch.days} day{ch.days === 1 ? '' : 's'}
+                  {t('book.chapterMeta', { stops: ch.stops.length, photos: ch.photoCount, days: ch.days })}
                 </AppText>
               </View>
               <AppText variant="small" tone="matcha">{ch.pages}p</AppText>

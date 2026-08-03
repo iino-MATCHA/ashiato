@@ -148,11 +148,16 @@ export default function TripBind() {
               <Button
                 label={t('bind.startOrder')}
                 tone="matcha"
+                disabled={tooFewPhotos}
                 onPress={() => router.push(`/trip/${trip.id}/bind?step=plans` as any)}
               />
               <Gap h={space.md} />
-              <AppText variant="small" tone="inkFaint" center style={{ lineHeight: 19 }}>
-                {t('bind.startOrderHint')}
+              {/* 写真が足りない旅で先へ進ませると、プランを選んだ先で行き止まりになる。
+                  進めない理由はここで言う。 */}
+              <AppText variant="small" tone={tooFewPhotos ? 'shu' : 'inkFaint'} center style={{ lineHeight: 19 }}>
+                {tooFewPhotos
+                  ? t('bind.needPhotosShort', { n: MIN_PHOTOS, done: book.totalPhotos })
+                  : t('bind.startOrderHint')}
               </AppText>
             </>
           )}

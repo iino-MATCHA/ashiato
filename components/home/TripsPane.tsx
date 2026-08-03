@@ -240,7 +240,7 @@ function TripCard({ trip, palette, onEdit }: { trip: Trip; palette: any; onEdit:
         </View>
       </View>
       <Row style={{ gap: space.lg, paddingVertical: space.md }}>
-        <Meta icon="footsteps-outline" text={`${trip.steps.length} stops`} palette={palette} />
+        <Meta icon="footsteps-outline" text={t('trip.stopsCount', { n: trip.steps.length })} palette={palette} />
         <Meta icon="navigate-outline" text={`${trip.distanceKm} km`} palette={palette} />
         <Meta icon="people-outline" text={`${trip.members.length}`} palette={palette} />
         <View style={{ flex: 1 }} />

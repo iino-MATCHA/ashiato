@@ -16,6 +16,7 @@ const TABS = [
   { path: '/admin', label: 'Japan' },
   { path: '/admin/prefectures', label: 'Prefectures' },
   { path: '/admin/spots', label: 'Spots' },
+  { path: '/admin/orders', label: 'Orders' },
   { path: '/admin/manage', label: 'Manage' },
 ];
 

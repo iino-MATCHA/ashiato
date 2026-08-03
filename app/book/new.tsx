@@ -6,6 +6,7 @@ import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Button, Eyebrow } from '@/components/ui';
 import { space, hairline, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
+import { useI18n } from '@/lib/i18n';
 import { findTrip, acquiredCount } from '@/lib/mock';
 
 const steps = [
@@ -17,6 +18,7 @@ const steps = [
 
 export default function BookNew() {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const { trip: tripId } = useLocalSearchParams<{ trip: string }>();
   const trip = findTrip(tripId);
 
@@ -42,12 +44,12 @@ export default function BookNew() {
           </View>
           <Gap h={space.md} />
           <AppText variant="small" tone="inkFaint">
-            Generated from {trip.steps.length} stops · {acquiredCount} goshuin
+            {t('book.builtFrom', { stops: trip.steps.length, goshuin: acquiredCount })}
           </AppText>
         </View>
 
         <Gap h={space.xl} />
-        <Eyebrow>How it works</Eyebrow>
+        <Eyebrow>{t('book.howItWorks')}</Eyebrow>
         <Gap h={space.sm} />
         <Rule />
         {steps.map((s, i) => (

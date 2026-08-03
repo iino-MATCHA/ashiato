@@ -133,7 +133,7 @@ export default function Login() {
 
         <Row style={{ alignItems: 'center', gap: space.sm, marginVertical: space.md }}>
           <Rule style={{ flex: 1 }} />
-          <AppText variant="small" tone="inkFaint">or</AppText>
+          <AppText variant="small" tone="inkFaint">{t('login.or')}</AppText>
           <Rule style={{ flex: 1 }} />
         </Row>
 
@@ -159,13 +159,13 @@ export default function Login() {
 
         <Gap h={space.md} />
         <Pressable onPress={submit} disabled={busy} style={({ pressed }) => [styles.primary, { backgroundColor: palette.matcha }, pressed && { opacity: 0.85 }]}>
-          <AppText variant="bodyStrong" style={{ color: '#fff' }}>{busy ? '…' : mode === 'signin' ? 'Sign in' : 'Create account'}</AppText>
+          <AppText variant="bodyStrong" style={{ color: '#fff' }}>{busy ? '…' : mode === 'signin' ? t('login.signIn') : t('login.createAccount')}</AppText>
         </Pressable>
 
         <Gap h={space.md} />
         <Pressable onPress={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null); setNotice(null); }}>
           <AppText variant="small" tone="ai" center>
-            {mode === 'signin' ? 'New here? Create an account' : 'Have an account? Sign in'}
+            {mode === 'signin' ? t('login.toSignup') : t('login.toSignin')}
           </AppText>
         </Pressable>
       </View>

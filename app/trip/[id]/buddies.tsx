@@ -95,13 +95,6 @@ export default function TripBuddies() {
         ) : friends.length === 0 ? (
           <>
             <AppText variant="small" tone="inkFaint" style={{ lineHeight: 20 }}>{t('buddy.none')}</AppText>
-            <Gap h={space.md} />
-            <Pressable onPress={() => shareInvite()} hitSlop={8}>
-              <Row style={{ gap: 5, alignItems: 'center' }}>
-                <Ionicons name="paper-plane-outline" size={14} color={palette.matcha} />
-                <AppText variant="small" tone="matcha">{t('buddy.invite')}</AppText>
-              </Row>
-            </Pressable>
           </>
         ) : (
           <>

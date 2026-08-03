@@ -13,7 +13,7 @@ import { fetchCommentNotifications, markNotificationRead, addComment, type Comme
 import { useI18n, t } from '@/lib/i18n';
 export default function Notifications() {
   const { palette } = useTheme();
-  useI18n(); // 言語切替の再レンダー購読
+  const { t } = useI18n();
   const [items, setItems] = useState<CommentNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const alive = useRef(true);
@@ -48,7 +48,7 @@ export default function Notifications() {
             <Ionicons name="checkmark-done-circle-outline" size={44} color={palette.matcha} />
             <Gap h={space.sm} />
             <AppText variant="h3" tone="ink">{t('noti.caughtUp')}</AppText>
-            <AppText variant="small" tone="inkFaint">New comments on your stops will appear here.</AppText>
+            <AppText variant="small" tone="inkFaint">{t('noti.emptySub')}</AppText>
           </>
         ) : (
           <>

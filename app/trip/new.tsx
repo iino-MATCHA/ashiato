@@ -99,13 +99,13 @@ export default function NewTrip() {
         </Row>
         <Gap h={space.sm} />
         <AppText variant="small" tone="inkFaint">
-          {isPublic ? 'Shown in Explore for everyone.' : 'Only you — friends can still see it on their feed.'}
+          {isPublic ? t('tripNew.publicNote') : t('tripNew.privateNote')}
         </AppText>
       </ScrollView>
 
       <View style={{ padding: space.lg }}>
-        {!canSave && <><AppText variant="small" tone="inkFaint" center>Add a title and a start date to continue.</AppText><Gap h={space.sm} /></>}
-        <Button label={saving ? 'Creating…' : 'Start the trip'} tone="matcha" onPress={create} disabled={!canSave || saving} />
+        {!canSave && <><AppText variant="small" tone="inkFaint" center>{t('tripNew.needMore')}</AppText><Gap h={space.sm} /></>}
+        <Button label={saving ? t('tripNew.creating') : t('tripNew.start')} tone="matcha" onPress={create} disabled={!canSave || saving} />
       </View>
     </SafeAreaView>
   );

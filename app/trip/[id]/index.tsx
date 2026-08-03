@@ -167,7 +167,7 @@ export default function TripDetail() {
               <Ionicons name="map-outline" size={26} color={palette.matcha} />
               <Gap h={space.sm} />
               <AppText variant="h3" tone="ink">{t('trip.wholeRoute')}</AppText>
-              <AppText variant="small" tone="inkFaint">{n} stops · {trip.distanceKm.toLocaleString()} km</AppText>
+              <AppText variant="small" tone="inkFaint">{t('trip.stopsCount', { n })} · {trip.distanceKm.toLocaleString()} km</AppText>
               <Gap h={space.xs} />
               <AppText variant="small" tone="matcha">{t('trip.swipe')}</AppText>
             </Pressable>
