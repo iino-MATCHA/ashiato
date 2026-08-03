@@ -48,6 +48,26 @@ export default function AdminJapan() {
 
   return (
     <AdminShell title="Japan overview" role={role}>
+      {/* 注文をさばく画面への入口。通知だけでは「何を刷ればいいか」が追えない */}
+      <Pressable
+        onPress={() => router.push('/admin/orders' as any)}
+        style={({ pressed }) => [
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: space.md,
+            paddingVertical: space.md,
+            opacity: pressed ? 0.6 : 1,
+          },
+        ]}
+      >
+        <Ionicons name="cube-outline" size={20} color={palette.matcha} />
+        <AppText variant="bodyStrong" tone="ink" style={{ flex: 1 }}>注文をさばく</AppText>
+        <Ionicons name="chevron-forward" size={18} color={palette.inkFaint} />
+      </Pressable>
+      <Rule />
+      <Gap h={space.lg} />
+
       {/* 決済が完了するとここに積まれる。数字ではなく件名を出して、
           何が売れたのかを開かずに掴めるようにする。 */}
       {notifications.length > 0 && (

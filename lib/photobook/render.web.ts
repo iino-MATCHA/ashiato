@@ -38,7 +38,7 @@ export async function renderPage(plan: BookPlan, index: number): Promise<string 
   return canvas ? canvas.toDataURL('image/jpeg', 0.9) : null;
 }
 
-/** 全ページを綴じてPDFのBlobを返す。 */
+/** 全ページを綴じてPDFのBlobを返す（画面で読む用）。 */
 export async function renderPdf(
   plan: BookPlan,
   onProgress?: (p: RenderProgress) => void
@@ -59,16 +59,97 @@ export async function renderPdf(
   }
 }
 
+/**
+ * 印刷所へ渡すPDF。
+ *
+ * 画面で読むPDFとは別物として作る。違いは3つ。
+ *   1. **解像度** — A5を300dpiで組む（画面用は200dpi相当）。
+ *      文字の輪郭と写真の粒が、紙にしたときに耐えるのはここから。
+ *   2. **塗り足し** — 仕上がりの外側へ3mm分、地を伸ばす。
+ *      断裁は必ずわずかにズレるので、これが無いと端に白が出る。
+ *   3. **トンボ** — どこで断つかを四隅に示す。
+ *
+ * **色は RGB のまま**渡す。ブラウザの canvas は CMYK を持てないので、
+ * ここで変換したふりをしても嘘になる。印刷所側の profile 変換に任せ、
+ * 「RGB入稿」であることを先方に伝えること。
+ * （沈むのが困る色は、刷り出しを見てから元の色を調整する）
+ */
+const PRINT_SCALE = 1.5;                    // 200dpi → 300dpi
+const BLEED = Math.round((3 / 148) * PW);   // A5の短辺148mmに対する3mm
+const MARK = Math.round(BLEED * 1.6);       // トンボの線の長さ
+
+export async function renderPrintPdf(
+  plan: BookPlan,
+  onProgress?: (p: RenderProgress) => void
+): Promise<Blob | null> {
+  if (typeof document === 'undefined') return null;
+  try {
+    const trimW = PW * PRINT_SCALE;
+    const trimH = PH * PRINT_SCALE;
+    const bleed = BLEED * PRINT_SCALE;
+    const sheetW = Math.round(trimW + bleed * 2);
+    const sheetH = Math.round(trimH + bleed * 2);
+
+    const doc = new jsPDF({ unit: 'px', format: [sheetW, sheetH], compress: true });
+    for (let i = 0; i < plan.pages.length; i++) {
+      const canvas = await paint(plan, i, PRINT_SCALE);
+      if (!canvas) continue;
+      if (i > 0) doc.addPage([sheetW, sheetH]);
+
+      // 地を塗ってから、仕上がり位置に本文を置く。
+      // 外側の3mmは本文をそのまま引き伸ばさず、地の色で埋める
+      // （縁に写真が来る面付けは今のところ無い）。
+      doc.setFillColor(PAPER);
+      doc.rect(0, 0, sheetW, sheetH, 'F');
+      // 画質優先。ここを JPEG で落とすと、紙にしたとき文字の縁が濁る
+      doc.addImage(canvas.toDataURL('image/png'), 'PNG', bleed, bleed, trimW, trimH);
+      drawCropMarks(doc, sheetW, sheetH, bleed);
+
+      onProgress?.({ done: i + 1, total: plan.pages.length });
+    }
+    return doc.output('blob');
+  } catch {
+    return null;
+  }
+}
+
+/** 四隅のトンボ。仕上がり線の延長を、塗り足しの外側に短く引く */
+function drawCropMarks(doc: any, sheetW: number, sheetH: number, bleed: number) {
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(1);
+  const L = MARK * PRINT_SCALE;
+  const x0 = bleed;
+  const y0 = bleed;
+  const x1 = sheetW - bleed;
+  const y1 = sheetH - bleed;
+  const seg = (ax: number, ay: number, bx: number, by: number) => doc.line(ax, ay, bx, by);
+  // 左上
+  seg(0, y0, Math.max(0, x0 - L * 0.15), y0);
+  seg(x0, 0, x0, Math.max(0, y0 - L * 0.15));
+  // 右上
+  seg(sheetW, y0, x1 + L * 0.15, y0);
+  seg(x1, 0, x1, Math.max(0, y0 - L * 0.15));
+  // 左下
+  seg(0, y1, Math.max(0, x0 - L * 0.15), y1);
+  seg(x0, sheetH, x0, y1 + L * 0.15);
+  // 右下
+  seg(sheetW, y1, x1 + L * 0.15, y1);
+  seg(x1, sheetH, x1, y1 + L * 0.15);
+}
+
 // ---------------------------------------------------------------- ページ描画
 
-async function paint(plan: BookPlan, index: number): Promise<HTMLCanvasElement | null> {
+async function paint(plan: BookPlan, index: number, scale = 1): Promise<HTMLCanvasElement | null> {
   const page = plan.pages[index];
   if (!page) return null;
   const canvas = document.createElement('canvas');
-  canvas.width = PW;
-  canvas.height = PH;
+  canvas.width = Math.round(PW * scale);
+  canvas.height = Math.round(PH * scale);
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
+  // 以降の描画は 1165x1654 の座標のまま書けるようにする。
+  // 印刷用のときだけ倍率がかかり、線も文字も素直に太くなる
+  if (scale !== 1) ctx.scale(scale, scale);
 
   ctx.fillStyle = PAPER;
   ctx.fillRect(0, 0, PW, PH);
@@ -429,3 +510,58 @@ function wrap(
 
 export const PAGE_SIZE = { width: PW, height: PH };
 export type { PagePhoto };
+
+/**
+ * 注文に焼き付けてあるページ画像から、入稿用PDFを組む。
+ *
+ * 注文時点の中身をそのまま刷るために、旅を作り直さない。
+ * （旅はあとから編集され得るので、作り直すと注文と違うものが刷られる）
+ *
+ * **解像度の注意**: 焼き付けてある画像は A5 / 200dpi 相当。
+ * 写真は耐えるが、300dpi を求める印刷所には「200dpi入稿」であることを
+ * 伝えること。上げるには、かごに入れる時点で刷り用の解像度で焼く必要がある。
+ */
+export async function printPdfFromPages(
+  urls: string[],
+  onProgress?: (p: RenderProgress) => void
+): Promise<Blob | null> {
+  if (typeof document === 'undefined' || urls.length === 0) return null;
+  try {
+    const trimW = PW * PRINT_SCALE;
+    const trimH = PH * PRINT_SCALE;
+    const bleed = BLEED * PRINT_SCALE;
+    const sheetW = Math.round(trimW + bleed * 2);
+    const sheetH = Math.round(trimH + bleed * 2);
+    const doc = new jsPDF({ unit: 'px', format: [sheetW, sheetH], compress: true });
+
+    for (let i = 0; i < urls.length; i++) {
+      const dataUrl = await toDataUrl(urls[i]);
+      if (!dataUrl) continue;
+      if (i > 0) doc.addPage([sheetW, sheetH]);
+      doc.setFillColor(PAPER);
+      doc.rect(0, 0, sheetW, sheetH, 'F');
+      doc.addImage(dataUrl, 'JPEG', bleed, bleed, trimW, trimH);
+      drawCropMarks(doc, sheetW, sheetH, bleed);
+      onProgress?.({ done: i + 1, total: urls.length });
+    }
+    return doc.output('blob');
+  } catch {
+    return null;
+  }
+}
+
+/** Storage のURLを dataURL にする（jsPDF に渡すため） */
+async function toDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    const blob = await res.blob();
+    return await new Promise((resolve) => {
+      const r = new FileReader();
+      r.onload = () => resolve(typeof r.result === 'string' ? r.result : null);
+      r.onerror = () => resolve(null);
+      r.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}

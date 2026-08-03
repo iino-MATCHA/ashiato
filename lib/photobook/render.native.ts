@@ -18,3 +18,12 @@ export async function renderPdf(
 }
 
 export const PAGE_SIZE = { width: 1165, height: 1654 };
+
+/** 印刷入稿用のPDFは Web でだけ作る（管理者はブラウザで操作するため）。 */
+export async function renderPrintPdf(): Promise<Blob | null> {
+  return null;
+}
+
+export async function printPdfFromPages(): Promise<Blob | null> {
+  return null;
+}

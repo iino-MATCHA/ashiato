@@ -1067,6 +1067,25 @@ export async function fetchAdminOrders(): Promise<any[] | null> {
   return error ? null : (data as any[] | null);
 }
 
+/**
+ * 注文の状態を進める（管理者のみ）。
+ * paid にはできない ―― 入金の確定は Stripe の webhook だけが通す道。
+ */
+export async function setOrderStatus(
+  orderId: string,
+  status: 'printing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded',
+  tracking?: string,
+  note?: string
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('admin_set_order_status', {
+    p_order: orderId,
+    p_status: status,
+    p_tracking: tracking ?? '',
+    p_note: note ?? '',
+  });
+  return !error && data === true;
+}
+
 export async function fetchAdmins(): Promise<{ username: string; name: string; role: string }[]> {
   const { data } = await supabase
     .from('profiles')

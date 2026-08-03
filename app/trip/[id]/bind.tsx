@@ -32,7 +32,14 @@ export default function TripBind() {
   const { palette } = useTheme();
   const { t } = useI18n();
   const { width } = useWindowDimensions();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, step } = useLocalSearchParams<{ id: string; step?: string }>();
+  /**
+   * 値段は一段奥に置く。
+   * 最初の画面に金額を並べると、中身を見る前に「売りつけられる」印象が先に立つ。
+   * まず本そのものを見てもらい、注文する気になった人だけが仕様と値段を見る。
+   * 経路を分けてあるので、端末の戻るでちゃんと前の画面へ戻れる。
+   */
+  const showPlans = step === 'plans';
   const { trip } = useTrip(id);
   const { items: cart } = useCart();
 
@@ -134,7 +141,24 @@ export default function TripBind() {
           <Gap h={space.lg} />
           <Rule />
 
-          {/* ③ プラン ------------------------------------------------- */}
+          {/* ③ プラン。注文する気になった人にだけ見せる ------------------ */}
+          {!showPlans && (
+            <>
+              <Gap h={space.xl} />
+              <Button
+                label={t('bind.startOrder')}
+                tone="matcha"
+                onPress={() => router.push(`/trip/${trip.id}/bind?step=plans` as any)}
+              />
+              <Gap h={space.md} />
+              <AppText variant="small" tone="inkFaint" center style={{ lineHeight: 19 }}>
+                {t('bind.startOrderHint')}
+              </AppText>
+            </>
+          )}
+
+          {showPlans && (
+          <>
           <Gap h={space.xl} />
           <Eyebrow tone="matcha">{t('bind.plansEyebrow')}</Eyebrow>
           <Gap h={space.md} />
@@ -189,6 +213,8 @@ export default function TripBind() {
               <AppText variant="small" tone="inkFaint" style={{ flex: 1, lineHeight: 19 }}>{n}</AppText>
             </Row>
           ))}
+          </>
+          )}
 
           {/* 見本（既存のジャーナル） ---------------------------------- */}
           <Gap h={space.xl} />
