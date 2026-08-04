@@ -78,7 +78,7 @@ export default function GoshuinShare() {
     const dataUrl = (await captureCard(cardRef)) ?? (await exportJapanCard(cardMeta()));
     const text = `I've visited ${count}/47 prefectures of Japan (${pct}%) — ${rankFor(count)} on My Japan #myjapan`;
     const res = dataUrl
-      ? await shareImage(to, dataUrl, text, `my-japan-${count}of${PREFECTURE_TOTAL}.png`)
+      ? await shareImage(to, dataUrl, text, `my-japan-${count}of${PREFECTURE_TOTAL}.png`, profileUrl ?? undefined)
       : 'failed';
     setBusy(null);
     // 共有シートが使えない環境では画像を保存して投稿画面を開くので、その旨を伝える
@@ -171,7 +171,7 @@ export default function GoshuinShare() {
         <Gap h={space.lg} />
         {profileUrl && (
           <>
-            <CopyLink url={profileUrl} />
+            <CopyLink url={profileUrl} label={t('share.copyProfileLink')} />
             <Gap h={space.md} />
           </>
         )}

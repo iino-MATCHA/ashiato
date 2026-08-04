@@ -18,8 +18,15 @@ export type ShareTarget = 'x' | 'instagram';
 
 export type ShareResult = 'shared' | 'downloaded' | 'cancelled' | 'failed';
 
-const WEB_INTENT: Record<ShareTarget, (text: string) => string> = {
-  x: (text) => `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
+/**
+ * 投稿画面のURL。
+ * X は url を別に渡すと、本文とは分けてリンクとして扱われ、
+ * 貼り先でカード（OGP）が開く。text に混ぜると開かないことがある。
+ */
+const WEB_INTENT: Record<ShareTarget, (text: string, url?: string) => string> = {
+  x: (text, url) =>
+    'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) +
+    (url ? '&url=' + encodeURIComponent(url) : ''),
   // Instagram に「投稿画面を開く」URLは公開されていないので、
   // ストーリーズを開くところまで案内する
   instagram: () => 'https://www.instagram.com/',
@@ -38,7 +45,9 @@ export async function shareImage(
   target: ShareTarget,
   dataUrl: string,
   text: string,
-  filename: string
+  filename: string,
+  /** 投稿に添えるリンク。旅の共有ページなど。貼り先でカードが開く */
+  url?: string
 ): Promise<ShareResult> {
   if (typeof navigator === 'undefined' || typeof document === 'undefined') return 'failed';
 
@@ -47,7 +56,7 @@ export async function shareImage(
   // ① 共有シートに画像ごと渡せるなら、それが一番きれいに入る
   if (file && (navigator as any).canShare?.({ files: [file] })) {
     try {
-      await (navigator as any).share({ files: [file], text });
+      await (navigator as any).share({ files: [file], text, ...(url ? { url } : null) });
       return 'shared';
     } catch (e: any) {
       // ユーザーがシートを閉じただけなら、勝手に保存へ回さない
@@ -58,7 +67,7 @@ export async function shareImage(
   // ② 画像を保存して、投稿画面を開く
   try {
     await downloadBlob(dataUrl, filename);
-    window.open(WEB_INTENT[target](text), '_blank', 'noopener');
+    window.open(WEB_INTENT[target](text, url), '_blank', 'noopener');
     return 'downloaded';
   } catch {
     return 'failed';

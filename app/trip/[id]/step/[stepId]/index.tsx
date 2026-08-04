@@ -4,13 +4,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
+import { PhotoPicker } from '@/components/PhotoPicker';
 import { AppText, Row, Rule, Gap, Eyebrow, Button } from '@/components/ui';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
 import { useProfile } from '@/lib/useProfile';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { fetchStepSocial, toggleLike, addComment, type StepSocial } from '@/lib/api';
+import { fetchStepSocial, toggleLike, addComment, updateStep, type StepSocial } from '@/lib/api';
+import { bump } from '@/lib/refresh';
+import { track } from '@/lib/analytics';
 import { useKeyboardInset, scrollInputIntoView } from '@/lib/useKeyboardInset';
 import { useI18n } from '@/lib/i18n';
 import { translateText } from '@/lib/translate';
@@ -32,6 +35,24 @@ export default function StepDetail() {
   const step = trip?.steps.find((s) => s.id === stepId);
   // バディーも持ち主と同じように直せる。canEdit が「持ち主か同行者か」を持っている
   const canEdit = (trip?.canEdit || trip?.authorId === 'me' || !trip?.authorId) && readonly !== '1';
+  // 写真を足している最中。1枚でも数秒かかるので、押せたことを見せる
+  const [adding, setAdding] = useState(false);
+  const [addFailed, setAddFailed] = useState(false);
+
+  /**
+   * この地点に写真を足す。題名も日付も触らない。
+   * 足したらその場に出したいので、読み直しまでここで済ませる。
+   */
+  const addPhotos = async (files: Blob[]) => {
+    if (!files.length || adding || !trip || !step) return;
+    setAdding(true);
+    setAddFailed(false);
+    const ok = await updateStep(step.id, { tripId: trip.id, newPhotos: files });
+    setAdding(false);
+    if (!ok) return setAddFailed(true);
+    track('photo_added', { count: files.length });
+    bump('trips');
+  };
 
   const [hero, setHero] = useState(0);
   // null にしない。取得前や取得失敗でも空の状態を持っておくことで、
@@ -142,13 +163,40 @@ export default function StepDetail() {
           </Row>
         )}
 
+        {/* 写真を1枚から足せる口。編集画面へ入らずに済ませる */}
+        {canEdit && (
+          <>
+            <Gap h={space.sm} />
+            <PhotoPicker onPick={addPhotos} multiple style={{ borderRadius: 10 }}>
+              <Row style={[styles.addPhoto, { borderColor: palette.ruleStrong }]}>
+                <Ionicons
+                  name={adding ? 'hourglass-outline' : 'add-circle-outline'}
+                  size={18}
+                  color={palette.matcha}
+                />
+                <AppText variant="bodyStrong" tone="matcha">
+                  {adding ? t('step.addingPhoto') : t('step.addPhoto')}
+                </AppText>
+              </Row>
+            </PhotoPicker>
+            {addFailed && (
+              <>
+                <Gap h={space.xs} />
+                <AppText variant="small" tone="shu">{t('step.addPhotoFailed')}</AppText>
+              </>
+            )}
+          </>
+        )}
+
         <Gap h={space.md} />
         <Row style={{ gap: 8, alignItems: 'center' }}>
           <View style={[styles.transport, { backgroundColor: palette.matcha }]}>
             <Ionicons name={transportIcon[step.transport]} size={13} color="#fff" />
             <AppText variant="small" style={{ color: '#fff' }}>{transportLabel[step.transport]}</AppText>
           </View>
-          <AppText variant="small" tone="inkFaint">{step.loggedAt.replace(/-/g, '.')} · {step.images.length} photos</AppText>
+          <AppText variant="small" tone="inkFaint">
+            {step.loggedAt.replace(/-/g, '.')} · {t('orders.photosCount', { n: step.images.length })}
+          </AppText>
         </Row>
 
         <Gap h={space.sm} />
@@ -244,6 +292,10 @@ export default function StepDetail() {
 }
 
 const styles = StyleSheet.create({
+  addPhoto: {
+    gap: space.sm, alignItems: 'center', justifyContent: 'center',
+    height: 46, borderRadius: 10, borderWidth: hairline * 2,
+  },
   thumb: { width: 44, height: 44, borderRadius: 6, borderWidth: 2, backgroundColor: '#eee' },
   transport: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
   commentBar: { position: 'relative', width: '100%', height: 46, borderWidth: hairline * 2, borderRadius: 23, justifyContent: 'center' },

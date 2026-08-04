@@ -45,9 +45,13 @@ export async function shareImage(
   _target: ShareTarget,
   dataUrl: string,
   text: string,
-  filename: string
+  filename: string,
+  /** 投稿に添えるリンク。文面の末尾に足す（ネイティブの共有シートは
+      本文とURLを分けて運べないので、1本の文字列にまとめる） */
+  url?: string
 ): Promise<ShareResult> {
   const uri = dataUrl ? await writeTempFile(dataUrl, filename) : null;
+  const body = url ? [text, url].join('\n') : text;
 
   // ① 画像つきで共有シートへ。ここから X / Instagram を選べば画像が入る
   if (uri && (await Sharing.isAvailableAsync())) {
@@ -55,7 +59,7 @@ export async function shareImage(
       await Sharing.shareAsync(uri, {
         mimeType: 'image/png',
         UTI: 'public.png',
-        dialogTitle: text,
+        dialogTitle: body,
       });
       return 'shared';
     } catch {
@@ -67,7 +71,7 @@ export async function shareImage(
   //    iOS は url でファイルを受け取れる。Android は文字だけになることがある
   try {
     const res = await Share.share(
-      uri && Platform.OS === 'ios' ? { url: uri, message: text } : { message: text }
+      uri && Platform.OS === 'ios' ? { url: uri, message: body } : { message: body }
     );
     return res.action === Share.dismissedAction ? 'cancelled' : 'shared';
   } catch {

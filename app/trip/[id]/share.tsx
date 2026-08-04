@@ -93,6 +93,9 @@ export default function TripShare() {
    * カードを画像にして、そのままSNSへ渡す。
    * Web は Canvas で 1080px に描き直し、ネイティブは画面のカードを写し取る。
    */
+  /** 旅の共有ページ。投稿にこれを添えると、貼り先でOGPのカードが開く */
+  const tripUrl = `https://www.my-japan-matcha.com/trip/${trip.id}`;
+
   const send = async (to: ShareTarget) => {
     track('share_ugc', { type: 'trip', method: to });
     if (busy) return;
@@ -101,7 +104,7 @@ export default function TripShare() {
     const dataUrl = (await captureCard(cardRef)) ?? (await exportShareCard(cardMeta));
     const text = `${trip.title} — ${prefs} prefectures, ${km} km with My Japan #myjapan`;
     const res = dataUrl
-      ? await shareImage(to, dataUrl, text, `my-japan-${trip.id}.png`)
+      ? await shareImage(to, dataUrl, text, `my-japan-${trip.id}.png`, tripUrl)
       : 'failed';
     setBusy(null);
     // 共有シートが使えない環境では画像を保存して投稿画面を開くので、その旨を伝える
@@ -120,7 +123,7 @@ export default function TripShare() {
 
         {/* export buttons */}
         <Gap h={space.lg} />
-        <CopyLink url={`https://www.my-japan-matcha.com/trip/${trip.id}`} />
+        <CopyLink url={tripUrl} label={t('share.copyTripLink')} />
         <Gap h={space.md} />
         <Row style={{ gap: space.xl }}>
           <ExportBtn icon="download-outline" label={saving ? t('common.saving') : t('common.save')} onPress={download} palette={palette} />

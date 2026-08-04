@@ -1,15 +1,31 @@
 /**
- * URLを1行見せて、押したらコピーする。それ以上のことはしない。
- * 文言は置かない（コピーできたことはアイコンがチェックに変わることで伝える）。
+ * リンクをコピーする一行。
+ *
+ * URLをそのまま並べても、何のリンクなのか・押していいのかが分からない。
+ * 「旅路を共有する」のように**行き先を言葉で言い**、コピーの印を添える。
+ * 押したら印がチェックに変わる ―― 文言は増やさず、それだけで伝える。
  */
 import { useState } from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText, Row } from '@/components/ui';
+import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
+import { useI18n } from '@/lib/i18n';
 
-export function CopyLink({ url }: { url: string }) {
+export function CopyLink({
+  url,
+  /** 見出しの言葉。省くと「旅路を共有する」 */
+  label,
+  /** URL も小さく見せる。貼り先を確かめたい共有画面では出す */
+  showUrl = true,
+}: {
+  url: string;
+  label?: string;
+  showUrl?: boolean;
+}) {
   const { palette } = useTheme();
+  const { t } = useI18n();
   const [done, setDone] = useState(false);
 
   const copy = async () => {
@@ -40,16 +56,39 @@ export function CopyLink({ url }: { url: string }) {
   };
 
   return (
-    <Pressable onPress={copy} hitSlop={8} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
-      <Row style={{ gap: 6, alignItems: 'center', maxWidth: 320 }}>
+    <Pressable
+      onPress={copy}
+      hitSlop={8}
+      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, alignSelf: 'stretch' }]}
+    >
+      <Row
+        style={{
+          gap: space.sm,
+          alignItems: 'center',
+          borderWidth: hairline * 2,
+          borderColor: done ? palette.matcha : palette.ruleStrong,
+          borderRadius: 10,
+          paddingVertical: space.sm + 2,
+          paddingHorizontal: space.md,
+          maxWidth: 340,
+          alignSelf: 'center',
+        }}
+      >
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <AppText variant="bodyStrong" tone={done ? 'matcha' : 'ink'} numberOfLines={1}>
+            {done ? t('share.copied') : (label ?? t('share.copyTripLink'))}
+          </AppText>
+          {showUrl && (
+            <AppText variant="small" tone="inkFaint" numberOfLines={1} style={{ fontSize: 11 }}>
+              {url.replace(/^https?:\/\//, '')}
+            </AppText>
+          )}
+        </View>
         <Ionicons
-          name={done ? 'checkmark' : 'link-outline'}
-          size={14}
-          color={done ? palette.matcha : palette.inkFaint}
+          name={done ? 'checkmark' : 'copy-outline'}
+          size={19}
+          color={done ? palette.matcha : palette.inkSoft}
         />
-        <AppText variant="small" tone={done ? 'matcha' : 'inkFaint'} numberOfLines={1} style={{ fontSize: 12 }}>
-          {url.replace(/^https?:\/\//, '')}
-        </AppText>
       </Row>
     </Pressable>
   );
