@@ -10,9 +10,9 @@ import { usePublicTrips } from '@/lib/useData';
 import { searchTourismAreas, fetchTrendingAreas, type TourismArea, fetchFriends } from '@/lib/api';
 import { useRippleNav } from '@/lib/transition';
 import { type Trip } from '@/lib/mock';
-import { PREFECTURE_EN_BY_ID } from '@/lib/prefectures';
+import { prefectureName } from '@/lib/prefectures';
 
-import { useI18n, localizeMatchaUrl } from '@/lib/i18n';
+import { useI18n, localizeMatchaUrl, getLocale } from '@/lib/i18n';
 /**
  * Featured ranking + weekly rotation.
  * score favours big, well-documented journeys (distance + stops + prefectures).
@@ -200,7 +200,7 @@ export default function Explore() {
                 <View style={{ flex: 1 }}>
                   <AppText variant="bodyStrong" tone="ink" numberOfLines={1}>{a.name}</AppText>
                   <AppText variant="small" tone="inkFaint" numberOfLines={1}>
-                    {a.municipality}{a.prefectureCode ? ` · ${PREFECTURE_EN_BY_ID[a.prefectureCode] ?? ''}` : ''}
+                    {a.municipality}{a.prefectureCode ? ` · ${prefectureName(a.prefectureCode, getLocale())}` : ''}
                   </AppText>
                 </View>
                 <Row style={{ gap: 4, alignItems: 'center' }}>

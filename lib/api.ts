@@ -12,6 +12,7 @@ import { supabase, isSupabaseConfigured } from './supabase';
 import { prefectureCodeForQuery } from './prefectures';
 import { bump } from './refresh';
 import type { Trip, Step, TransportMode } from './mock';
+import { getLocale } from './i18n';
 
 const PHOTO_BUCKET = 'photos';
 
@@ -35,15 +36,42 @@ type Muni = {
   longitude: number;
 };
 
+/**
+ * 表示言語に対応する列名。
+ * マスタは5言語ぶんの名前を持っているので、英語で固定せず表示言語で引く。
+ * その言語の名前が空なら英語へ落とす（マスタの埋まり具合はまちまち）。
+ */
+const NAME_COL: Record<string, { pref: string; muni: string }> = {
+  en: { pref: 'prefecture_en', muni: 'municipality_en' },
+  ja: { pref: 'prefecture_ja', muni: 'municipality_ja' },
+  ko: { pref: 'prefecture_ko', muni: 'municipality_ko' },
+  'zh-Hans': { pref: 'prefecture_zh_hans', muni: 'municipality_zh_hans' },
+  'zh-Hant': { pref: 'prefecture_zh_hant', muni: 'municipality_zh_hant' },
+};
+
 async function fetchMunicipalities(codes: number[]): Promise<Map<number, Muni>> {
   const map = new Map<number, Muni>();
   const unique = Array.from(new Set(codes.filter((c) => c != null)));
   if (!unique.length) return map;
+  const col = NAME_COL[getLocale()] ?? NAME_COL.en;
   const { data } = await supabase
     .from('municipalities_master')
-    .select('municipality_code, prefecture_code, prefecture_en, municipality_en, latitude, longitude')
+    .select(
+      `municipality_code, prefecture_code, latitude, longitude,` +
+      ` prefecture_en, municipality_en, ${col.pref}, ${col.muni}`
+    )
     .in('municipality_code', unique);
-  (data ?? []).forEach((m: any) => map.set(m.municipality_code, m as Muni));
+  (data ?? []).forEach((m: any) =>
+    map.set(m.municipality_code, {
+      municipality_code: m.municipality_code,
+      prefecture_code: m.prefecture_code,
+      latitude: m.latitude,
+      longitude: m.longitude,
+      // その言語の名前が無ければ英語で埋める
+      prefecture_en: m[col.pref] || m.prefecture_en,
+      municipality_en: m[col.muni] || m.municipality_en,
+    })
+  );
   return map;
 }
 
@@ -224,13 +252,17 @@ export interface PlaceHit {
 }
 
 const MUNI_COLS =
-  'municipality_code, municipality_en, municipality_ja, prefecture_en, prefecture_code, latitude, longitude';
+  'municipality_code, municipality_en, municipality_ja, municipality_ko, municipality_zh_hans,' +
+  ' municipality_zh_hant, prefecture_en, prefecture_ja, prefecture_ko, prefecture_zh_hans,' +
+  ' prefecture_zh_hant, prefecture_code, latitude, longitude';
 
 function toMuniHit(m: any): PlaceHit {
+  // 検索結果も表示言語で見せる。無ければ英語、それも無ければ日本語
+  const col = NAME_COL[getLocale()] ?? NAME_COL.en;
   return {
     key: `m:${m.municipality_code}`,
-    title: m.municipality_en || m.municipality_ja,
-    subtitle: m.prefecture_en ?? '',
+    title: m[col.muni] || m.municipality_en || m.municipality_ja,
+    subtitle: m[col.pref] || m.prefecture_en || '',
     municipalityCode: m.municipality_code,
     prefectureCode: m.prefecture_code,
     lat: m.latitude,
@@ -256,7 +288,7 @@ export async function searchPlaces(q: string): Promise<PlaceHit[]> {
   const [{ data: areas }, { data: munis }, inPref] = await Promise.all([
     supabase
       .from('tourism_area_master')
-      .select('tourism_area_id, name_en, name_ja, municipality_en, municipality_code')
+      .select(AREA_COLS + ', municipality_code')
       .or(`name_en.ilike.${like},name_ja.ilike.${like}`)
       .limit(8),
     supabase
@@ -282,11 +314,13 @@ export async function searchPlaces(q: string): Promise<PlaceHit[]> {
     hits.push(h);
   };
 
+  // 検索結果も表示言語で見せる
+  const areaCol = AREA_NAME_COL[getLocale()] ?? AREA_NAME_COL.en;
   (areas ?? []).forEach((a: any) =>
     push({
       key: `a:${a.tourism_area_id}`,
-      title: a.name_en || a.name_ja,
-      subtitle: a.municipality_en ?? '',
+      title: a[areaCol.name] || a.name_en || a.name_ja,
+      subtitle: a[areaCol.muni] || a.municipality_en || '',
       municipalityCode: a.municipality_code,
     })
   );
@@ -1019,19 +1053,32 @@ export interface TourismArea {
   matchaUrl: string | null;
 }
 
+/** 観光エリアも表示言語で見せる。無ければ英語、それも無ければ日本語 */
+const AREA_NAME_COL: Record<string, { name: string; muni: string }> = {
+  en: { name: 'name_en', muni: 'municipality_en' },
+  ja: { name: 'name_ja', muni: 'municipality_ja' },
+  ko: { name: 'name_ko', muni: 'municipality_ko' },
+  'zh-Hans': { name: 'name_zh_hans', muni: 'municipality_zh_hans' },
+  'zh-Hant': { name: 'name_zh_hant', muni: 'municipality_zh_hant' },
+};
+
 function toArea(a: any): TourismArea {
+  const col = AREA_NAME_COL[getLocale()] ?? AREA_NAME_COL.en;
   return {
     id: a.tourism_area_id,
-    name: a.name_en || a.name_ja,
+    name: a[col.name] || a.name_en || a.name_ja,
     nameJa: a.name_ja ?? '',
-    municipality: a.municipality_en ?? '',
+    municipality: a[col.muni] || a.municipality_en || '',
     prefectureCode: a.prefecture_code ?? null,
     areaType: a.area_type ?? '',
     matchaUrl: a.matcha_url ?? null,
   };
 }
 
-const AREA_COLS = 'tourism_area_id, name_en, name_ja, municipality_en, prefecture_code, area_type, matcha_url';
+const AREA_COLS =
+  'tourism_area_id, name_en, name_ja, name_ko, name_zh_hans, name_zh_hant,' +
+  ' municipality_en, municipality_ja, municipality_ko, municipality_zh_hans,' +
+  ' municipality_zh_hant, prefecture_code, area_type, matcha_url';
 
 /**
  * Explore の検索: 観光エリア（tourism_area_master）を名前・市区町村で検索。

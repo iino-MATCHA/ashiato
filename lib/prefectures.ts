@@ -49,6 +49,18 @@ export const PREFECTURE_JA_BY_ID: (string | null)[] = [
   '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県',
 ];
 
+/**
+ * 表示言語での都道府県名。
+ *
+ * 韓国語・中国語ぶんの一覧は持っていないので、その2言語は漢字表記
+ * （日本語の表記）を使う。中国語話者はそのまま読め、韓国語話者にも
+ * 英字より地名として通じる。持っていない名前を英語で出すよりましだと判断した。
+ */
+export function prefectureName(code: number, locale: string): string {
+  if (locale === 'en') return PREFECTURE_EN_BY_ID[code] ?? '';
+  return PREFECTURE_JA_BY_ID[code] ?? PREFECTURE_EN_BY_ID[code] ?? '';
+}
+
 /** クエリが都道府県名（日/英・接尾辞の有無は不問）なら code を返す。 */
 export function prefectureCodeForQuery(q: string): number | null {
   const term = q.trim().toLowerCase();

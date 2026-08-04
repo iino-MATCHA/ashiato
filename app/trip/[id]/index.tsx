@@ -348,6 +348,7 @@ function Connector({ mode, gap, editable, palette, onPress, plus }: { mode: Tran
 }
 
 function LocationCard({ step, index, total, palette, onOpen }: { step: Step; index: number; total: number; palette: any; onOpen: (e?: any) => void }) {
+  const { t } = useI18n();
   return (
     <Pressable onPress={(e) => onOpen(e)} style={[styles.card, { backgroundColor: palette.washi }]}>
       <View style={{ position: 'relative' }}>
@@ -360,7 +361,7 @@ function LocationCard({ step, index, total, palette, onOpen }: { step: Step; ind
         </View>
       </View>
       <View style={{ padding: space.md }}>
-        <AppText variant="eyebrow" tone="inkFaint">Stop {index + 1} / {total} · {step.prefectureName}</AppText>
+        <AppText variant="eyebrow" tone="inkFaint">{t('trip.stopOf', { n: index + 1, total })} · {step.prefectureName}</AppText>
         <Gap h={4} />
         <AppText variant="h3" tone="ink" numberOfLines={1}>{step.title}</AppText>
         <AppText variant="small" tone="inkSoft" numberOfLines={1}>{step.placeName}</AppText>

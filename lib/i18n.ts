@@ -11,6 +11,8 @@
  */
 import { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { clearCache } from './localCache';
+import { bump } from './refresh';
 
 export type Locale = 'en' | 'ja' | 'ko' | 'zh-Hans' | 'zh-Hant';
 
@@ -346,6 +348,7 @@ const en: Dict = {
   'lp.tagline': 'Turn your Japan trip\ninto a keepsake.',
   'lp.sub': 'Draw the trail you walked onto a map and collect a Goshuin Badge for every prefecture. An ordinary travel log turns into a book you will want to keep.',
   'lp.footer': 'MY JAPAN BY MATCHA, INC. · ALL RIGHTS RESERVED',
+  'trip.stopOf': 'Stop {n} / {total}',
   'step.addPhotoFailed': 'Could not add the photo. Please try again.',
   'step.addingPhoto': 'Adding…',
   'step.addPhoto': 'Add a photo here',
@@ -764,6 +767,7 @@ const ja: Dict = {
   'lp.tagline': '日本の旅を、\nかたちに残そう。',
   'lp.sub': '歩いた軌跡を地図に描き、都道府県の御朱印バッジを集めていく。何気ない旅の記録が、ずっと手元に残したくなる一冊に変わります。',
   'lp.footer': 'MY JAPAN BY MATCHA, INC. · ALL RIGHTS RESERVED',
+  'trip.stopOf': 'スポット {n} / {total}',
   'step.addPhotoFailed': '写真を追加できませんでした。もう一度お試しください。',
   'step.addingPhoto': '追加しています…',
   'step.addPhoto': 'ここに写真を足す',
@@ -1182,6 +1186,7 @@ const ko: Dict = {
   'lp.tagline': '일본 여행을\n간직할 수 있는 형태로.',
   'lp.sub': '걸어온 자취를 지도에 그리고, 도도부현의 고슈인 배지를 모아갑니다. 무심한 여행의 기록이, 오래 곁에 두고 싶은 한 권으로 바뀝니다.',
   'lp.footer': 'MY JAPAN BY MATCHA, INC. · ALL RIGHTS RESERVED',
+  'trip.stopOf': '스톱 {n} / {total}',
   'step.addPhotoFailed': '사진을 추가하지 못했습니다. 다시 시도해 주세요.',
   'step.addingPhoto': '추가하는 중…',
   'step.addPhoto': '여기에 사진 추가하기',
@@ -1600,6 +1605,7 @@ const zhHans: Dict = {
   'lp.tagline': '把你的日本之旅\n变成珍藏。',
   'lp.sub': '把走过的轨迹画在地图上，一枚枚集齐都道府县的御朱印徽章。平常的旅行记录，会变成一本想要一直留在手边的书。',
   'lp.footer': 'MY JAPAN BY MATCHA, INC. · ALL RIGHTS RESERVED',
+  'trip.stopOf': '地点 {n} / {total}',
   'step.addPhotoFailed': '照片添加失败，请再试一次。',
   'step.addingPhoto': '添加中…',
   'step.addPhoto': '在这里添加照片',
@@ -2018,6 +2024,7 @@ const zhHant: Dict = {
   'lp.tagline': '把你的日本之旅\n變成珍藏。',
   'lp.sub': '把走過的軌跡畫在地圖上，一枚枚集齊都道府縣的御朱印徽章。平常的旅行記錄，會變成一本想要一直留在手邊的書。',
   'lp.footer': 'MY JAPAN BY MATCHA, INC. · ALL RIGHTS RESERVED',
+  'trip.stopOf': '地點 {n} / {total}',
   'step.addPhotoFailed': '照片新增失敗，請再試一次。',
   'step.addingPhoto': '新增中…',
   'step.addPhoto': '在這裡新增照片',
@@ -2184,6 +2191,14 @@ let restored = false;
 export async function setLocale(next: Locale) {
   current = next;
   emit();
+  /**
+   * 地名はマスタから表示言語で引いている（lib/api.ts の NAME_COL）。
+   * 端末に残した前回ぶんは前の言語のままなので、捨てて取り直させる。
+   * これをしないと、切り替えても旅の中の地名だけ前の言語で残る。
+   */
+  clearCache();
+  bump('trips');
+  bump('visited');
   try {
     if (typeof window !== 'undefined') window.localStorage?.setItem(STORAGE_KEY, next);
   } catch {}
