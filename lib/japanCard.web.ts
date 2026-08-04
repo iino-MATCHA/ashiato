@@ -68,27 +68,28 @@ export async function exportJapanCard(meta: JapanCardMeta): Promise<string | nul
     ctx.font = `700 ${W * 0.043}px ${SERIF}`;
     ctx.fillText(meta.rank, M, baseY);
 
+    // 右側。ラベルを値の真上に置く（左右に振ると「47人中18位」と読める）
     ctx.textAlign = 'right';
     ctx.fillStyle = PALETTE.inkFaint;
-    ctx.font = `400 ${W * 0.026}px ${SANS}`;
-    ctx.fillText('prefectures', W - M, baseY);
+    ctx.font = `500 ${W * 0.026}px ${SANS}`;
+    (ctx as any).letterSpacing = `${W * 0.026 * 0.22}px`;
+    ctx.fillText('PREFECTURES', W - M, baseY - W * 0.055);
+    (ctx as any).letterSpacing = '0px';
     const unit = ` / ${meta.total}`;
     ctx.font = `400 ${W * 0.03}px ${SANS}`;
-    ctx.fillText(unit, W - M, baseY - W * 0.045);
+    ctx.fillText(unit, W - M, baseY);
     const unitW = ctx.measureText(unit).width;
     ctx.fillStyle = PALETTE.ink;
     ctx.font = `700 ${W * 0.072}px ${SERIF}`;
-    ctx.fillText(String(meta.count), W - M - unitW, baseY - W * 0.045);
+    ctx.fillText(String(meta.count), W - M - unitW, baseY);
     ctx.textAlign = 'left';
 
-    // 落款
-    ctx.fillStyle = PALETTE.inkFaint;
-    ctx.globalAlpha = 0.45;
+    // 落款。以前は 0.45 まで薄めていて、暗い地では読めなかった
+    ctx.fillStyle = PALETTE.inkSoft;
     ctx.font = `700 ${W * 0.04}px ${SERIF}`;
     ctx.textAlign = 'center';
     ctx.fillText('My Japan', W / 2, H - M * 0.45);
     ctx.textAlign = 'left';
-    ctx.globalAlpha = 1;
 
     return canvas.toDataURL('image/png');
   } catch {

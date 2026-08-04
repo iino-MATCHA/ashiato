@@ -4,7 +4,7 @@
  */
 import { PREFECTURE_PATHS } from '@/lib/mappath';
 import { PREFECTURE_SLUG_BY_ID } from '@/lib/prefectures';
-import { VB_W, contentHeight, okinawaOffset, project, spread } from './geo';
+import { VB_W, contentHeight, okinawaOffset, pathBox, project, spread } from './geo';
 import { C, TYPE, pinRadius } from './layout';
 
 export interface ScenePin { x: number; y: number; r: number; uri: string }
@@ -36,13 +36,36 @@ export function buildScene({ width: w, stops, visitedPrefectureCodes }: SceneInp
   const h = w * (16 / 9);
   const m = w * C.margin;
 
-  // --- 地図: 幅いっぱいに収め、指定の帯の中で天地中央に置く
-  const mapBoxW = w - m * 2;
+  /**
+   * 地図の載せ方。
+   *
+   * 版面（860×830）ではなく、**日本そのものの外接矩形**に合わせる。
+   * 版面には四隅に大きな余白があり、そこに合わせると日本が小さく写る。
+   * 沖縄は千葉の下へ寄せて描くので、その分を足した箱で測る。
+   *
+   * 左右の逃げも文字と同じ余白では広すぎたので、地図だけ狭くする。
+   * 日本は斜めに伸びた形なので、端まで使っても窮屈にならない。
+   */
+  const oki = okinawaOffset();
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  Object.entries(PREFECTURE_PATHS).forEach(([slug, d]) => {
+    const b = pathBox(d);
+    const dx = slug === 'okinawa' ? oki.dx : 0;
+    const dy = slug === 'okinawa' ? oki.dy : 0;
+    minX = Math.min(minX, b.minX + dx); maxX = Math.max(maxX, b.maxX + dx);
+    minY = Math.min(minY, b.minY + dy); maxY = Math.max(maxY, b.maxY + dy);
+  });
+  if (!Number.isFinite(minX)) { minX = 0; minY = 0; maxX = VB_W; maxY = contentHeight(); }
+  const srcW = maxX - minX;
+  const srcH = maxY - minY;
+
+  const mapInset = w * C.mapInset;
+  const mapBoxW = w - mapInset * 2;
   const mapBoxH = h * C.mapHeight;
-  const srcH = contentHeight();
-  const scale = Math.min(mapBoxW / VB_W, mapBoxH / srcH);
-  const tx = m + (mapBoxW - VB_W * scale) / 2;
-  const ty = h * C.mapTop + (mapBoxH - srcH * scale) / 2;
+  const scale = Math.min(mapBoxW / srcW, mapBoxH / srcH);
+  // 外接矩形の左上を原点へ引き戻したうえで、帯の中央に置く
+  const tx = mapInset + (mapBoxW - srcW * scale) / 2 - minX * scale;
+  const ty = h * C.mapTop + (mapBoxH - srcH * scale) / 2 - minY * scale;
 
   const visited = new Set(visitedPrefectureCodes);
   const paths: ScenePath[] = [];
@@ -61,7 +84,7 @@ export function buildScene({ width: w, stops, visitedPrefectureCodes }: SceneInp
   const pins: ScenePin[] = placed.map((p, i) => ({
     // 版面からはみ出さないように寄せる
     x: Math.min(w - m * 0.4 - r, Math.max(m * 0.4 + r, p.x)),
-    y: Math.min(h * 0.86 - r, Math.max(h * 0.11 + r, p.y)),
+    y: Math.min(h * 0.94 - r, Math.max(h * 0.24 + r, p.y)),
     r,
     uri: stops[i].image,
   }));
@@ -72,11 +95,17 @@ export function buildScene({ width: w, stops, visitedPrefectureCodes }: SceneInp
     paths,
     okinawa: okinawaOffset(),
     pins,
+    /**
+     * 文字はすべて上に集める。
+     * 以前は題名と数字を左下に置いていたが、インスタのストーリーは
+     * 下端に返信欄が重なるため、そこがまるごと隠れていた。
+     * 上から「ブランド → 題名 → 数字 → 地図」の順で読ませる。
+     */
     text: {
       eyebrow: { x: m, y: m * 0.95, size: w * TYPE.eyebrow },
       dates: { x: w - m, y: m * 0.95, size: w * TYPE.meta },
-      title: { x: m, y: h - m - w * 0.13, size: w * TYPE.title, maxW: w - m * 2 },
-      stats: { x: m, y: h - m - w * 0.02, size: w * TYPE.stat, gap: w * 0.055 },
+      title: { x: m, y: h * 0.108, size: w * TYPE.title, maxW: w - m * 2 },
+      stats: { x: m, y: h * 0.155, size: w * TYPE.stat, gap: w * 0.055 },
     },
   };
 }

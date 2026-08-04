@@ -11,6 +11,7 @@ import { useTheme } from '@/lib/useTheme';
 import { useVisitedPrefectures } from '@/lib/useData';
 import { PREFECTURE_TOTAL } from '@/lib/mock';
 import { exportJapanCard } from '@/lib/japanCard';
+import { PALETTE as CARD } from '@/lib/ugc/layout';
 import { shareImage, saveImage, type ShareTarget } from '@/lib/shareImage';
 import { captureCard } from '@/lib/cardShot';
 import { CountUp } from '@/components/CountUp';
@@ -102,10 +103,11 @@ export default function GoshuinShare() {
       <Header title={t('share.cardHeader')} />
       <Rule />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.lg }}>
-        <View ref={cardRef} collapsable={false} style={[styles.card, { width: cardW, height: cardH, backgroundColor: palette.paper, borderColor: palette.rule }]}>
+        {/* 地はアプリのテーマに従わせない。端末の明暗で別の絵が出てしまい、
+            書き出し（canvas）とも食い違っていた（暗いプレビュー→白い画像） */}
+        <View ref={cardRef} collapsable={false} style={[styles.card, { width: cardW, height: cardH, backgroundColor: CARD.paper, borderColor: CARD.paperEdge }]}>
           <AppText
-            style={{ fontFamily: fonts.gothicMedium, fontSize: f.eyebrow, letterSpacing: f.eyebrow * 0.28 }}
-            tone="matcha"
+            style={{ fontFamily: fonts.gothicMedium, fontSize: f.eyebrow, letterSpacing: f.eyebrow * 0.28, color: CARD.matcha }}
           >
             MY JAPAN
           </AppText>
@@ -114,43 +116,56 @@ export default function GoshuinShare() {
             <CountUp
               value={pct}
               format={(n: number) => `${n}%`}
-              style={{ fontFamily: fonts.minchoBold, fontSize: f.pct, lineHeight: f.pct * 1.06 }}
-              tone="ink"
+              style={{ fontFamily: fonts.minchoBold, fontSize: f.pct, lineHeight: f.pct * 1.06, color: CARD.ink }}
             />
-            <AppText style={{ fontFamily: fonts.gothicRegular, fontSize: f.pctUnit }} tone="inkFaint">of Japan</AppText>
+            <AppText style={{ fontFamily: fonts.gothicRegular, fontSize: f.pctUnit, color: CARD.inkSoft }}>of Japan</AppText>
           </Row>
 
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <JapanSvgMap visited={visited} width={cardW - space.lg * 2} hideOkinawa />
+            <JapanSvgMap
+              visited={visited}
+              width={cardW - space.lg * 2}
+              hideOkinawa
+              tint={CARD.landVisited}
+              emptyFill={CARD.land}
+              strokeFill={CARD.paper}
+            />
           </View>
 
-          {/* 幅を明示しないと両端が寄って文字が重なる */}
+          {/*
+            左右に「ラベル／値」を振り分けると、RANK と 18/47 が横に並んで
+            「47人中18位」と読めてしまう。それぞれを縦の一塊にして、
+            ラベルが自分の値の真上に来るようにする。
+          */}
           <Row style={{ width: '100%', justifyContent: 'space-between', alignItems: 'flex-end', gap: space.sm }}>
             <View style={{ flex: 1, minWidth: 0 }}>
               <AppText
-                style={{ fontFamily: fonts.gothicMedium, fontSize: f.label, letterSpacing: f.label * 0.22 }}
-                tone="inkFaint"
+                style={{ fontFamily: fonts.gothicMedium, fontSize: f.label, letterSpacing: f.label * 0.22, color: CARD.inkFaint }}
               >
                 RANK
               </AppText>
               <AppText
-                style={{ fontFamily: fonts.minchoBold, fontSize: f.rank }}
-                tone="matcha"
+                style={{ fontFamily: fonts.minchoBold, fontSize: f.rank, color: CARD.matcha }}
                 numberOfLines={1}
               >
                 {rankFor(count)}
               </AppText>
             </View>
             <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
+              <AppText
+                style={{ fontFamily: fonts.gothicMedium, fontSize: f.label, letterSpacing: f.label * 0.22, color: CARD.inkFaint }}
+              >
+                PREFECTURES
+              </AppText>
               <Row style={{ alignItems: 'baseline', gap: 3 }}>
-                <AppText style={{ fontFamily: fonts.minchoBold, fontSize: f.count }} tone="ink">{count}</AppText>
-                <AppText style={{ fontFamily: fonts.gothicRegular, fontSize: f.countUnit }} tone="inkFaint">/ 47</AppText>
+                <AppText style={{ fontFamily: fonts.minchoBold, fontSize: f.count, color: CARD.ink }}>{count}</AppText>
+                <AppText style={{ fontFamily: fonts.gothicRegular, fontSize: f.countUnit, color: CARD.inkFaint }}>/ 47</AppText>
               </Row>
-              <AppText style={{ fontFamily: fonts.gothicRegular, fontSize: f.label }} tone="inkFaint">prefectures</AppText>
             </View>
           </Row>
           <Gap h={space.sm} />
-          <AppText style={[styles.mark, { fontSize: f.mark }]} tone="inkFaint">My Japan</AppText>
+          {/* 落款。以前は地に沈んで読めていなかったので、色をはっきりさせる */}
+          <AppText style={[styles.mark, { fontSize: f.mark, color: CARD.inkSoft }]}>My Japan</AppText>
         </View>
 
         <Gap h={space.lg} />

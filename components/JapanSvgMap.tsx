@@ -47,6 +47,7 @@ export function JapanSvgMap({
   tint,
   onToggle,
   emptyFill,
+  strokeFill,
   hideOkinawa = false,
   okinawaInset = false,
   intensity,
@@ -59,6 +60,8 @@ export function JapanSvgMap({
   onToggle?: (prefectureCode: number) => void;
   /** 「まだ行っていない県」の塗り。常に明るい地に置くLPなどで、テーマに寄らず固定したいとき */
   emptyFill?: string;
+  /** 県境の色。シェアカードのようにテーマに寄らせたくない場所で指定する */
+  strokeFill?: string;
   /** 表示地図から沖縄を除外する */
   hideOkinawa?: boolean;
   /** 沖縄を千葉の下のインセットとして表示する（小さくOKINAWAラベルつき） */
@@ -94,7 +97,7 @@ export function JapanSvgMap({
               d={d}
               fill={fill}
               // 県境は塗りに関わらず同じ太さ・色で常に見えるようにする
-              stroke={palette.inkFaint}
+              stroke={strokeFill ?? palette.inkFaint}
               strokeWidth={0.8}
               strokeLinejoin="round"
               opacity={1}
