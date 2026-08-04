@@ -37,6 +37,12 @@ import { useI18n } from '@/lib/i18n';
 const HOME_CSS = `
 [data-mjfade="1"] { animation: mjFadeIn .26s ease both; }
 @keyframes mjFadeIn { from { opacity: 0 } to { opacity: 1 } }
+/**
+ * 地図は一瞬で出す。
+ * 待たせる理由が無いので、ぼんやり浮かせず、ちらつきだけ抑える短さにする。
+ */
+[data-mjmap="1"] { animation: mjMapIn .12s linear both; }
+@keyframes mjMapIn { from { opacity: 0 } to { opacity: 1 } }
 `;
 let homeCssInjected = false;
 function injectHomeCss() {
@@ -103,7 +109,10 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
 
       {/* ---------------- 上半分（動かない） ---------------- */}
       <View style={{ alignItems: 'center', paddingTop: space.sm }}>
-        <View style={{ width: mapW }}>
+        <View
+          style={{ width: mapW }}
+          {...(Platform.OS === 'web' ? ({ dataSet: { mjmap: '1' } } as any) : null)}
+        >
           <JapanSvgMap visited={visited} width={mapW} okinawaInset />
 
           {/* 集めた数。北海道の左隣、地図の空いている所に置く */}

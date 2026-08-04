@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
+import { Platform } from 'react-native';
 import {
   ShipporiMincho_400Regular,
   ShipporiMincho_500Medium,
@@ -45,7 +46,18 @@ export default function RootLayout() {
     if (loaded) SplashScreen.hideAsync().catch(() => {});
   }, [loaded]);
 
-  if (!loaded) return null;
+  /**
+   * Web ではフォントを待たない。
+   *
+   * 明朝もゴシックも合わせて13本あり、最後の1本が届くのが実測で約1.4秒。
+   * それまで画面を空にしていたので、地図が遅れて出てくるように見えていた。
+   * ブラウザは自前でフォントを差し替えられるので、先に組み立てて描き、
+   * 字だけあとから入れ替わればいい。
+   *
+   * ネイティブは差し替えの仕組みが無く、字が出ないまま組むと崩れるので
+   * 従来どおり待つ。
+   */
+  if (!loaded && Platform.OS !== 'web') return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
