@@ -105,7 +105,7 @@ input, textarea, select, [contenteditable] {
 `.trim();
 
 /** GA4。SPAなので初回の page_view はここ、以後の遷移は app/_layout が送る */
-const GA_ID = 'G-6ZT45DQVPX';
+const GA_ID = 'G-4DM6J1C4K0';
 const GA = `
     <script async src="https://www.googletagmanager.com/gtag/js?id=${GA_ID}"></script>
     <script>
