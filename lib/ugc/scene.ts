@@ -8,6 +8,13 @@ import { VB_W, contentHeight, okinawaOffset, pathBox, project, spread } from './
 import { C, TYPE, pinRadius } from './layout';
 
 export interface ScenePin { x: number; y: number; r: number; uri: string }
+/** 額縁に入れて地図の上に置く写真 */
+export interface SceneFrame {
+  x: number; y: number; w: number; h: number;
+  /** 傾き（度）。少しずらして、留めた写真のように見せる */
+  rotate: number;
+  uri: string;
+}
 export interface ScenePath { d: string; visited: boolean; okinawa: boolean }
 
 export interface Scene {
@@ -18,6 +25,7 @@ export interface Scene {
   paths: ScenePath[];
   okinawa: { dx: number; dy: number };
   pins: ScenePin[];
+  frames: SceneFrame[];
   text: {
     eyebrow: { x: number; y: number; size: number };
     dates: { x: number; y: number; size: number };
@@ -89,12 +97,48 @@ export function buildScene({ width: w, stops, visitedPrefectureCodes }: SceneInp
     uri: stops[i].image,
   }));
 
+  /**
+   * 額縁写真。
+   *
+   * 丸い点は小さすぎて何が写っているか分からず、近い地点では重なって
+   * 県そのものを隠していた。旅の中から数枚だけ選んで大きく見せる。
+   * 枚数は写真の数で決める ―― 少ない旅で3枚並べると同じ絵が続く。
+   */
+  const withPhoto = stops.filter((st) => !!st.image);
+  const frameCount = withPhoto.length >= 5 ? 3 : withPhoto.length >= 2 ? 2 : withPhoto.length;
+  // 端・真ん中・端から採る。連続した3枚だと同じ土地の写真が並びやすい
+  const picked: typeof withPhoto = [];
+  if (frameCount > 0) {
+    const step = frameCount === 1 ? 0 : (withPhoto.length - 1) / (frameCount - 1);
+    for (let i = 0; i < frameCount; i++) picked.push(withPhoto[Math.round(i * step)]);
+  }
+
+  const fw = w * C.frameW;
+  /**
+   * 置き場所。日本は右上から左下へ斜めに伸びるので、その**左側**の
+   * 空いた帯に縦に並べる。地図の陸地に大きくは被らない。
+   */
+  const slots = [
+    { x: w * 0.03, y: h * 0.215, rotate: -5 },
+    { x: w * 0.66, y: h * 0.425, rotate: 4 },
+    { x: w * 0.58, y: h * 0.700, rotate: -3 },
+  ];
+  const frames: SceneFrame[] = picked.map((st, i) => ({
+    x: slots[i % slots.length].x,
+    y: slots[i % slots.length].y,
+    w: fw,
+    h: fw,
+    rotate: slots[i % slots.length].rotate,
+    uri: st.image,
+  }));
+
   return {
     w, h,
     map: { scale, tx, ty },
     paths,
     okinawa: okinawaOffset(),
     pins,
+    frames,
     /**
      * 文字はすべて上に集める。
      * 以前は題名と数字を左下に置いていたが、インスタのストーリーは

@@ -24,6 +24,9 @@ export const C = {
   pinRMin: 0.032,
   /** ピン同士が重ならないようにする最小間隔（ピン直径に対する倍率） */
   pinSpread: 1.05,
+  /** 額縁写真の1辺（カード幅に対する比率）と、白い縁の太さ */
+  frameW: 0.245,
+  frameBorder: 0.016,
 } as const;
 
 /**
@@ -40,9 +43,14 @@ export const C = {
 export const PALETTE = {
   paper: '#26211A',
   paperEdge: '#1C1813',
-  land: '#4A443B',
+  /** 行っていない県。地から十分に浮くところまで明るくする */
+  land: '#5B5347',
   landVisited: '#8CC63F',
-  border: '#26211A',
+  /**
+   * 県境。地と同じ色にしていたので、境目が見えず一枚の塊に見えていた。
+   * 地より明るく、県の塗りより暗い中間に置いて、輪郭を立てる。
+   */
+  border: '#7E7568',
   ink: '#F6F3EA',
   inkSoft: '#BDB6A8',
   inkFaint: '#8C857A',

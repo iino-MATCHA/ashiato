@@ -53,29 +53,32 @@ export function JourneyCard(props: JourneyCardProps) {
         ))}
       </G>
 
-      {/* 地点の写真（丸抜き） */}
+      {/* 旅の写真。額縁に入れて地図の上に留める */}
       <Defs>
-        {s.pins.map((p, i) => (
-          <ClipPath key={i} id={`pin${i}`}>
-            <Circle cx={p.x} cy={p.y} r={p.r} />
+        {s.frames.map((f, i) => (
+          <ClipPath key={i} id={`fr${i}`}>
+            <Rect x={f.x} y={f.y} width={f.w} height={f.h} />
           </ClipPath>
         ))}
       </Defs>
-      {s.pins.map((p, i) => (
-        <G key={i}>
-          <Circle cx={p.x} cy={p.y} r={p.r + p.r * 0.09} fill={PALETTE.pinRing} />
-          <SvgImage
-            x={p.x - p.r}
-            y={p.y - p.r}
-            width={p.r * 2}
-            height={p.r * 2}
-            href={{ uri: p.uri } as any}
-            preserveAspectRatio="xMidYMid slice"
-            clipPath={`url(#pin${i})`}
-          />
-          <Circle cx={p.x} cy={p.y} r={p.r} fill="none" stroke={PALETTE.border} strokeWidth={0.5} />
-        </G>
-      ))}
+      {s.frames.map((f, i) => {
+        const b = s.w * 0.016; // 白い縁の太さ
+        return (
+          <G key={i} transform={`rotate(${f.rotate} ${f.x + f.w / 2} ${f.y + f.h / 2})`}>
+            <Rect
+              x={f.x - b} y={f.y - b}
+              width={f.w + b * 2} height={f.h + b * 2}
+              fill={PALETTE.pinRing}
+            />
+            <SvgImage
+              x={f.x} y={f.y} width={f.w} height={f.h}
+              href={{ uri: f.uri } as any}
+              preserveAspectRatio="xMidYMid slice"
+              clipPath={`url(#fr${i})`}
+            />
+          </G>
+        );
+      })}
 
       {/* 四隅の文字 */}
       <SvgText

@@ -37,7 +37,7 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
     if (!ctx) return null;
 
     // 先に画像をすべて読み込む（1枚失敗しても他は描く）
-    const pinImgs = await Promise.all(s.pins.map((p) => loadImage(p.uri)));
+    const frameImgs = await Promise.all(s.frames.map((f) => loadImage(f.uri)));
 
     // 地
     ctx.fillStyle = PALETTE.paper;
@@ -61,26 +61,43 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
     });
     ctx.restore();
 
-    // 地点の写真
-    s.pins.forEach((p, i) => {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r * 1.09, 0, Math.PI * 2);
-      ctx.fillStyle = PALETTE.pinRing;
-      ctx.fill();
+    /**
+     * 旅の写真。額縁に入れて地図の上に留める。
+     * プレビュー（components/ugc/JourneyCard.tsx）と同じ見え方にする。
+     */
+    const fb = s.w * 0.016; // 白い縁の太さ
+    s.frames.forEach((f, i) => {
+      ctx.save();
+      ctx.translate(f.x + f.w / 2, f.y + f.h / 2);
+      ctx.rotate((f.rotate * Math.PI) / 180);
+      ctx.translate(-(f.x + f.w / 2), -(f.y + f.h / 2));
 
-      const img = pinImgs[i];
-      if (img) drawCircularImage(ctx, img, p.x, p.y, p.r);
-      else {
+      // 影。紙が浮いて見えるように
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.45)';
+      ctx.shadowBlur = s.w * 0.03;
+      ctx.shadowOffsetY = s.w * 0.008;
+      ctx.fillStyle = PALETTE.pinRing;
+      ctx.fillRect(f.x - fb, f.y - fb, f.w + fb * 2, f.h + fb * 2);
+      ctx.restore();
+
+      const img = frameImgs[i];
+      if (img) {
+        // 短辺に合わせて中央を切り出す（プレビューの slice と同じ）
+        const scale = Math.max(f.w / img.width, f.h / img.height);
+        const dw = img.width * scale;
+        const dh = img.height * scale;
+        ctx.save();
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.rect(f.x, f.y, f.w, f.h);
+        ctx.clip();
+        ctx.drawImage(img, f.x + (f.w - dw) / 2, f.y + (f.h - dh) / 2, dw, dh);
+        ctx.restore();
+      } else {
         ctx.fillStyle = PALETTE.paperEdge;
-        ctx.fill();
+        ctx.fillRect(f.x, f.y, f.w, f.h);
       }
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.strokeStyle = PALETTE.border;
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      ctx.restore();
     });
 
     // 四隅の文字
