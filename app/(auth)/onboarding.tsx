@@ -40,7 +40,7 @@ export default function Onboarding() {
       <Rule />
       <ToggleRow title="Trip updates" desc="When a travel companion adds a stop or photo" value={notify} onValueChange={setNotify} palette={palette} />
       <Rule />
-      <ToggleRow title="Goshuin & photo book" desc="When your collection or order changes" value={collectNotify} onValueChange={setCollectNotify} palette={palette} />
+      <ToggleRow title="Goshuin Badges & photo book" desc="When your collection or order changes" value={collectNotify} onValueChange={setCollectNotify} palette={palette} />
       <Rule />
 
       <Gap h={space.md} />

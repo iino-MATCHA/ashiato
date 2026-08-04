@@ -87,7 +87,7 @@ export default function FriendProfile() {
         <Row style={{ alignItems: 'stretch' }}>
           <Stat value={`${pct}%`} label="of Japan" />
           <Rule vertical />
-          <Stat value={String(goshuin)} label="Goshuin" />
+          <Stat value={String(goshuin)} label={t('profile.goshuin')} />
           <Rule vertical />
           <Stat value={String(trips.length)} label="Trips" />
         </Row>

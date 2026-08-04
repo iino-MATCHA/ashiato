@@ -70,13 +70,13 @@ export default function Root({ children }: PropsWithChildren) {
         />
         {/* タブアイコンとSNSシェア時のカード（画像は public/ → dist 直下に配られる） */}
         <title>My Japan — 日本の旅を、かたちに残そう</title>
-        <meta name="description" content="Record your Japan trip, collect a goshuin for every prefecture, and keep it all as a journal. 歩いた場所を記録して、御朱印を集めて、旅をジャーナルに。" />
+        <meta name="description" content="Record your Japan trip, collect a Goshuin Badge for every prefecture, and keep it all as a journal. 歩いた場所を記録して、御朱印バッジを集めて、旅をジャーナルに。" />
         <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/icon-512.png" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="My Japan" />
         <meta property="og:title" content="My Japan — 日本の旅を、かたちに残そう" />
-        <meta property="og:description" content="Record your Japan trip, collect a goshuin for every prefecture, and keep it as a journal." />
+        <meta property="og:description" content="Record your Japan trip, collect a Goshuin Badge for every prefecture, and keep it as a journal." />
         <meta property="og:image" content="https://www.my-japan-matcha.com/og.png" />
         <meta property="og:url" content="https://www.my-japan-matcha.com/" />
         <meta name="twitter:card" content="summary_large_image" />
