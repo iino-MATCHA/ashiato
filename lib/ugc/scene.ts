@@ -98,39 +98,18 @@ export function buildScene({ width: w, stops, visitedPrefectureCodes }: SceneInp
   }));
 
   /**
-   * 額縁写真。
+   * 代表写真を1枚だけ、地図の左上に置く。
    *
-   * 丸い点は小さすぎて何が写っているか分からず、近い地点では重なって
-   * 県そのものを隠していた。旅の中から数枚だけ選んで大きく見せる。
-   * 枚数は写真の数で決める ―― 少ない旅で3枚並べると同じ絵が続く。
+   * 日本は右上から左下へ斜めに伸びるので、左上は必ず空いている。
+   * そこに横長で1枚だけ置く。地点それぞれの写真は丸いアイコンが持つので、
+   * ここで何枚も並べると同じ写真が二度出て散らかる。
    */
   const withPhoto = stops.filter((st) => !!st.image);
-  const frameCount = withPhoto.length >= 5 ? 3 : withPhoto.length >= 2 ? 2 : withPhoto.length;
-  // 端・真ん中・端から採る。連続した3枚だと同じ土地の写真が並びやすい
-  const picked: typeof withPhoto = [];
-  if (frameCount > 0) {
-    const step = frameCount === 1 ? 0 : (withPhoto.length - 1) / (frameCount - 1);
-    for (let i = 0; i < frameCount; i++) picked.push(withPhoto[Math.round(i * step)]);
-  }
-
   const fw = w * C.frameW;
-  /**
-   * 置き場所。日本は右上から左下へ斜めに伸びるので、その**左側**の
-   * 空いた帯に縦に並べる。地図の陸地に大きくは被らない。
-   */
-  const slots = [
-    { x: w * 0.03, y: h * 0.215, rotate: -5 },
-    { x: w * 0.66, y: h * 0.425, rotate: 4 },
-    { x: w * 0.58, y: h * 0.700, rotate: -3 },
-  ];
-  const frames: SceneFrame[] = picked.map((st, i) => ({
-    x: slots[i % slots.length].x,
-    y: slots[i % slots.length].y,
-    w: fw,
-    h: fw,
-    rotate: slots[i % slots.length].rotate,
-    uri: st.image,
-  }));
+  const fh = fw * C.frameRatio;
+  const frames: SceneFrame[] = withPhoto.length
+    ? [{ x: w * 0.05, y: h * 0.205, w: fw, h: fh, rotate: -3, uri: withPhoto[0].image }]
+    : [];
 
   return {
     w, h,

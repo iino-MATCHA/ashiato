@@ -53,14 +53,36 @@ export function JourneyCard(props: JourneyCardProps) {
         ))}
       </G>
 
-      {/* 旅の写真。額縁に入れて地図の上に留める */}
+      {/* 地点の写真は丸で。どこの話かは地図の上の位置が持つ */}
       <Defs>
+        {s.pins.map((p, i) => (
+          <ClipPath key={`p${i}`} id={`pin${i}`}>
+            <Circle cx={p.x} cy={p.y} r={p.r} />
+          </ClipPath>
+        ))}
         {s.frames.map((f, i) => (
-          <ClipPath key={i} id={`fr${i}`}>
+          <ClipPath key={`f${i}`} id={`fr${i}`}>
             <Rect x={f.x} y={f.y} width={f.w} height={f.h} />
           </ClipPath>
         ))}
       </Defs>
+      {s.pins.map((p, i) => (
+        <G key={`pin${i}`}>
+          <Circle cx={p.x} cy={p.y} r={p.r + p.r * 0.09} fill={PALETTE.pinRing} />
+          <SvgImage
+            x={p.x - p.r}
+            y={p.y - p.r}
+            width={p.r * 2}
+            height={p.r * 2}
+            href={{ uri: p.uri } as any}
+            preserveAspectRatio="xMidYMid slice"
+            clipPath={`url(#pin${i})`}
+          />
+          <Circle cx={p.x} cy={p.y} r={p.r} fill="none" stroke={PALETTE.border} strokeWidth={0.5} />
+        </G>
+      ))}
+
+      {/* 旅を代表する1枚。地図の左上に横長で置く */}
       {s.frames.map((f, i) => {
         const b = s.w * 0.016; // 白い縁の太さ
         return (

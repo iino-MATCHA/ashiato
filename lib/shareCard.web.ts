@@ -37,6 +37,7 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
     if (!ctx) return null;
 
     // 先に画像をすべて読み込む（1枚失敗しても他は描く）
+    const pinImgs = await Promise.all(s.pins.map((p) => loadImage(p.uri)));
     const frameImgs = await Promise.all(s.frames.map((f) => loadImage(f.uri)));
 
     // 地
@@ -61,8 +62,30 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
     });
     ctx.restore();
 
+    // 地点の写真は丸で。どこの話かは地図の上の位置が持つ
+    s.pins.forEach((p, i) => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * 1.09, 0, Math.PI * 2);
+      ctx.fillStyle = PALETTE.pinRing;
+      ctx.fill();
+
+      const img = pinImgs[i];
+      if (img) drawCircularImage(ctx, img, p.x, p.y, p.r);
+      else {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = PALETTE.paperEdge;
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.strokeStyle = PALETTE.border;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+
     /**
-     * 旅の写真。額縁に入れて地図の上に留める。
+     * 旅を代表する1枚。地図の左上に横長で置く。
      * プレビュー（components/ugc/JourneyCard.tsx）と同じ見え方にする。
      */
     const fb = s.w * 0.016; // 白い縁の太さ
