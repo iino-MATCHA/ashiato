@@ -125,7 +125,20 @@ export default function StepDetail() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header title={step.placeName} />
+      <Header
+        title={step.placeName}
+        right={
+          canEdit ? (
+            <Pressable
+              onPress={() => router.push(`/trip/${trip.id}/step/${step.id}/edit`)}
+              hitSlop={10}
+              style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+            >
+              <Ionicons name="settings-outline" size={20} color={palette.ink} />
+            </Pressable>
+          ) : undefined
+        }
+      />
       <Rule />
       <ScrollView
         contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxl + keyboardInset }}
@@ -179,18 +192,17 @@ export default function StepDetail() {
           </>
         )}
 
-        {/* この地点だけをシェアする。旅が終わっていなくても作れる */}
-        <Gap h={space.lg} />
-        <Button
-          label={t('step.share')}
-          tone="matcha"
-          onPress={() => router.push(`/trip/${trip.id}/step/${step.id}/share`)}
-        />
-
+        {/* 自分（か同行者）の記録だけ、この地点をシェアできる。
+            他人の記録で出すと、人の写真を自分の名前で配る形になる。
+            編集はヘッダー右の歯車へ移した。 */}
         {canEdit && (
           <>
-            <Gap h={space.sm} />
-            <Button label={t('step.edit')} variant="outline" tone="ink" onPress={() => router.push(`/trip/${trip.id}/step/${step.id}/edit`)} />
+            <Gap h={space.lg} />
+            <Button
+              label={t('step.share')}
+              tone="matcha"
+              onPress={() => router.push(`/trip/${trip.id}/step/${step.id}/share`)}
+            />
           </>
         )}
 

@@ -108,7 +108,7 @@ export function buildScene({ width: w, stops, visitedPrefectureCodes }: SceneInp
   const fw = w * C.frameW;
   const fh = fw * C.frameRatio;
   const frames: SceneFrame[] = withPhoto.length
-    ? [{ x: w * 0.05, y: h * 0.205, w: fw, h: fh, rotate: -3, uri: withPhoto[0].image }]
+    ? [{ x: w * 0.10, y: h * 0.235, w: fw, h: fh, rotate: -9, uri: withPhoto[0].image }]
     : [];
 
   return {
