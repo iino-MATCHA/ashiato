@@ -16,21 +16,14 @@ export const C = {
    * そこへ来るのは地図の裾だけなので、読ませたいものは隠れない。
    */
   /** 地図だけの左右の逃げ。文字の余白より狭くして、日本を大きく見せる */
-  mapInset: 0.15,
-  mapTop: 0.255,
-  mapHeight: 0.62,
+  mapInset: 0.02,
+  mapTop: 0.235,
+  mapHeight: 0.72,
   /** ピンの半径（カード幅に対する比率）と、写真枚数が多いときの下限 */
   pinR: 0.052,
   pinRMin: 0.032,
   /** ピン同士が重ならないようにする最小間隔（ピン直径に対する倍率） */
   pinSpread: 1.05,
-  /**
-   * 左上に置く代表写真。横長（3:2）で、カード幅に対する比率で持つ。
-   * 地点の写真は丸いアイコンのままなので、ここは1枚だけ。
-   */
-  frameW: 0.40,
-  frameRatio: 2 / 3,
-  frameBorder: 0.014,
 } as const;
 
 /**
@@ -47,12 +40,6 @@ export const C = {
 export const PALETTE = {
   paper: '#221E19',
   paperEdge: '#191510',
-  /** 付箋・便箋の紙。少し黄みを残して古い紙に見せる */
-  note: '#E8DFC9',
-  noteEdge: '#CBBFA3',
-  noteInk: '#3A342A',
-  /** 破線と添え書き。地の上で読める明るさの緑 */
-  thread: '#8A8271',
   /** 行っていない県。地から十分に浮くところまで明るくする */
   land: '#5B5347',
   landVisited: '#8CC63F',
@@ -65,7 +52,8 @@ export const PALETTE = {
   inkSoft: '#BDB6A8',
   inkFaint: '#8C857A',
   matcha: '#8CC63F',
-  pinRing: '#F6F3EA',
+  /** 写真の丸を地から切り離す縁。少し黄みを残した紙の白 */
+  pinRing: '#E8DFC9',
 } as const;
 
 /** 文字の大きさ（カード幅に対する比率）。小さく、端に寄せる。 */

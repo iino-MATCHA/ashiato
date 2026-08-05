@@ -60,32 +60,9 @@ export default function TripShare() {
   const days = daysBetween(trip.startDate, trip.endDate);
   const km = trip.distanceKm;
 
-  /**
-   * 付箋に出す「Day 8–14」。
-   * 旅の開始日からの日数で数え、次の地点の前日までを1区間にする。
-   * 最後の地点は旅の終わりまで。
-   */
-  const dayOf = (iso: string): number => {
-    if (!trip.startDate || !iso) return 0;
-    const a = new Date(trip.startDate).getTime();
-    const b = new Date(iso).getTime();
-    if (isNaN(a) || isNaN(b)) return 0;
-    return Math.max(1, Math.round((b - a) / 86400000) + 1);
-  };
-
-  const placed = trip.steps.filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng));
-  const stops = placed.map((s, i) => {
-    const from = dayOf(s.loggedAt);
-    const next = placed[i + 1];
-    const to = next ? Math.max(from, dayOf(next.loggedAt) - 1) : Math.max(from, days);
-    return {
-      lat: s.lat,
-      lng: s.lng,
-      image: s.images[0] ?? '',
-      day: from === to ? `Day ${from}` : `Day ${from}–${to}`,
-      place: s.prefectureName || s.placeName,
-    };
-  });
+  const stops = trip.steps
+    .filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng))
+    .map((s) => ({ lat: s.lat, lng: s.lng, image: s.images[0] ?? '' }));
   const visitedPrefectureCodes = trip.prefectures
     .map((name) => PREFECTURE_ID_BY_SLUG[slugForName(name)])
     .filter((n): n is number => !!n);
@@ -98,8 +75,6 @@ export default function TripShare() {
     km,
     stops,
     visitedPrefectureCodes,
-    // ポラロイドに手書きで添える地名
-    coverCaption: placed[0]?.placeName ?? '',
   };
 
   // プレビューと同じ scene を 1080px 幅で描き直して保存する
