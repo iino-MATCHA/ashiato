@@ -14,7 +14,7 @@ import { goshuinList } from '@/lib/mock';
 import { SignInPrompt } from '@/components/SignInPrompt';
 import { useSession } from '@/lib/useSession';
 import { useI18n } from '@/lib/i18n';
-import { useSheetOpen } from '@/components/BottomSheet';
+import { useSheetOpen, useSheetScroll } from '@/components/BottomSheet';
 
 export function GoshuinPane({ visited }: { visited: number[] }) {
   const { palette } = useTheme();
@@ -22,6 +22,7 @@ export function GoshuinPane({ visited }: { visited: number[] }) {
   const { guest } = useSession();
   // たたんでいる間は動かさない
   const sheetOpen = useSheetOpen();
+  const sheetScroll = useSheetScroll();
   const [askSignIn, setAskSignIn] = useState(false);
   // 「これは本物の御朱印なのか」に、押したときだけ答える
   const [about, setAbout] = useState(false);
@@ -30,6 +31,8 @@ export function GoshuinPane({ visited }: { visited: number[] }) {
   return (
     <ScrollView
       scrollEnabled={sheetOpen}
+      // 一番上にいるときに面を下へ払ったら、シートが閉じられるようにする
+      {...sheetScroll}
       // 浮いたタブバーに最後の行が隠れないよう、下を厚めに空ける
       contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl * 2 }}
       showsVerticalScrollIndicator={false}

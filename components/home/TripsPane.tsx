@@ -21,13 +21,14 @@ import { SignInPrompt } from '@/components/SignInPrompt';
 import { useSession } from '@/lib/useSession';
 import { useRippleNav } from '@/lib/transition';
 import { useI18n, t } from '@/lib/i18n';
-import { useSheetOpen } from '@/components/BottomSheet';
+import { useSheetOpen, useSheetScroll } from '@/components/BottomSheet';
 
 export function TripsPane({ visited, onOpenGoshuin }: { visited: number[]; onOpenGoshuin: () => void }) {
   const { palette } = useTheme();
   useI18n(); // 言語切替の再レンダー購読
   // たたんでいる間は動かさない。中を見るにはシートを上げてもらう
   const sheetOpen = useSheetOpen();
+  const sheetScroll = useSheetScroll();
   const { trips } = useTrips();
   const { trips: publicTrips } = usePublicTrips();
   const { profile } = useProfile();
@@ -63,6 +64,8 @@ export function TripsPane({ visited, onOpenGoshuin }: { visited: number[]; onOpe
     <>
       <ScrollView
         scrollEnabled={sheetOpen}
+        // 一番上にいるときに面を下へ払ったら、シートが閉じられるようにする
+        {...sheetScroll}
         showsVerticalScrollIndicator={false}
         // 浮いたタブバーに最後の行が隠れないよう、下を厚めに空ける
         contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl * 2 }}

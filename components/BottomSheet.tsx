@@ -28,6 +28,27 @@ const SheetOpenContext = createContext(false);
 export const useSheetOpen = () => useContext(SheetOpenContext);
 
 /**
+ * 中身の一覧が一番上にいるかを、シート側へ知らせるための入れ物。
+ *
+ * 開いているときに面を下へ払ったら閉じたいが、一覧の途中を読んでいる最中に
+ * 閉じられては困る。そこで「一番上で、下へ払ったときだけ」閉じる。
+ * その判定に一覧の現在位置が要るので、各ペインがここへ報告する。
+ */
+const SheetScrollContext = createContext<(y: number) => void>(() => {});
+
+/**
+ * 一覧に付けるだけで、シートに現在位置を伝える。
+ * `<ScrollView {...useSheetScroll()}>` のように広げて使う。
+ */
+export function useSheetScroll() {
+  const report = useContext(SheetScrollContext);
+  return {
+    onScroll: (e: any) => report(e?.nativeEvent?.contentOffset?.y ?? 0),
+    scrollEventThrottle: 16,
+  };
+}
+
+/**
  * 寄せる動きは CSS に任せる。ブラウザ側が動かすので、
  * JS のタイマーが間引かれていても最終位置がずれない。
  * 指で動かしている間（data-dragging="1"）は追従を優先して切る。
@@ -72,6 +93,9 @@ export function BottomSheet({
   const openRef = useRef(false);
   // 指で動かしている最中かどうか。置き直しの効果がこれを見て手を引く
   const draggingRef = useRef(false);
+  // 中身の一覧が一番上にいるか。開いた面を下へ払って閉じてよいかの判定に使う
+  const atTopRef = useRef(true);
+  const reportScroll = useCallback((y: number) => { atTopRef.current = y <= 0; }, []);
   const anim = useRef(new Animated.Value(travel)).current; // ネイティブ用
 
   /**
@@ -165,14 +189,26 @@ export function BottomSheet({
     let armed = false;    // 指が乗っている
     let dragging = false; // 実際に動かし始めた
     let fromGrip = false;
+    /** 面から始めた指。一覧が一番上で下へ払ったときだけシートを下げる */
+    let guarded = false;
     let movedBy = 0;
     let pointer = -1;
 
+    const disarm = () => {
+      armed = false;
+      draggingRef.current = false;
+    };
+
     const down = (e: PointerEvent) => {
       fromGrip = !!grip && !!e.target && grip.contains(e.target as Node);
-      // 開いているときに面から始めると中のスクロールと喧嘩する。
-      // つまみからだけ受ける。たたんでいるときは中が動かないので、どこでもよい
-      if (!fromGrip && openRef.current) return;
+      /**
+       * 開いているときに面から始めた指は、まだスクロールのものかもしれない。
+       * 掴んだことにはせず「見張る」状態にして、向きが下で、かつ一覧が
+       * 一番上にいるとわかった時点でシートに引き取る（move の中で判定）。
+       * つまみから始めたときと、たたんでいるとき（中が動かない）は今まで通り。
+       */
+      guarded = !fromGrip && openRef.current;
+      if (guarded && !atTopRef.current) return; // 途中を読んでいる。スクロールに任せる
       armed = true;
       dragging = false;
       draggingRef.current = true;
@@ -187,6 +223,10 @@ export function BottomSheet({
       if (!armed) return;
       movedBy = e.clientY - startY;
       if (!dragging) {
+        if (guarded) {
+          // 上へ払った、または払っている間に一覧が動いた＝スクロールの指だった
+          if (movedBy <= 0 || !atTopRef.current) return disarm();
+        }
         // まだタップかもしれない間は動かさない。中のボタンを押せなくなる
         if (Math.abs(movedBy) < START) return;
         dragging = true;
@@ -197,8 +237,7 @@ export function BottomSheet({
 
     const up = (e: PointerEvent) => {
       if (!armed) return;
-      armed = false;
-      draggingRef.current = false;
+      disarm();
       if (dragging) {
         dragging = false;
         settle(startAt, movedBy, movedBy / Math.max(1, e.timeStamp - startTime));
@@ -209,10 +248,18 @@ export function BottomSheet({
       if (fromGrip) snapTo(startAt === 0 ? travel : 0);
     };
 
+    /**
+     * 指で動かしていると決まったら、ページ側のスクロールは止める。
+     * pointermove の中では止められない（touchmove を passive でない形で
+     * 受けないと preventDefault が効かない）ので、別に受ける。
+     */
+    const holdPage = (e: TouchEvent) => { if (dragging) e.preventDefault(); };
+
     node.addEventListener('pointerdown', down);
     node.addEventListener('pointermove', move);
     node.addEventListener('pointerup', up);
     node.addEventListener('pointercancel', up);
+    node.addEventListener('touchmove', holdPage, { passive: false });
     // 掴んでいる間にページごと動かない。縦は自分で受け、横は端末に任せる
     if (grip) (grip.style as any).touchAction = 'none';
     return () => {
@@ -220,6 +267,7 @@ export function BottomSheet({
       node.removeEventListener('pointermove', move);
       node.removeEventListener('pointerup', up);
       node.removeEventListener('pointercancel', up);
+      node.removeEventListener('touchmove', holdPage);
     };
   }, [travel, place, snapTo, settle]);
 
@@ -229,8 +277,19 @@ export function BottomSheet({
       WEB
         ? { panHandlers: {} }
         : PanResponder.create({
-            // 縦に動かし始めたときだけ掴む（横のスワイプや軽いタップは邪魔しない）
-            onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > 4 && Math.abs(g.dy) > Math.abs(g.dx),
+            /**
+             * 縦に動かし始めたときだけ掴む（横のスワイプや軽いタップは邪魔しない）。
+             *
+             * capture で受けるのは、中の一覧より先に手を挙げないと
+             * 一覧が指を取ってしまうため。ただし開いているときは
+             * 「一覧が一番上で、下へ払った」ときにしか取らない。
+             * そうでなければ一覧のスクロールとして通す。
+             */
+            onMoveShouldSetPanResponderCapture: (_e, g) => {
+              if (Math.abs(g.dy) <= 4 || Math.abs(g.dy) <= Math.abs(g.dx)) return false;
+              if (!openRef.current) return true;
+              return g.dy > 0 && atTopRef.current;
+            },
             onPanResponderGrant: () => {
               anim.stopAnimation((v: number) => { at.current = v; });
             },
@@ -248,6 +307,7 @@ export function BottomSheet({
     <Wrapper
       ref={sheetRef}
       dataSet={WEB ? { mjsheet: '1', dragging: dragging ? '1' : '0' } : undefined}
+      {...pan.panHandlers}
       style={[
         styles.sheet,
         {
@@ -271,8 +331,8 @@ export function BottomSheet({
       {/* 和紙。明るいテーマでも暗いテーマでも紙に見えるようにする */}
       <WashiBackground base={open ? palette.washi : palette.washiPaper} />
 
-      {/* つまみ。ここだけが掴める */}
-      <View ref={gripRef} {...pan.panHandlers} style={styles.grip}>
+      {/* つまみ。ここは中身に関係なく必ず掴める */}
+      <View ref={gripRef} style={styles.grip}>
         {/* ネイティブは指を置いただけでも開閉できるようにする */}
         <Pressable
           onPress={() => (WEB ? undefined : snapTo(at.current === 0 ? travel : 0))}
@@ -284,7 +344,9 @@ export function BottomSheet({
       </View>
 
       <View style={{ flex: 1 }}>
-        <SheetOpenContext.Provider value={open}>{children}</SheetOpenContext.Provider>
+        <SheetOpenContext.Provider value={open}>
+          <SheetScrollContext.Provider value={reportScroll}>{children}</SheetScrollContext.Provider>
+        </SheetOpenContext.Provider>
 
         {/*
           たたんでいる間も中身は普通に押せる。
