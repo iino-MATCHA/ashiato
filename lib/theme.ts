@@ -92,6 +92,9 @@ export const fonts = {
   gothicBold: 'ZenKakuGothicNew_700Bold',
   // 筆 — 御朱印の墨書きだけに使う
   brush: 'YujiSyuku_400Regular',
+  // 手書き — シェアカードの添え書きだけに使う
+  handRegular: 'Caveat_400Regular',
+  handBold: 'Caveat_600SemiBold',
 } as const;
 
 // 型スケール

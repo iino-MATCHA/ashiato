@@ -3,7 +3,7 @@
  * プレビューと同じ scene を canvas に描いて 1080×1920 の PNG を1枚作る。
  * 以前は mapbox の canvas をそのまま保存していたので地図しか残らなかった。
  */
-import { buildScene } from './ugc/scene';
+import { buildScene, type SceneStop } from './ugc/scene';
 import { PALETTE } from './ugc/layout';
 
 export interface ShareCardMeta {
@@ -12,14 +12,47 @@ export interface ShareCardMeta {
   prefectures: number;
   days: number;
   km: number;
-  stops: { lat: number; lng: number; image: string }[];
+  stops: SceneStop[];
   visitedPrefectureCodes: number[];
+  /** ポラロイドに添える地名 */
+  coverCaption?: string;
 }
 
 const W = 1080;
 
 const SERIF = `'ShipporiMincho_700Bold', 'Shippori Mincho', serif`;
 const SANS = `'ZenKakuGothicNew_500Medium', 'Zen Kaku Gothic New', system-ui, sans-serif`;
+const HAND = `'Caveat_400Regular', 'Caveat', cursive`;
+const HAND_B = `'Caveat_600SemiBold', 'Caveat', cursive`;
+
+/** 傾けて描く。中心を軸にするのはプレビューの rotate と合わせるため */
+function tilted(
+  ctx: CanvasRenderingContext2D,
+  cx: number, cy: number, deg: number, draw: () => void
+) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate((deg * Math.PI) / 180);
+  ctx.translate(-cx, -cy);
+  draw();
+  ctx.restore();
+}
+
+/** 短辺に合わせて中央を切り出す（プレビューの slice と同じ） */
+function drawCover(
+  ctx: CanvasRenderingContext2D, img: HTMLImageElement,
+  x: number, y: number, w: number, h: number
+) {
+  const scale = Math.max(w / img.width, h / img.height);
+  const dw = img.width * scale;
+  const dh = img.height * scale;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  ctx.restore();
+}
 
 export async function exportShareCard(meta: ShareCardMeta): Promise<string | null> {
   if (typeof document === 'undefined') return null;
@@ -28,6 +61,7 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
       width: W,
       stops: meta.stops,
       visitedPrefectureCodes: meta.visitedPrefectureCodes,
+      coverCaption: meta.coverCaption,
     });
 
     const canvas = document.createElement('canvas');
@@ -62,13 +96,28 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
     });
     ctx.restore();
 
-    // 地点の写真は丸で。どこの話かは地図の上の位置が持つ
+    const B = W * 0.013; // ポラロイドの白い縁
+
+    // 付箋から地点へ伸びる破線。紙より先に敷く
+    ctx.save();
+    ctx.strokeStyle = PALETTE.thread;
+    ctx.lineWidth = W * 0.004;
+    ctx.lineCap = 'round';
+    ctx.setLineDash([W * 0.012, W * 0.012]);
+    s.tags.forEach((tg) => {
+      ctx.beginPath();
+      ctx.moveTo(tg.fromX, tg.fromY);
+      ctx.lineTo(tg.toX, tg.toY);
+      ctx.stroke();
+    });
+    ctx.restore();
+
+    // 地点の丸写真
     s.pins.forEach((p, i) => {
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r * 1.09, 0, Math.PI * 2);
-      ctx.fillStyle = PALETTE.pinRing;
+      ctx.arc(p.x, p.y, p.r * 1.1, 0, Math.PI * 2);
+      ctx.fillStyle = PALETTE.note;
       ctx.fill();
-
       const img = pinImgs[i];
       if (img) drawCircularImage(ctx, img, p.x, p.y, p.r);
       else {
@@ -77,50 +126,52 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
         ctx.fillStyle = PALETTE.paperEdge;
         ctx.fill();
       }
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.strokeStyle = PALETTE.border;
-      ctx.lineWidth = 1;
-      ctx.stroke();
     });
 
-    /**
-     * 旅を代表する1枚。地図の左上に横長で置く。
-     * プレビュー（components/ugc/JourneyCard.tsx）と同じ見え方にする。
-     */
-    const fb = s.w * 0.016; // 白い縁の太さ
+    // 日付の付箋
+    s.tags.forEach((tg) => {
+      tilted(ctx, tg.x + tg.w / 2, tg.y + tg.h / 2, tg.rotate, () => {
+        ctx.fillStyle = PALETTE.note;
+        ctx.fillRect(tg.x, tg.y, tg.w, tg.h);
+        ctx.strokeStyle = PALETTE.noteEdge;
+        ctx.lineWidth = W * 0.002;
+        ctx.strokeRect(tg.x, tg.y, tg.w, tg.h);
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = PALETTE.noteInk;
+        ctx.font = `600 ${W * 0.040}px ${HAND_B}`;
+        ctx.fillText(tg.day, tg.x + tg.w / 2, tg.y + tg.h * 0.44);
+        ctx.font = `400 ${W * 0.038}px ${HAND}`;
+        ctx.fillText(tg.place, tg.x + tg.w / 2, tg.y + tg.h * 0.80);
+        ctx.textAlign = 'left';
+      });
+    });
+
+    // ポラロイド
     s.frames.forEach((f, i) => {
-      ctx.save();
-      ctx.translate(f.x + f.w / 2, f.y + f.h / 2);
-      ctx.rotate((f.rotate * Math.PI) / 180);
-      ctx.translate(-(f.x + f.w / 2), -(f.y + f.h / 2));
-
-      // 影。紙が浮いて見えるように
-      ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.45)';
-      ctx.shadowBlur = s.w * 0.03;
-      ctx.shadowOffsetY = s.w * 0.008;
-      ctx.fillStyle = PALETTE.pinRing;
-      ctx.fillRect(f.x - fb, f.y - fb, f.w + fb * 2, f.h + fb * 2);
-      ctx.restore();
-
-      const img = frameImgs[i];
-      if (img) {
-        // 短辺に合わせて中央を切り出す（プレビューの slice と同じ）
-        const scale = Math.max(f.w / img.width, f.h / img.height);
-        const dw = img.width * scale;
-        const dh = img.height * scale;
+      tilted(ctx, f.x + f.w / 2, f.y + f.h / 2, f.rotate, () => {
         ctx.save();
-        ctx.beginPath();
-        ctx.rect(f.x, f.y, f.w, f.h);
-        ctx.clip();
-        ctx.drawImage(img, f.x + (f.w - dw) / 2, f.y + (f.h - dh) / 2, dw, dh);
+        ctx.shadowColor = 'rgba(0,0,0,0.45)';
+        ctx.shadowBlur = W * 0.03;
+        ctx.shadowOffsetY = W * 0.008;
+        ctx.fillStyle = PALETTE.note;
+        ctx.fillRect(f.x - B, f.y - B, f.w + B * 2, f.h + B * 2 + W * 0.062);
         ctx.restore();
-      } else {
-        ctx.fillStyle = PALETTE.paperEdge;
-        ctx.fillRect(f.x, f.y, f.w, f.h);
-      }
-      ctx.restore();
+
+        const img = frameImgs[i];
+        if (img) drawCover(ctx, img, f.x, f.y, f.w, f.h);
+        else {
+          ctx.fillStyle = PALETTE.paperEdge;
+          ctx.fillRect(f.x, f.y, f.w, f.h);
+        }
+        if (f.caption) {
+          ctx.textAlign = 'center';
+          ctx.fillStyle = PALETTE.noteInk;
+          ctx.font = `400 ${W * 0.042}px ${HAND}`;
+          ctx.fillText(f.caption, f.x + f.w / 2, f.y + f.h + W * 0.050);
+          ctx.textAlign = 'left';
+        }
+      });
     });
 
     // 四隅の文字
@@ -142,6 +193,10 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
     ctx.font = `700 ${t.title.size}px ${SERIF}`;
     fitText(ctx, meta.title, t.title.x, t.title.y, t.title.maxW);
 
+    ctx.fillStyle = PALETTE.matcha;
+    ctx.font = `400 ${t.subtitle.size}px ${HAND}`;
+    ctx.fillText('A journey of memories', t.subtitle.x, t.subtitle.y);
+
     const stats: [string, string][] = [
       [String(meta.prefectures), 'pref'],
       [String(meta.days), 'days'],
@@ -156,6 +211,28 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
       ctx.fillStyle = PALETTE.inkFaint;
       ctx.font = `400 ${t.stats.size * 0.72}px ${SANS}`;
       ctx.fillText(label, x + vw + t.stats.size * 0.3, t.stats.y);
+    });
+
+    // 下の便箋
+    const n = t.note;
+    tilted(ctx, n.x + n.w / 2, n.y + n.h / 2, -1.5, () => {
+      ctx.fillStyle = PALETTE.note;
+      ctx.fillRect(n.x, n.y, n.w, n.h);
+      n.lines.forEach((line, i) => {
+        const y = n.y + n.h * 0.24 + i * n.size * 1.28;
+        ctx.strokeStyle = PALETTE.noteEdge;
+        ctx.lineWidth = W * 0.0015;
+        ctx.beginPath();
+        ctx.moveTo(n.x + W * 0.02, y + n.size * 0.22);
+        ctx.lineTo(n.x + n.w - W * 0.02, y + n.size * 0.22);
+        ctx.stroke();
+        ctx.fillStyle = PALETTE.noteInk;
+        ctx.font = `400 ${n.size}px ${HAND}`;
+        ctx.fillText(line, n.x + W * 0.035, y);
+      });
+      ctx.fillStyle = PALETTE.matcha;
+      ctx.font = `600 ${n.size}px ${HAND_B}`;
+      ctx.fillText('My Japan', n.x + W * 0.035, n.y + n.h * 0.24 + 3 * n.size * 1.28);
     });
 
     return canvas.toDataURL('image/png');

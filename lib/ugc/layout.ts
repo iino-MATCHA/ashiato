@@ -16,9 +16,9 @@ export const C = {
    * そこへ来るのは地図の裾だけなので、読ませたいものは隠れない。
    */
   /** 地図だけの左右の逃げ。文字の余白より狭くして、日本を大きく見せる */
-  mapInset: 0.02,
-  mapTop: 0.235,
-  mapHeight: 0.72,
+  mapInset: 0.15,
+  mapTop: 0.255,
+  mapHeight: 0.62,
   /** ピンの半径（カード幅に対する比率）と、写真枚数が多いときの下限 */
   pinR: 0.052,
   pinRMin: 0.032,
@@ -28,7 +28,7 @@ export const C = {
    * 左上に置く代表写真。横長（3:2）で、カード幅に対する比率で持つ。
    * 地点の写真は丸いアイコンのままなので、ここは1枚だけ。
    */
-  frameW: 0.38,
+  frameW: 0.40,
   frameRatio: 2 / 3,
   frameBorder: 0.014,
 } as const;
@@ -45,8 +45,14 @@ export const C = {
  * 白地より、写真の丸も文字も強く出る。
  */
 export const PALETTE = {
-  paper: '#26211A',
-  paperEdge: '#1C1813',
+  paper: '#221E19',
+  paperEdge: '#191510',
+  /** 付箋・便箋の紙。少し黄みを残して古い紙に見せる */
+  note: '#E8DFC9',
+  noteEdge: '#CBBFA3',
+  noteInk: '#3A342A',
+  /** 破線と添え書き。地の上で読める明るさの緑 */
+  thread: '#8A8271',
   /** 行っていない県。地から十分に浮くところまで明るくする */
   land: '#5B5347',
   landVisited: '#8CC63F',

@@ -17,6 +17,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/zen-kaku-gothic-new';
 import { YujiSyuku_400Regular } from '@expo-google-fonts/yuji-syuku';
+import { Caveat_400Regular, Caveat_600SemiBold } from '@expo-google-fonts/caveat';
 import { useTheme } from '@/lib/useTheme';
 import { TransitionProvider } from '@/lib/transition';
 import { StampPressProvider } from '@/lib/stampPress';
@@ -40,6 +41,8 @@ export default function RootLayout() {
     ZenKakuGothicNew_500Medium,
     ZenKakuGothicNew_700Bold,
     YujiSyuku_400Regular,
+    Caveat_400Regular,
+    Caveat_600SemiBold,
   });
 
   useEffect(() => {

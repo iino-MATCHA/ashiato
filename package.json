@@ -12,6 +12,7 @@
     "check:exif": "npx --yes esbuild lib/exif.ts --bundle --format=esm --platform=node --outfile=.exif-bundle.mjs && node scripts/exif-check.mjs"
   },
   "dependencies": {
+    "@expo-google-fonts/caveat": "^0.4.2",
     "@expo-google-fonts/shippori-mincho": "^0.2.3",
     "@expo-google-fonts/yuji-syuku": "^0.4.1",
     "@expo-google-fonts/zen-kaku-gothic-new": "^0.2.3",
