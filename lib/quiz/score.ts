@@ -37,6 +37,8 @@ function axisScore(p: PrefectureProfile, axis: Axis): number {
     case 'city': return p.s.city;
     case 'onsen': return p.s.onsen;
     case 'island': return p.s.island;
+    case 'craft': return p.s.craft;
+    case 'wildlife': return p.s.wildlife;
     case 'sea': return p.s.sea;
     case 'mountain': return p.s.mountain;
     case 'urban': return p.s.urban;
@@ -60,13 +62,21 @@ function axisScore(p: PrefectureProfile, axis: Axis): number {
 /** 答え → 軸ごとの重みの合計 */
 export function weightsFor(answers: Answers): Partial<Record<Axis, number>> {
   const out: Partial<Record<Axis, number>> = {};
+  const add = (contrib: Partial<Record<Axis, number>>) => {
+    Object.entries(contrib).forEach(([axis, w]) => {
+      out[axis as Axis] = (out[axis as Axis] ?? 0) + (w as number);
+    });
+  };
   QUESTIONS.forEach((q: QuizQuestion) => {
+    // slider は選択肢を持たない。答えた数値を axisFromValue で軸へ変換する
+    if (q.kind === 'slider') {
+      const raw = Number((answers[q.id] ?? [])[0]);
+      if (Number.isFinite(raw) && q.axisFromValue) add(q.axisFromValue(raw));
+      return;
+    }
     const picked = answers[q.id] ?? [];
     (q.options ?? []).forEach((o) => {
-      if (!picked.includes(o.id)) return;
-      Object.entries(o.w ?? {}).forEach(([axis, w]) => {
-        out[axis as Axis] = (out[axis as Axis] ?? 0) + (w as number);
-      });
+      if (picked.includes(o.id)) add(o.w ?? {});
     });
   });
   return out;

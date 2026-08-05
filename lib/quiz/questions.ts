@@ -9,6 +9,12 @@
  * 新しい軸を増やしたいときは data.ts の Axis と score.ts の素点の引き方を足す。
  *
  * 文字列は必ず i18n のキーで持つ（CLAUDE.md の決まり）。
+ *
+ * **kind:'slider' は日数・予算のような「量」を聞く問い。**
+ * ボタンの3択（短い/普通/長い）だと荒すぎたため、実際の数字をドラッグで
+ * 答えてもらう形にした。`axisFromValue` がその数字を短い/長い・安い/ゆとり
+ * の重みへなだらかに変換する（3段階の断層を作らない）。都道府県の知識は
+ * ここにも一切無い ―― 「7日と答えた」という事実を軸の重みに直すだけ。
  */
 import type { Axis } from './data';
 
@@ -29,39 +35,69 @@ export interface QuizQuestion {
   /**
    * single … 1つ選ぶと次へ進む
    * multi  … 複数選んで「次へ」で進む（max まで）
+   * slider … 数値をドラッグで答える（axisFromValue で軸へ変換）
    * prefectures … 日本地図から訪問済みを選ぶ専用の問い
    */
-  kind: 'single' | 'multi' | 'prefectures';
+  kind: 'single' | 'multi' | 'slider' | 'prefectures';
   /** multi のとき選べる上限 */
   max?: number;
   options?: QuizOption[];
+  /** slider のとき: 範囲・刻み・初期値（multi の上限 `max` と紛れないよう別名にする） */
+  sliderMin?: number;
+  sliderMax?: number;
+  step?: number;
+  default?: number;
+  /** slider の値 → 軸の重み。なだらかな連続量にするための変換式 */
+  axisFromValue?: (value: number) => Partial<Record<Axis, number>>;
 }
+
+/** 0〜1 に収める小さな助け（slider の変換式だけで使う） */
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
 export const QUESTIONS: QuizQuestion[] = [
   {
     id: 'interest',
     kind: 'multi',
-    max: 3,
+    max: 5,
     titleKey: 'quiz.q.interest',
     hintKey: 'quiz.q.interestHint',
     options: [
-      { id: 'food', labelKey: 'quiz.o.food', w: { food: 2 } },
-      { id: 'nature', labelKey: 'quiz.o.nature', w: { nature: 2 } },
-      { id: 'history', labelKey: 'quiz.o.history', w: { history: 2 } },
-      { id: 'city', labelKey: 'quiz.o.city', w: { city: 2, urban: 1 } },
+      { id: 'ramen', labelKey: 'quiz.o.ramen', w: { food: 2 } },
+      { id: 'sake', labelKey: 'quiz.o.sake', w: { food: 1.5, history: 0.5 } },
+      { id: 'sweets', labelKey: 'quiz.o.sweets', w: { food: 1, city: 0.5 } },
+      { id: 'shrines', labelKey: 'quiz.o.shrines', w: { history: 2 } },
+      { id: 'castles', labelKey: 'quiz.o.castles', w: { history: 2, city: 0.5 } },
+      { id: 'crafts', labelKey: 'quiz.o.crafts', w: { craft: 2 } },
+      { id: 'festivals', labelKey: 'quiz.o.festivals', w: { history: 1, city: 0.5 } },
+      { id: 'cityShopping', labelKey: 'quiz.o.cityShopping', w: { city: 2, urban: 1 } },
+      { id: 'nightlife', labelKey: 'quiz.o.nightlife', w: { city: 1.5, urban: 1.5 } },
+      { id: 'artMuseums', labelKey: 'quiz.o.artMuseums', w: { city: 1, history: 0.5 } },
       { id: 'onsen', labelKey: 'quiz.o.onsen', w: { onsen: 2 } },
-      { id: 'island', labelKey: 'quiz.o.island', w: { island: 2, sea: 1 } },
+      { id: 'mountainHikes', labelKey: 'quiz.o.mountainHikes', w: { mountain: 2, nature: 1 } },
+      { id: 'snow', labelKey: 'quiz.o.snow', w: { mountain: 2 } },
+      { id: 'beaches', labelKey: 'quiz.o.beaches', w: { sea: 2, island: 0.5 } },
+      { id: 'island', labelKey: 'quiz.o.island', w: { island: 2 } },
+      { id: 'wildlife', labelKey: 'quiz.o.wildlife', w: { wildlife: 2, nature: 1 } },
+      { id: 'gardens', labelKey: 'quiz.o.gardens', w: { nature: 2 } },
+      { id: 'popCulture', labelKey: 'quiz.o.popCulture', w: { city: 1.5, urban: 0.5 } },
     ],
   },
   {
-    id: 'terrain',
+    /**
+     * 「海・山・街」の3択は絵になっていなかった（ユーザー指摘）。
+     * 情景を思い浮かべてもらう形にして、1つの選択が複数軸へ跨って効くようにした。
+     */
+    id: 'scene',
     kind: 'single',
-    titleKey: 'quiz.q.terrain',
+    titleKey: 'quiz.q.scene',
+    hintKey: 'quiz.q.sceneHint',
     options: [
-      { id: 'sea', labelKey: 'quiz.o.sea', w: { sea: 2 } },
-      { id: 'mountain', labelKey: 'quiz.o.mountain', w: { mountain: 2 } },
-      { id: 'urban', labelKey: 'quiz.o.urban', w: { urban: 2 } },
-      { id: 'any', labelKey: 'quiz.o.anyTerrain' },
+      { id: 'riceTerrace', labelKey: 'quiz.o.riceTerrace', w: { nature: 2, mountain: 1 } },
+      { id: 'oldTown', labelKey: 'quiz.o.oldTown', w: { history: 2 } },
+      { id: 'fishingVillage', labelKey: 'quiz.o.fishingVillage', w: { sea: 2 } },
+      { id: 'neonCity', labelKey: 'quiz.o.neonCity', w: { urban: 2, city: 1 } },
+      { id: 'snowPeaks', labelKey: 'quiz.o.snowPeaks', w: { mountain: 2 } },
+      { id: 'tropicalIsland', labelKey: 'quiz.o.tropicalIsland', w: { island: 2, sea: 1 } },
     ],
   },
   {
@@ -76,23 +112,36 @@ export const QUESTIONS: QuizQuestion[] = [
   },
   {
     id: 'days',
-    kind: 'single',
+    kind: 'slider',
     titleKey: 'quiz.q.days',
-    options: [
-      { id: 'short', labelKey: 'quiz.o.days13', w: { short: 2 } },
-      { id: 'mid', labelKey: 'quiz.o.days46', w: { short: 1, long: 1 } },
-      { id: 'long', labelKey: 'quiz.o.days7', w: { long: 2 } },
-    ],
+    hintKey: 'quiz.slider.daysHint',
+    sliderMin: 2,
+    sliderMax: 21,
+    step: 1,
+    default: 6,
+    /**
+     * 短い/長いの重みをなだらかに出す。
+     * 2日なら「短い」一色、6日は「短い」寄りの中間、14日以上は「長い」一色。
+     * 3段の断層を無くすのがこの式の目的で、数字自体に深い意味は無い。
+     */
+    axisFromValue: (n) => ({
+      short: clamp01((8 - n) / 6) * 2,
+      long: clamp01((n - 5) / 12) * 2,
+    }),
   },
   {
     id: 'budget',
-    kind: 'single',
+    kind: 'slider',
     titleKey: 'quiz.q.budget',
-    options: [
-      { id: 'thrifty', labelKey: 'quiz.o.thrifty', w: { cheap: 2 } },
-      { id: 'moderate', labelKey: 'quiz.o.moderate', w: { cheap: 1 } },
-      { id: 'comfortable', labelKey: 'quiz.o.comfortable', w: { premium: 2 } },
-    ],
+    hintKey: 'quiz.slider.budgetHint',
+    sliderMin: 5000,
+    sliderMax: 60000,
+    step: 1000,
+    default: 15000,
+    axisFromValue: (n) => ({
+      cheap: clamp01((22000 - n) / 15000) * 2,
+      premium: clamp01((n - 15000) / 40000) * 2,
+    }),
   },
   {
     id: 'season',

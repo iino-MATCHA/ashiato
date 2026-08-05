@@ -33,7 +33,8 @@ import { contentHeight } from '@/lib/ugc/geo';
 import { PREFECTURE_EN_BY_ID, prefectureName, prefectureMatchaUrl } from '@/lib/prefectures';
 import { useI18n, localizeMatchaUrl, type Locale } from '@/lib/i18n';
 import { QUESTIONS, type QuizQuestion } from '@/lib/quiz/questions';
-import { recommend, type Answers, type Recommendation } from '@/lib/quiz/score';
+import { recommend, weightsFor, type Answers, type Recommendation } from '@/lib/quiz/score';
+import type { Axis } from '@/lib/quiz/data';
 import { photoFor } from '@/lib/quiz/photos';
 import { affiliatesFor, type AffiliateCard } from '@/lib/quiz/affiliates';
 import { funnel } from '@/lib/quiz/funnel';
@@ -103,17 +104,31 @@ const CSS = `
 .mjq .step { font-size:10.5px; letter-spacing:3px; color:#9B978F; }
 .mjq .qTitle { font-size:clamp(23px,5.2vw,38px); line-height:1.35; margin-top:12px; }
 .mjq .qHint { color:#6B6862; font-size:13px; line-height:1.8; margin-top:12px; }
-/* 選択肢は「押せる面」なので枠を持ってよい（説明文の箱は作らない） */
-.mjq .opts { display:grid; gap:10px; margin-top:30px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
-.mjq .opt { display:flex; align-items:center; gap:12px; text-align:left; cursor:pointer;
-  background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 18px;
-  font-family:inherit; font-size:15px; color:var(--ink); line-height:1.5;
+/* 選択肢は「押せる面」なので枠を持ってよい（説明文の箱は作らない）。
+   興味の問いが18択になったので、220pxより少し詰めて多く並べられるようにした */
+.mjq .opts { display:grid; gap:9px; margin-top:30px; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); }
+.mjq .opt { display:flex; align-items:center; gap:11px; text-align:left; cursor:pointer;
+  background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px;
+  font-family:inherit; font-size:14.5px; color:var(--ink); line-height:1.4;
   transition:border-color .18s, background .18s, transform .18s; }
 .mjq .opt:hover { border-color:#C9C4B4; transform:translateY(-2px); }
 .mjq .opt.on { border-color:var(--matcha); background:#F4FAEA; }
 .mjq .optMark { flex:0 0 auto; width:20px; height:20px; border-radius:50%; border:1px solid #D7D2C4;
   display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; }
 .mjq .opt.on .optMark { background:var(--matcha); border-color:var(--matcha); }
+
+/* --- 日数・予算のスライダー --- */
+.mjq .sliderWrap { margin-top:30px; max-width:440px; }
+.mjq .sliderValue { font-size:clamp(32px,7.4vw,48px); color:var(--ink); }
+.mjq .slider { width:100%; margin-top:22px; -webkit-appearance:none; appearance:none;
+  height:4px; border-radius:2px; background:var(--line); outline:none; cursor:pointer; }
+.mjq .slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:28px; height:28px;
+  border-radius:50%; background:var(--matcha); box-shadow:0 3px 10px rgba(0,0,0,.28); cursor:pointer;
+  border:3px solid #fff; }
+.mjq .slider::-moz-range-thumb { width:28px; height:28px; border-radius:50%; background:var(--matcha);
+  border:3px solid #fff; box-shadow:0 3px 10px rgba(0,0,0,.28); cursor:pointer; }
+.mjq .sliderScale { display:flex; justify-content:space-between; margin-top:10px;
+  font-size:11.5px; color:#9B978F; letter-spacing:.5px; }
 .mjq .qNav { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:32px; }
 .mjq .ghost { background:none; border:0; cursor:pointer; font-family:inherit; font-size:13.5px; color:#8F887A;
   padding:10px 2px; }
@@ -224,18 +239,27 @@ const CSS = `
 const HERO_SHOT = photoFor(22);
 
 /**
- * 興味 → 観光エリアの area_type。
- * 「その人が挙げた興味に合うエリア」を上に出すために使う（マスタの実データ）。
+ * 軸 → 観光エリアの area_type。
+ * 「効いた軸に合うエリア」を上に出すために使う（マスタの実データ）。
+ *
+ * **選択肢のidではなく、計算済みの軸の重み(weightsFor)から引く。**
+ * 以前は answers.interest / answers.terrain の生の選択肢idをキーにしていたが、
+ * 選択肢を増減させるたびにここも直す必要があり、抜けると静かに壊れる
+ * （実際、選択肢を6→18・terrain→sceneに作り替えたときに合わせ忘れかけた）。
+ * 軸は questions.ts がどう変わっても score.ts が必ず計算してくれるので、
+ * こちらを参照すれば選択肢の増減に引きずられない。
  */
-const TYPES_BY_INTEREST: Record<string, string[]> = {
+const TYPES_BY_AXIS: Partial<Record<Axis, string[]>> = {
   onsen: ['hot_spring'],
   nature: ['nature', 'lake', 'mountain', 'scenic_area', 'volcano', 'park', 'scenic_route', 'coastal_area'],
-  history: ['historic_area', 'shrine_temple', 'historic_route', 'craft_area'],
+  history: ['historic_area', 'shrine_temple', 'historic_route'],
+  craft: ['craft_area'],
   city: ['district', 'market', 'theme_park'],
   island: ['island', 'island_group', 'beach', 'resort'],
   food: ['market', 'district'],
   sea: ['coastal_area', 'beach', 'island', 'island_group'],
   mountain: ['mountain', 'nature', 'lake'],
+  wildlife: ['nature', 'island', 'coastal_area'],
 };
 
 type Stage = 'hero' | 'quiz' | 'result';
@@ -271,6 +295,20 @@ export function QuizLanding() {
     } catch {}
   }, []);
   useEffect(() => { toTop(); }, [stage, step, toTop]);
+
+  /**
+   * スライダーの問いに、触る前から既定値を入れておく。
+   * 触らずに「次へ」を押しても answers[q.id] が空のままだと、判定側が
+   * その問いを無視してしまう（=「何も答えていない」と同じ扱いになる）。
+   */
+  useEffect(() => {
+    if (stage !== 'quiz') return;
+    const cur = QUESTIONS[step];
+    if (cur?.kind === 'slider' && !(answers[cur.id]?.length) && cur.default != null) {
+      setAnswers((a) => ({ ...a, [cur.id]: [String(cur.default)] }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, step]);
 
   const q: QuizQuestion = QUESTIONS[step];
   const total = QUESTIONS.length;
@@ -357,10 +395,12 @@ export function QuizLanding() {
   useEffect(() => {
     if (stage !== 'result' || !results.length) return;
     let alive = true;
-    const interests = answers.interest ?? [];
-    const terrain = answers.terrain ?? [];
+    // 効いた軸（重みが乗っているもの）から、合うエリアのarea_typeを集める
+    const w = weightsFor(answers);
     const wanted = new Set<string>();
-    [...interests, ...terrain].forEach((k) => (TYPES_BY_INTEREST[k] ?? []).forEach((tp) => wanted.add(tp)));
+    (Object.keys(w) as Axis[])
+      .filter((a) => (w[a] ?? 0) > 0)
+      .forEach((a) => (TYPES_BY_AXIS[a] ?? []).forEach((tp) => wanted.add(tp)));
 
     (async () => {
       const out: Record<number, TourismArea[]> = {};
@@ -465,14 +505,15 @@ export function QuizLanding() {
   /**
    * 日数の目安を出してよいか。
    *
-   * 「1〜3日」と答えた人に「5日ほど取ってください」と返すと、聞いた意味が
-   * 無くなる（実際に北海道でそうなった）。答えた日数に収まらない土地では、
+   * 「3日」とスライダーで答えた人に「5日ほど取ってください」と返すと、
+   * 聞いた意味が無くなる（実際に北海道でそうなった）。答えた日数を
+   * 少し超える程度（+1日）までは許容し、それより収まらない土地では
    * 日数の話をしない ―― 土地としては勧められるので、結果自体は出す。
    */
-  const CAP_BY_DAYS: Record<string, number> = { short: 3, mid: 5, long: 99 };
   const daysFits = (days: number) => {
-    const a = (answers.days ?? [])[0];
-    return days <= (CAP_BY_DAYS[a] ?? 99);
+    const chosen = Number((answers.days ?? [])[0]);
+    if (!Number.isFinite(chosen) || chosen <= 0) return true;
+    return days <= chosen + 1;
   };
 
   // --- 地図の寸法 ------------------------------------------------------
@@ -567,6 +608,13 @@ export function QuizLanding() {
                       : t('quiz.visitedNone')}
                   </p>
                 </>
+              ) : q.kind === 'slider' ? (
+                <SliderQuestion
+                  q={q}
+                  value={Number(picked[0] ?? q.default ?? q.sliderMin ?? 0)}
+                  onChange={(n) => setAnswers((a) => ({ ...a, [q.id]: [String(n)] }))}
+                  t={t}
+                />
               ) : (
                 <div className="opts">
                   {(q.options ?? []).map((o) => {
@@ -775,6 +823,43 @@ export function QuizLanding() {
       )}
 
       <footer>MY JAPAN BY MATCHA, INC. · ALL RIGHTS RESERVED</footer>
+    </div>
+  );
+}
+
+/**
+ * 日数・予算のスライダー。
+ * 表示中の数値だけ id で出し分ける（2種類だけなので、汎用の書式化は作らない）。
+ */
+function SliderQuestion({
+  q,
+  value,
+  onChange,
+  t,
+}: {
+  q: QuizQuestion;
+  value: number;
+  onChange: (n: number) => void;
+  t: (k: string, p?: Record<string, string | number>) => string;
+}) {
+  const fmt = (n: number) =>
+    q.id === 'days' ? t('quiz.slider.daysValue', { n }) : t('quiz.slider.budgetValue', { n: n.toLocaleString() });
+  return (
+    <div className="sliderWrap">
+      <div className="sliderValue mincho">{fmt(value)}</div>
+      <input
+        type="range"
+        className="slider"
+        min={q.sliderMin}
+        max={q.sliderMax}
+        step={q.step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+      <div className="sliderScale">
+        <span>{fmt(q.sliderMin ?? 0)}</span>
+        <span>{fmt(q.sliderMax ?? 0)}</span>
+      </div>
     </div>
   );
 }
