@@ -12,19 +12,8 @@ import { passwordProblem } from '@/lib/password';
 import { track } from '@/lib/analytics';
 
 import { useI18n } from '@/lib/i18n';
-/**
- * 認証から戻ってくる先。
- * apex(my-japan-matcha.com) は www へ 301 されるため、そのまま origin を渡すと
- * トークンを載せたURLが一度転送を挟む。確認メールのリンクも apex のまま届く。
- * 正規のホストへ揃えてから渡す。ローカルや他ドメインではその origin をそのまま使う。
- */
-const CANONICAL = 'https://www.my-japan-matcha.com';
-const redirectTo =
-  typeof window === 'undefined'
-    ? undefined
-    : /(^|\.)my-japan-matcha\.com$/.test(window.location.hostname)
-      ? CANONICAL
-      : window.location.origin;
+// 戻り先は診断LPと同じものを使う（片方だけ直すと食い違う）
+import { authRedirectTo as redirectTo } from '@/lib/authRedirect';
 
 // show the intro only once per install
 let splashShown = false;
@@ -43,9 +32,14 @@ function shouldSplash(): boolean {
 export default function Login() {
   const { palette } = useTheme();
   const { t } = useI18n();
-  const [splash, setSplash] = useState(shouldSplash);
   // SignInPrompt から「アカウントを作る」で来たときは新規登録で開く
   const { signup } = useLocalSearchParams<{ signup?: string }>();
+  /**
+   * 登録するつもりで来た人には前口上を出さない。
+   * 診断LPの「Save My Japan Map」からここへ来るので、間に演出を挟むと
+   * その場で作るつもりだった手が止まる。
+   */
+  const [splash, setSplash] = useState(() => (signup === '1' ? false : shouldSplash()));
   const [mode, setMode] = useState<'signin' | 'signup'>(signup === '1' ? 'signup' : 'signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

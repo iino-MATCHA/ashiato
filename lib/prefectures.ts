@@ -61,6 +61,20 @@ export function prefectureName(code: number, locale: string): string {
   return PREFECTURE_JA_BY_ID[code] ?? PREFECTURE_EN_BY_ID[code] ?? '';
 }
 
+/**
+ * その都道府県のMATCHA記事一覧。
+ *
+ * MATCHAの region は **JISコード + 100**（101=北海道 … 147=沖縄）。
+ * 観光エリア単位のリンクは tourism_area_master が持っているが、
+ * エリアが1件も登録されていない県（秋田・福井・滋賀）があるので、
+ * 県単位で必ず出せる受け皿としてこれを使う。
+ * 言語は localizeMatchaUrl(i18n) が差し替えるので、ここでは /jp/ で作る。
+ */
+export function prefectureMatchaUrl(code: number): string | null {
+  if (!Number.isInteger(code) || code < 1 || code > 47) return null;
+  return `https://matcha-jp.com/jp/list?region=${code + 100}&category=all`;
+}
+
 /** クエリが都道府県名（日/英・接尾辞の有無は不問）なら code を返す。 */
 export function prefectureCodeForQuery(q: string): number | null {
   const term = q.trim().toLowerCase();

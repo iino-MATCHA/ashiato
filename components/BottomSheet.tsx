@@ -11,6 +11,13 @@
  * 取り残された（実測で確認）。そこで Web は DOM に直接 transform を書き、
  * 寄せる動きは CSS の transition に任せる。
  * ネイティブは従来どおり PanResponder + Animated。
+ *
+ * **指の動きは touch イベントで受ける（pointer ではない）。**
+ * 面のどこを下へ払っても閉じられるようにするには、払い始めの1回目で
+ * 「これはシートの操作だ」と決めて preventDefault しなければならない。
+ * pointermove を 6px 待ってから止めようとすると、その間にブラウザが
+ * スクロールを始めてしまい、以後 preventDefault は効かない
+ * （＝つまみ以外では閉じられなかった原因）。マウスは pointer のまま。
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
@@ -95,7 +102,12 @@ export function BottomSheet({
   const draggingRef = useRef(false);
   // 中身の一覧が一番上にいるか。開いた面を下へ払って閉じてよいかの判定に使う
   const atTopRef = useRef(true);
-  const reportScroll = useCallback((y: number) => { atTopRef.current = y <= 0; }, []);
+  /**
+   * 「一番上」は少し甘く見る。
+   * 慣性で戻ったときの最後の報告が 0.5 のような端数で来ることがあり、
+   * 厳密に y<=0 で見ていると、見た目は一番上なのに面を払っても閉じなかった。
+   */
+  const reportScroll = useCallback((y: number) => { atTopRef.current = y <= 2; }, []);
   const anim = useRef(new Animated.Value(travel)).current; // ネイティブ用
 
   /**
@@ -174,14 +186,26 @@ export function BottomSheet({
     [snapTo, travel]
   );
 
-  // ---- Web: シートの DOM に pointer イベントを直接つける ----
+  // ---- Web: シートの DOM に直接イベントをつける ----
   useEffect(() => {
     if (!WEB) return;
     const node = sheetRef.current as unknown as HTMLElement | null;
     const grip = gripRef.current as unknown as HTMLElement | null;
     if (!node?.addEventListener) return;
 
-    const START = 6; // ここを超えて初めて「掴んだ」と見なす（下の値はタップ）
+    /**
+     * 「掴んだ」と見なす距離。
+     *
+     * **指はここを 2px にしてある。** 以前は指もマウスと同じ 6px 待っていたが、
+     * その待っている間にブラウザが「これはスクロールだ」と決めてしまい、
+     * あとから preventDefault しても戻せない（一度始まったスクロールは
+     * 取り上げられない）。結果、つまみ以外の面を下へ払っても閉じなかった。
+     * 向きは最初の touchmove で分かるので、そこで決めて取り上げる。
+     *
+     * マウスは 6px 待つ。中のボタンを押せなくなるため。
+     */
+    const START_TOUCH = 2;
+    const START_MOUSE = 6;
 
     let startY = 0;
     let startAt = 0;
@@ -193,54 +217,69 @@ export function BottomSheet({
     let guarded = false;
     let movedBy = 0;
     let pointer = -1;
+    let isTouch = false;
 
     const disarm = () => {
       armed = false;
       draggingRef.current = false;
     };
 
-    const down = (e: PointerEvent) => {
-      fromGrip = !!grip && !!e.target && grip.contains(e.target as Node);
-      /**
-       * 開いているときに面から始めた指は、まだスクロールのものかもしれない。
-       * 掴んだことにはせず「見張る」状態にして、向きが下で、かつ一覧が
-       * 一番上にいるとわかった時点でシートに引き取る（move の中で判定）。
-       * つまみから始めたときと、たたんでいるとき（中が動かない）は今まで通り。
-       */
+    /**
+     * 指・マウスが乗った。
+     * 開いているときに面から始めたものは、まだスクロールのものかもしれない。
+     * 掴んだことにはせず「見張る」状態にして、向きが下で、かつ一覧が
+     * 一番上にいるとわかった時点でシートに引き取る（move の中で判定）。
+     * つまみから始めたときと、たたんでいるとき（中が動かない）は素直に掴む。
+     */
+    const begin = (y: number, target: EventTarget | null, time: number, touch: boolean) => {
+      fromGrip = !!grip && !!target && grip.contains(target as Node);
+      isTouch = touch;
       guarded = !fromGrip && openRef.current;
-      if (guarded && !atTopRef.current) return; // 途中を読んでいる。スクロールに任せる
+      if (guarded && !atTopRef.current) return false; // 途中を読んでいる。スクロールに任せる
       armed = true;
       dragging = false;
       draggingRef.current = true;
       movedBy = 0;
-      startY = e.clientY;
+      startY = y;
       startAt = at.current;
-      startTime = e.timeStamp;
-      pointer = e.pointerId;
+      startTime = time;
+      return true;
     };
 
-    const move = (e: PointerEvent) => {
-      if (!armed) return;
-      movedBy = e.clientY - startY;
+    /** 戻り値: この動きをシートが引き取ったか（引き取ったらブラウザに渡さない） */
+    const moveTo = (y: number): boolean => {
+      if (!armed) return false;
+      movedBy = y - startY;
       if (!dragging) {
         if (guarded) {
-          // 上へ払った、または払っている間に一覧が動いた＝スクロールの指だった
-          if (movedBy <= 0 || !atTopRef.current) return disarm();
+          /**
+           * 上へ払った、または払っている間に一覧が動いた＝スクロールの指だった。
+           * 0 では諦めない（払い始めの1フレームが同じ座標で来ることがあり、
+           * それで諦めると下向きの払いが死んでいた）。
+           */
+          if (movedBy < -1 || !atTopRef.current) {
+            disarm();
+            return false;
+          }
         }
-        // まだタップかもしれない間は動かさない。中のボタンを押せなくなる
-        if (Math.abs(movedBy) < START) return;
+        const need = isTouch ? START_TOUCH : START_MOUSE;
+        if (Math.abs(movedBy) < need) return false;
         dragging = true;
-        try { node.setPointerCapture(pointer); } catch {}
+        if (!isTouch && pointer >= 0) {
+          try { node.setPointerCapture(pointer); } catch {}
+        }
       }
       place(Math.min(travel, Math.max(0, startAt + movedBy)), false);
+      return true;
     };
 
-    const up = (e: PointerEvent) => {
+    const end = (y: number, time: number) => {
       if (!armed) return;
       disarm();
       if (dragging) {
         dragging = false;
-        settle(startAt, movedBy, movedBy / Math.max(1, e.timeStamp - startTime));
+        const dy = y - startY;
+        settle(startAt, dy, dy / Math.max(1, time - startTime));
         return;
       }
       // 動かなかった場合。つまみを押したときだけ開閉を反転させる
@@ -248,26 +287,58 @@ export function BottomSheet({
       if (fromGrip) snapTo(startAt === 0 ? travel : 0);
     };
 
-    /**
-     * 指で動かしていると決まったら、ページ側のスクロールは止める。
-     * pointermove の中では止められない（touchmove を passive でない形で
-     * 受けないと preventDefault が効かない）ので、別に受ける。
-     */
-    const holdPage = (e: TouchEvent) => { if (dragging) e.preventDefault(); };
+    // --- マウス・ペン。指は下の touch で受けるので、ここでは無視する
+    //     （両方で処理すると1回の操作が二重に効く）
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
+      pointer = e.pointerId;
+      begin(e.clientY, e.target, e.timeStamp, false);
+    };
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
+      moveTo(e.clientY);
+    };
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
+      end(e.clientY, e.timeStamp);
+    };
 
-    node.addEventListener('pointerdown', down);
-    node.addEventListener('pointermove', move);
-    node.addEventListener('pointerup', up);
-    node.addEventListener('pointercancel', up);
-    node.addEventListener('touchmove', holdPage, { passive: false });
+    // --- 指
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return disarm(); // 2本指は拡大等。触らない
+      begin(e.touches[0].clientY, e.target, e.timeStamp, true);
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return disarm();
+      if (moveTo(e.touches[0].clientY) && e.cancelable) {
+        // 引き取ったので、ブラウザのスクロールは止める。
+        // **最初の1回で呼ぶのが要点。** 始まってから呼んでも効かない
+        e.preventDefault();
+      }
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      end(e.changedTouches[0]?.clientY ?? startY + movedBy, e.timeStamp);
+    };
+
+    node.addEventListener('pointerdown', onDown);
+    node.addEventListener('pointermove', onMove);
+    node.addEventListener('pointerup', onUp);
+    node.addEventListener('pointercancel', onUp);
+    node.addEventListener('touchstart', onTouchStart, { passive: true });
+    node.addEventListener('touchmove', onTouchMove, { passive: false });
+    node.addEventListener('touchend', onTouchEnd);
+    node.addEventListener('touchcancel', onTouchEnd);
     // 掴んでいる間にページごと動かない。縦は自分で受け、横は端末に任せる
     if (grip) (grip.style as any).touchAction = 'none';
     return () => {
-      node.removeEventListener('pointerdown', down);
-      node.removeEventListener('pointermove', move);
-      node.removeEventListener('pointerup', up);
-      node.removeEventListener('pointercancel', up);
-      node.removeEventListener('touchmove', holdPage);
+      node.removeEventListener('pointerdown', onDown);
+      node.removeEventListener('pointermove', onMove);
+      node.removeEventListener('pointerup', onUp);
+      node.removeEventListener('pointercancel', onUp);
+      node.removeEventListener('touchstart', onTouchStart);
+      node.removeEventListener('touchmove', onTouchMove);
+      node.removeEventListener('touchend', onTouchEnd);
+      node.removeEventListener('touchcancel', onTouchEnd);
     };
   }, [travel, place, snapTo, settle]);
 
