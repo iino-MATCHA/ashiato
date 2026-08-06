@@ -36,6 +36,7 @@ import { QUESTIONS, type QuizQuestion } from '@/lib/quiz/questions';
 import { recommend, weightsFor, type Answers, type Recommendation } from '@/lib/quiz/score';
 import type { Axis } from '@/lib/quiz/data';
 import { photoFor } from '@/lib/quiz/photos';
+import { prefectureDescription } from '@/lib/quiz/descriptions';
 import { affiliatesFor, type AffiliateCard } from '@/lib/quiz/affiliates';
 import { funnel } from '@/lib/quiz/funnel';
 import { saveHandoff } from '@/lib/quiz/handoff';
@@ -135,10 +136,11 @@ const CSS = `
 .mjq .ghost:hover { color:var(--ink); }
 .mjq .ghost:disabled { opacity:.35; cursor:default; }
 
-/* --- 訪問済みの地図 --- */
-.mjq .quizMap { position:relative; margin:20px auto 8px; overflow:hidden; border-radius:12px;
-  touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none; background:#fff;
-  border:1px solid var(--line); }
+/* --- 訪問済みの地図 ---
+   枠も塗りも持たせない。紙(--paper)の上に地図がそのまま置いてある見え方にする
+   （箱に入れると「ボックスに入っていてダサい」―― ユーザー指摘）。 */
+.mjq .quizMap { position:relative; margin:20px auto 8px; overflow:hidden;
+  touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none; }
 .mjq .quizMap.grabbing { cursor:grabbing; }
 .mjq .quizMap > .pan { transform-origin:center center; will-change:transform; }
 .mjq .quizMap > .pan.eased { transition:transform .2s ease-out; }
@@ -155,48 +157,70 @@ const CSS = `
 .mjq .picked { margin-top:8px; font-size:12px; line-height:1.7; color:#8F887A;
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 
+/* --- 性格の5段階（当てはまる〜当てはまらない） --- */
+.mjq .likert { display:flex; align-items:center; justify-content:space-between; gap:6px;
+  margin:38px auto 0; max-width:520px; }
+.mjq .likert button { flex:0 0 auto; border-radius:50%; background:#fff; cursor:pointer; padding:0;
+  border:2px solid #D7D2C4; transition:border-color .15s, background .15s, transform .15s; }
+.mjq .likert button:hover { transform:scale(1.08); }
+/* 端ほど大きい丸。左（当てはまる）は抹茶、右（当てはまらない）は墨 */
+.mjq .likert button:nth-child(1) { width:56px; height:56px; border-color:#A5CE63; }
+.mjq .likert button:nth-child(2) { width:44px; height:44px; border-color:#C2DC94; }
+.mjq .likert button:nth-child(3) { width:32px; height:32px; }
+.mjq .likert button:nth-child(4) { width:44px; height:44px; border-color:#B9B3A4; }
+.mjq .likert button:nth-child(5) { width:56px; height:56px; border-color:#8F887A; }
+.mjq .likert button.on:nth-child(-n+2) { background:var(--matcha); border-color:var(--matcha); }
+.mjq .likert button.on:nth-child(3) { background:#B9B3A4; border-color:#B9B3A4; }
+.mjq .likert button.on:nth-child(n+4) { background:#5E5B57; border-color:#5E5B57; }
+.mjq .likertEnds { display:flex; justify-content:space-between; margin:10px auto 0; max-width:520px;
+  font-size:12px; }
+.mjq .likertEnds span:first-child { color:var(--matcha); }
+.mjq .likertEnds span:last-child { color:#8F887A; }
+
 /* --- 結果 --- */
 .mjq .qResult { background:linear-gradient(180deg,#FBFAF7 0%,#F4F1E8 100%); }
-.mjq .rHead { font-size:clamp(25px,5.4vw,42px); line-height:1.35; margin-top:12px; }
-.mjq .card { background:#fff; border:1px solid #ECEAE3; border-radius:18px; overflow:hidden; margin-top:22px; }
-.mjq .cardImg { position:relative; aspect-ratio:16/10; overflow:hidden; background:#EEEBE2; }
-.mjq .cardImg img { width:100%; height:100%; object-fit:cover; display:block; }
-.mjq .cardImg .place { position:absolute; left:0; right:0; bottom:0; padding:22px 14px 10px; color:#fff;
-  font-size:11px; letter-spacing:1.6px; background:linear-gradient(180deg,transparent,rgba(0,0,0,.66)); }
-.mjq .rank { position:absolute; top:12px; left:12px; background:rgba(255,255,255,.9); color:#3A3427;
-  font-size:10px; letter-spacing:2px; padding:5px 10px; border-radius:999px; }
-.mjq .cardBody { padding:20px 20px 24px; }
-.mjq .prefName { font-size:clamp(22px,4.6vw,30px); line-height:1.3; }
-.mjq .prefEn { font-size:10.5px; letter-spacing:3.5px; color:#9B978F; margin-top:6px; }
-.mjq .chips { display:flex; flex-wrap:wrap; gap:7px; margin-top:14px; }
-.mjq .chip { font-size:11.5px; color:#4A6B00; background:#F0F6E4; border-radius:999px; padding:5px 11px; }
-.mjq .why { color:#5E5B57; font-size:14px; line-height:1.9; margin-top:14px; }
-.mjq .facts { margin-top:12px; padding-top:12px; border-top:1px solid var(--line);
-  font-size:12.5px; line-height:1.9; color:#6B6862; }
-.mjq .spots { margin-top:16px; }
+.mjq .rHead { font-size:clamp(23px,5vw,38px); line-height:1.4; margin-top:12px; }
+/* 「◯◯県」だけ抹茶色で一回り大きく（ユーザー指定） */
+.mjq .rHead .prefBig { color:var(--matcha); font-size:1.35em; font-weight:700; padding:0 .06em; }
+
+/* カバーフロー。中央のカードが前に出て、両脇は奥へ沈む */
+.mjq .flowWrap { margin:26px -22px 0; overflow:hidden; }
+.mjq .flow { position:relative; perspective:1000px; touch-action:pan-y; user-select:none; -webkit-user-select:none; }
+.mjq .flowCard { position:absolute; top:0; left:50%; padding:0; text-align:left; cursor:pointer;
+  background:#fff; border:1px solid #ECEAE3; border-radius:16px; overflow:hidden; font-family:inherit;
+  box-shadow:0 18px 40px rgba(20,18,15,.12);
+  transition:transform .45s cubic-bezier(.2,.7,.2,1), filter .45s, opacity .45s; }
+/* 脇のカードは彩度と明るさを落とす。「アクティブなカードだけ色が濃い」見せ方 */
+.mjq .flowCard:not(.on) { filter:saturate(.35) brightness(.92); opacity:.55; }
+.mjq .flowImg { position:relative; aspect-ratio:16/10; overflow:hidden; background:#EEEBE2; }
+.mjq .flowImg img { width:100%; height:100%; object-fit:cover; display:block; }
+.mjq .flowImg .place { position:absolute; left:0; right:0; bottom:0; padding:20px 12px 8px; color:#fff;
+  font-size:10px; letter-spacing:1.4px; background:linear-gradient(180deg,transparent,rgba(0,0,0,.6)); }
+.mjq .rank { position:absolute; top:10px; left:10px; background:rgba(255,255,255,.9); color:#3A3427;
+  font-size:10px; letter-spacing:2px; padding:4px 9px; border-radius:999px; }
+.mjq .flowBody { padding:12px 14px 16px; }
+.mjq .flowName { font-size:19px; line-height:1.3; color:var(--ink); }
+.mjq .flowCard.on .flowName { color:var(--matcha); }
+.mjq .flowEn { font-size:9.5px; letter-spacing:3px; color:#9B978F; margin-top:4px; }
+.mjq .flowDots { display:flex; justify-content:center; gap:8px; margin-top:16px; }
+.mjq .flowDots button { width:8px; height:8px; border-radius:50%; border:0; padding:0; cursor:pointer;
+  background:#D7D2C4; transition:background .2s, transform .2s; }
+.mjq .flowDots button.on { background:var(--matcha); transform:scale(1.25); }
+.mjq .swipeHint { text-align:center; font-size:11px; letter-spacing:1px; color:#9B978F; margin-top:8px; }
+
+/* アクティブな県の中身（紹介文と「行くなら」） */
+.mjq .detail { margin-top:28px; animation:mjqIn .35s ease-out; }
+@keyframes mjqIn { from { transform:translateY(8px); } to { transform:none; } }
+.mjq .why { color:#5E5B57; font-size:14.5px; line-height:2.0; margin-top:10px; }
+.mjq .spots { margin-top:22px; }
 .mjq .spotsTitle { font-size:10px; letter-spacing:3px; color:#9B978F; }
 .mjq .spot { display:flex; align-items:baseline; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);
   color:inherit; text-decoration:none; }
 .mjq .spot:last-child { border-bottom:0; }
 .mjq .spot b { font-size:14px; font-weight:500; }
 .mjq .spot span { font-size:11.5px; color:#9B978F; }
-.mjq .spot em { margin-left:auto; font-style:normal; font-size:10px; letter-spacing:1.5px; color:var(--matcha); }
-.mjq .also { margin-top:44px; font-size:10px; letter-spacing:4px; color:#9B978F; }
-.mjq .alsoGrid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
-.mjq .alsoGrid .card { margin-top:12px; }
-.mjq .alsoGrid .cardBody { padding:16px 16px 20px; }
-.mjq .alsoGrid .prefName { font-size:20px; }
-
-/* --- 体験（提携先）。診断中には出さない --- */
-.mjq .affs { display:grid; gap:12px; margin-top:20px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
-.mjq .aff { display:block; background:#fff; border:1px solid #ECEAE3; border-radius:16px; padding:18px;
-  text-decoration:none; color:inherit; transition:transform .25s, box-shadow .25s; }
-.mjq .aff:hover { transform:translateY(-3px); box-shadow:0 14px 32px rgba(0,0,0,.08); }
-.mjq .affImg { height:120px; border-radius:10px; overflow:hidden; margin:-4px -4px 14px; }
-.mjq .affImg img { width:100%; height:100%; object-fit:cover; }
-.mjq .affBrand { font-size:10px; letter-spacing:2.5px; color:#9B978F; }
-.mjq .affTitle { font-size:14.5px; line-height:1.6; margin-top:8px; }
-.mjq .affMeta { font-size:12px; color:var(--matcha); margin-top:10px; }
+.mjq .spot em { margin-left:auto; font-style:normal; font-size:10px; letter-spacing:1.5px; color:var(--matcha);
+  white-space:nowrap; }
 .mjq .disclosure { font-size:11px; color:#9B978F; line-height:1.8; margin-top:16px; }
 
 /* --- 締め（登録） --- */
@@ -227,7 +251,9 @@ const CSS = `
 }
 @media (prefers-reduced-motion: reduce) {
   .mjq .heroGrid img { animation:none; }
-  .mjq .opt:hover, .mjq .aff:hover { transform:none; }
+  .mjq .opt:hover, .mjq .likert button:hover { transform:none; }
+  .mjq .flowCard { transition:none; }
+  .mjq .detail { animation:none; }
 }
 `;
 
@@ -273,11 +299,13 @@ export function QuizLanding() {
   const [answers, setAnswers] = useState<Answers>({});
   const [visited, setVisited] = useState<Set<number>>(new Set());
   const [results, setResults] = useState<Recommendation[]>([]);
+  /** カバーフローで前に出ているカード。見出し・紹介文・「行くなら」はこの県のもの */
+  const [active, setActive] = useState(0);
   const [spots, setSpots] = useState<Record<number, TourismArea[]>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** 体験の枠を数えた県。同じ結果で二重に数えないための目印 */
-  const affSeen = useRef<number | null>(null);
+  /** 体験の枠を数えた県。同じ県を二重に数えないための目印 */
+  const affSeen = useRef<Set<number>>(new Set());
 
   // 流入元を預かる。LP表示を1回だけ数える
   const viewed = useRef(false);
@@ -323,7 +351,8 @@ export function QuizLanding() {
 
   const choose = (optId: string) => {
     if (!q) return;
-    if (q.kind === 'single') {
+    // 5段階(scale)も「1つ選べば次へ」は single と同じ
+    if (q.kind === 'single' || q.kind === 'scale') {
       setAnswers((a) => ({ ...a, [q.id]: [optId] }));
       funnel.answer(q.id, step, total, optId);
       // 1つ選べば次へ。押した手応えが残るように少しだけ待つ
@@ -340,8 +369,8 @@ export function QuizLanding() {
   };
 
   const advance = (a: Answers = answers) => {
-    // single は選んだ時点で数えてある。それ以外はここで（最後の問いも取りこぼさない）
-    if (q && q.kind !== 'single') {
+    // single/scale は選んだ時点で数えてある。それ以外はここで（最後の問いも取りこぼさない）
+    if (q && q.kind !== 'single' && q.kind !== 'scale') {
       const value = q.kind === 'prefectures' ? String(visited.size) : (a[q.id] ?? []).join('|');
       funnel.answer(q.id, step, total, value);
     }
@@ -357,6 +386,7 @@ export function QuizLanding() {
     funnel.complete(codes.length);
     const list = recommend(a, codes, 3);
     setResults(list);
+    setActive(0);
     setStage('result');
     // 診断で選んだ県は、この時点で預けておく。CTAを押す前に離れても残る
     saveHandoff(codes, list.map((r) => r.code));
@@ -376,8 +406,9 @@ export function QuizLanding() {
   const retake = () => {
     setAnswers({});
     setResults([]);
+    setActive(0);
     setSpots({});
-    affSeen.current = null;
+    affSeen.current = new Set();
     setStage('quiz');
     setStep(0);
   };
@@ -425,27 +456,39 @@ export function QuizLanding() {
     return () => { alive = false; };
   }, [stage, results, answers]);
 
-  const lead = results[0] ?? null;
-  const affiliates: AffiliateCard[] = useMemo(
-    () => (lead ? affiliatesFor(lead.code, PREFECTURE_EN_BY_ID[lead.code] ?? '', locale as Locale) : []),
-    [lead, locale]
+  /** いま前に出ているカードの県。見出し・紹介文・「行くなら」はこの県で組む */
+  const current = results[active] ?? results[0] ?? null;
+
+  /**
+   * 「行くなら」の一覧に混ぜる GetYourGuide の枠（1〜2件）。
+   * 提携先はGYGだけに絞った ―― 独立した「体験」セクションは置かない
+   * （枠が多いほど良いわけではない、というユーザー判断）。
+   */
+  const gygLinks: AffiliateCard[] = useMemo(
+    () =>
+      current
+        ? affiliatesFor(current.code, PREFECTURE_EN_BY_ID[current.code] ?? '', locale as Locale)
+            .filter((a) => a.providerId === 'getyourguide')
+            .slice(0, 2)
+        : [],
+    [current, locale]
   );
 
   /**
-   * 体験の枠が出たことを1回だけ数える。
+   * 体験の枠が出たことを県ごとに1回だけ数える。
    * IntersectionObserver は描画されていないと発火しないので使わない
    * （結果を出した時点で画面に入っている作りにしてある）。
    */
   useEffect(() => {
-    if (stage !== 'result' || !lead || !affiliates.length) return;
-    if (affSeen.current === lead.code) return;
-    affSeen.current = lead.code;
+    if (stage !== 'result' || !current || !gygLinks.length) return;
+    if (affSeen.current.has(current.code)) return;
+    affSeen.current.add(current.code);
     funnel.affiliateImpression(
-      lead.code,
-      PREFECTURE_EN_BY_ID[lead.code] ?? '',
-      affiliates.map((a) => a.providerId)
+      current.code,
+      PREFECTURE_EN_BY_ID[current.code] ?? '',
+      gygLinks.map((a) => a.providerId)
     );
-  }, [stage, lead, affiliates]);
+  }, [stage, current, gygLinks]);
 
   // --- 登録 ------------------------------------------------------------
   const handoff = () => saveHandoff(Array.from(visited), results.map((r) => r.code));
@@ -491,29 +534,17 @@ export function QuizLanding() {
   };
 
   // --- 文の組み立て ----------------------------------------------------
-  const tagsFor = (r: Recommendation) =>
-    r.matched.map((a) => t(`quiz.axis.${a}`)).filter(Boolean);
-
-  const listNames = (rs: Recommendation[]) =>
-    rs.map((r) => prefectureName(r.code, locale)).join(locale === 'en' ? ', ' : '・');
-
-  const seasonLabel = () => {
-    const s = (answers.season ?? [])[0];
-    return s && s !== 'undecided' ? t(`quiz.o.${s}`) : null;
-  };
-
   /**
-   * 日数の目安を出してよいか。
-   *
-   * 「3日」とスライダーで答えた人に「5日ほど取ってください」と返すと、
-   * 聞いた意味が無くなる（実際に北海道でそうなった）。答えた日数を
-   * 少し超える程度（+1日）までは許容し、それより収まらない土地では
-   * 日数の話をしない ―― 土地としては勧められるので、結果自体は出す。
+   * 見出しの「◯◯県」だけ色と大きさを変えるため、訳文を県名の前後で割る。
+   * 訳文側は {name} のまま保ち、ここで番兵文字に置換して切る
+   * （言語ごとに語順が違うので、前後どちらに県名が来ても崩れない）。
    */
-  const daysFits = (days: number) => {
-    const chosen = Number((answers.days ?? [])[0]);
-    if (!Number.isFinite(chosen) || chosen <= 0) return true;
-    return days <= chosen + 1;
+  const headlineParts = (): [string, string] => {
+    const SENTINEL = '\u0000';
+    const s = t('quiz.result.headline1', { name: SENTINEL });
+    const i = s.indexOf(SENTINEL);
+    if (i < 0) return [s, ''];
+    return [s.slice(0, i), s.slice(i + 1)];
   };
 
   // --- 地図の寸法 ------------------------------------------------------
@@ -528,8 +559,12 @@ export function QuizLanding() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
-  const mapW = Math.max(240, Math.min(340, vw - 44));
+  // PCでは340pxだと余白の海に浮いて小さく見えた。枠を外したのと合わせて520pxまで広げる
+  const mapW = Math.max(240, Math.min(520, vw - 44));
   const mapH = Math.round((mapW * contentHeight()) / 860);
+  // カバーフローのカード。脇のカードの端が見える幅にする
+  const cardW = Math.max(200, Math.min(320, Math.round(vw * 0.62)));
+  const flowH = Math.round((cardW * 10) / 16) + 78;
 
   return (
     <div className="mjq" ref={rootRef}>
@@ -615,6 +650,26 @@ export function QuizLanding() {
                   onChange={(n) => setAnswers((a) => ({ ...a, [q.id]: [String(n)] }))}
                   t={t}
                 />
+              ) : q.kind === 'scale' ? (
+                <>
+                  {/* 端ほど大きい5つの丸。左が「当てはまる」、右が「当てはまらない」 */}
+                  <div className="likert">
+                    {(q.options ?? []).map((o) => (
+                      <button
+                        key={o.id}
+                        type="button"
+                        className={picked.includes(o.id) ? 'on' : ''}
+                        aria-label={t(o.labelKey)}
+                        aria-pressed={picked.includes(o.id)}
+                        onClick={() => choose(o.id)}
+                      />
+                    ))}
+                  </div>
+                  <div className="likertEnds">
+                    <span>{t('quiz.scale.agree2')}</span>
+                    <span>{t('quiz.scale.disagree2')}</span>
+                  </div>
+                </>
               ) : (
                 <div className="opts">
                   {(q.options ?? []).map((o) => {
@@ -643,7 +698,7 @@ export function QuizLanding() {
                 >
                   ← {t('quiz.back')}
                 </button>
-                {q.kind !== 'single' && (
+                {q.kind !== 'single' && q.kind !== 'scale' && (
                   <button type="button" className="cta" disabled={!canGo} onClick={() => advance()}>
                     {step + 1 === total ? t('quiz.seeResult') : t('quiz.next')} →
                   </button>
@@ -662,106 +717,135 @@ export function QuizLanding() {
               <div className="eyebrow">{t('quiz.result.eyebrow')}</div>
               <h2 className="rHead mincho">
                 {/* 47県すべて行っている人には勧める先が無い。地図の保存へ回す */}
-                {!lead
-                  ? t('quiz.result.none')
-                  : results.length === 1
-                    ? t('quiz.result.headline1', { name: prefectureName(lead.code, locale) })
-                    : t('quiz.result.headlineN', { names: listNames(results) })}
+                {!current ? (
+                  t('quiz.result.none')
+                ) : (
+                  // 「◯◯県」だけ抹茶色で大きく。前に出ているカードの県に追随する
+                  <>
+                    {headlineParts()[0]}
+                    <span className="prefBig">{prefectureName(current.code, locale)}</span>
+                    {headlineParts()[1]}
+                  </>
+                )}
               </h2>
 
-              {/* いちばんのおすすめ */}
-              {lead && (
-                <PrefectureCard
-                  r={lead}
-                  rank={1}
-                  locale={locale}
-                  t={t}
-                  tags={tagsFor(lead)}
-                  season={seasonLabel()}
-                  showDays={daysFits(lead.days)}
-                  areas={spots[lead.code] ?? []}
-                  onMatcha={(area) =>
-                    funnel.matchaClick(lead.code, PREFECTURE_EN_BY_ID[lead.code] ?? '', area)
-                  }
-                />
+              {/* カバーフロー。前に出ているカードだけ色が濃い */}
+              {!!results.length && (
+                <>
+                  <ResultFlow
+                    results={results}
+                    active={active}
+                    onActive={setActive}
+                    cardW={cardW}
+                    height={flowH}
+                    locale={locale}
+                  />
+                  {results.length > 1 && (
+                    <>
+                      <div className="flowDots">
+                        {results.map((r, i) => (
+                          <button
+                            key={r.code}
+                            type="button"
+                            className={i === active ? 'on' : ''}
+                            aria-label={prefectureName(r.code, locale)}
+                            onClick={() => setActive(i)}
+                          />
+                        ))}
+                      </div>
+                      <div className="swipeHint">{t('quiz.result.swipeHint')}</div>
+                    </>
+                  )}
+                </>
               )}
 
-              {/* 2件目以降 */}
-              {results.length > 1 && (
-                <>
-                  <div className="also">{t('quiz.result.also', {})}</div>
-                  <div className="alsoGrid">
-                    {results.slice(1).map((r, i) => (
-                      <PrefectureCard
-                        key={r.code}
-                        r={r}
-                        rank={i + 2}
-                        compact
-                        locale={locale}
-                        t={t}
-                        tags={tagsFor(r)}
-                        season={seasonLabel()}
-                        showDays={daysFits(r.days)}
-                        areas={spots[r.code] ?? []}
-                        onMatcha={(area) => funnel.matchaClick(r.code, PREFECTURE_EN_BY_ID[r.code] ?? '', area)}
-                      />
-                    ))}
+              {/* 前に出ている県の紹介と「行くなら」。カードを送ると差し替わる */}
+              {current && (
+                <div className="detail" key={current.code}>
+                  <p className="why">{prefectureDescription(current.code, locale as Locale)}</p>
+
+                  <div className="spots">
+                    <div className="spotsTitle">
+                      {t('quiz.result.spots', { name: prefectureName(current.code, locale) })}
+                    </div>
+                    {(() => {
+                      const en = PREFECTURE_EN_BY_ID[current.code] ?? '';
+                      const areas = spots[current.code] ?? [];
+                      const prefMatcha = localizeMatchaUrl(prefectureMatchaUrl(current.code));
+                      return (
+                        <>
+                          {/*
+                            観光エリアが1件も無い県（秋田・福井・滋賀）でも、県単位の
+                            MATCHAの一覧は必ず出せる。「準備中」で終わらせない。
+                          */}
+                          {!areas.length && !!prefMatcha && (
+                            <a
+                              className="spot"
+                              href={prefMatcha}
+                              target="_blank"
+                              rel="noopener"
+                              onClick={() => funnel.matchaClick(current.code, en, en)}
+                            >
+                              <b>{t('quiz.aff.matchaTitle', { name: prefectureName(current.code, locale) })}</b>
+                              <em>MATCHA →</em>
+                            </a>
+                          )}
+                          {areas.map((a) => {
+                            const url = localizeMatchaUrl(a.matchaUrl);
+                            const inner = (
+                              <>
+                                <b>{a.name}</b>
+                                <span>{a.municipality}</span>
+                                {!!url && <em>MATCHA →</em>}
+                              </>
+                            );
+                            return url ? (
+                              <a
+                                key={a.id}
+                                className="spot"
+                                href={url}
+                                target="_blank"
+                                rel="noopener"
+                                onClick={() => funnel.matchaClick(current.code, en, a.name)}
+                              >
+                                {inner}
+                              </a>
+                            ) : (
+                              <div className="spot" key={a.id}>{inner}</div>
+                            );
+                          })}
+                          {/* MATCHAの記事に続けて、GetYourGuideの枠を1〜2件だけ混ぜる */}
+                          {gygLinks.map((a) => (
+                            <a
+                              key={a.key}
+                              className="spot"
+                              href={a.url}
+                              target="_blank"
+                              rel="noopener sponsored"
+                              onClick={() =>
+                                funnel.affiliateClick(current.code, en, a.providerId, a.title, a.isSearch)
+                              }
+                            >
+                              <b>
+                                {a.isSearch
+                                  ? t('quiz.aff.gyg', { name: prefectureName(current.code, locale) })
+                                  : a.title}
+                              </b>
+                              {!!a.priceFrom && (
+                                <span>{t('quiz.aff.from', { price: a.priceFrom.toLocaleString() })}</span>
+                              )}
+                              <em>{a.providerName} →</em>
+                            </a>
+                          ))}
+                        </>
+                      );
+                    })()}
+                    {!!gygLinks.length && <p className="disclosure">{t('quiz.aff.disclosure')}</p>}
                   </div>
-                </>
+                </div>
               )}
             </div>
           </section>
-
-          {/* ------------------------------------------------ 体験（提携先） */}
-          {!!lead && !!affiliates.length && (
-            <section style={{ background: '#fff' }}>
-              <div className="wrap">
-                <div className="eyebrow">EXPERIENCES</div>
-                <h2 className="rHead mincho" style={{ fontSize: 'clamp(22px,4.6vw,32px)' }}>
-                  {t('quiz.aff.title', { name: prefectureName(lead.code, locale) })}
-                </h2>
-                <p className="lead">{t('quiz.aff.lead')}</p>
-                <div className="affs">
-                  {affiliates.map((a) => (
-                    <a
-                      key={a.key}
-                      className="aff"
-                      href={a.url}
-                      target="_blank"
-                      rel="noopener sponsored"
-                      onClick={() =>
-                        funnel.affiliateClick(
-                          lead.code,
-                          PREFECTURE_EN_BY_ID[lead.code] ?? '',
-                          a.providerId,
-                          a.title,
-                          a.isSearch
-                        )
-                      }
-                    >
-                      {!!a.image && (
-                        <div className="affImg">
-                          <img src={a.image} alt="" loading="lazy" />
-                        </div>
-                      )}
-                      <div className="affBrand">{a.providerName}</div>
-                      <div className="affTitle">
-                        {a.isSearch
-                          ? t('quiz.aff.search', { name: prefectureName(lead.code, locale) })
-                          : a.title}
-                      </div>
-                      <div className="affMeta">
-                        {a.priceFrom
-                          ? t('quiz.aff.from', { price: a.priceFrom.toLocaleString() })
-                          : '→'}
-                      </div>
-                    </a>
-                  ))}
-                </div>
-                <p className="disclosure">{t('quiz.aff.disclosure')}</p>
-              </div>
-            </section>
-          )}
 
           {/* ------------------------------------------------ 登録 */}
           <section className="save">
@@ -783,7 +867,7 @@ export function QuizLanding() {
                 />
               </div>
               <div className="saveCount">
-                <b>{visited.size}</b> / 47 · {t('quiz.result.mapLead')}
+                <b>{visited.size}</b> / 47
               </div>
 
               <div className="authBtns">
@@ -799,7 +883,6 @@ export function QuizLanding() {
                   {t('quiz.cta.email')}
                 </button>
               </div>
-              <p className="noReenter">{t('quiz.cta.noReenter')}</p>
               {!!error && <p className="err">{error}</p>}
 
               <p className="haveAcc">
@@ -864,117 +947,90 @@ function SliderQuestion({
   );
 }
 
-/** 結果の1件ぶん。写真・理由・日数・その土地で行くところ */
-function PrefectureCard({
-  r,
-  rank,
-  compact,
+/**
+ * 結果のカバーフロー。カードを横に並べ、前に出ている1枚だけ原色で見せる。
+ * ライブラリは足さない ―― translate+scale+rotateY を切り替えるだけ。
+ * スワイプは pointerdown/up の移動量で判定し、スワイプ直後の click は
+ * 握りつぶす（離した指がカードの選択に化けるのを防ぐ。ZoomPanと同じ手）。
+ */
+function ResultFlow({
+  results,
+  active,
+  onActive,
+  cardW,
+  height,
   locale,
-  t,
-  tags,
-  season,
-  showDays,
-  areas,
-  onMatcha,
 }: {
-  r: Recommendation;
-  rank: number;
-  compact?: boolean;
+  results: Recommendation[];
+  active: number;
+  onActive: (i: number) => void;
+  cardW: number;
+  height: number;
   locale: string;
-  t: (k: string, p?: Record<string, string | number>) => string;
-  tags: string[];
-  season: string | null;
-  /** 日数の目安を出すか（答えた日数と食い違うときは出さない） */
-  showDays: boolean;
-  areas: TourismArea[];
-  onMatcha: (area: string) => void;
 }) {
-  const name = prefectureName(r.code, locale);
-  const photo = photoFor(r.code);
-  const en = PREFECTURE_EN_BY_ID[r.code] ?? '';
-  const tagList = tags.slice(0, 3).join(locale === 'en' ? ', ' : '・');
-  const prefMatcha = localizeMatchaUrl(prefectureMatchaUrl(r.code));
+  const drag = useRef<{ x: number; y: number } | null>(null);
+  const swiped = useRef(false);
+  const step = (dir: number) => onActive(Math.max(0, Math.min(results.length - 1, active + dir)));
 
   return (
-    <div className="card">
-      {!!photo && (
-        <div className="cardImg">
-          <img src={photo.url} alt={name} loading={rank === 1 ? 'eager' : 'lazy'} />
-          <div className="rank">{`0${rank}`}</div>
-          <div className="place">{photo.title}</div>
-        </div>
-      )}
-      <div className="cardBody">
-        <div className="prefName mincho">{name}</div>
-        <div className="prefEn">{en.toUpperCase()}</div>
-
-        {!!tags.length && (
-          <div className="chips">
-            {tags.map((x) => (
-              <span className="chip" key={x}>{x}</span>
-            ))}
-          </div>
-        )}
-
-        <p className="why">{t('quiz.result.whyTags', { tags: tagList, name })}</p>
-
-        {/* 出すものが無ければ罫線ごと出さない（空の枠を残さない） */}
-        {(showDays || (!!season && r.seasonFits)) && (
-          <div className="facts">
-            {showDays ? t('quiz.result.days', { n: r.days }) : ''}
-            {season && r.seasonFits ? ` ${t('quiz.result.season', { season })}` : ''}
-          </div>
-        )}
-
-        {!compact && (
-          <div className="spots">
-            <div className="spotsTitle">{t('quiz.result.spots', { name })}</div>
-            {/*
-              観光エリアが1件も無い県（秋田・福井・滋賀）でも、県単位のMATCHAの
-              一覧は必ず出せる。「準備中」で終わらせない。
-            */}
-            {!areas.length && !!prefMatcha && (
-              <a
-                className="spot"
-                href={prefMatcha}
-                target="_blank"
-                rel="noopener"
-                onClick={() => onMatcha(en)}
-              >
-                <b>{t('quiz.aff.matchaTitle', { name })}</b>
-                <em>MATCHA →</em>
-              </a>
-            )}
-            {areas.length ? (
-              areas.map((a) => {
-                const url = localizeMatchaUrl(a.matchaUrl);
-                const inner = (
-                  <>
-                    <b>{a.name}</b>
-                    <span>{a.municipality}</span>
-                    {!!url && <em>MATCHA →</em>}
-                  </>
-                );
-                return url ? (
-                  <a
-                    key={a.id}
-                    className="spot"
-                    href={url}
-                    target="_blank"
-                    rel="noopener"
-                    onClick={() => onMatcha(a.name)}
-                  >
-                    {inner}
-                  </a>
-                ) : (
-                  <div className="spot" key={a.id}>{inner}</div>
-                );
-              })
-            ) : !prefMatcha ? (
-              <p className="why" style={{ marginTop: 8 }}>{t('quiz.result.spotsNone', { name })}</p>
-            ) : null}
-          </div>
-        )}
+    <div className="flowWrap">
+      <div
+        className="flow"
+        style={{ height }}
+        onPointerDown={(e) => {
+          drag.current = { x: e.clientX, y: e.clientY };
+        }}
+        onPointerUp={(e) => {
+          const s = drag.current;
+          drag.current = null;
+          if (!s) return;
+          const dx = e.clientX - s.x;
+          if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(e.clientY - s.y)) {
+            swiped.current = true;
+            step(dx < 0 ? 1 : -1);
+          }
+        }}
+        onClickCapture={(e) => {
+          if (swiped.current) {
+            e.stopPropagation();
+            e.preventDefault();
+            swiped.current = false;
+          }
+        }}
+      >
+        {results.map((r, i) => {
+          const d = i - active;
+          const name = prefectureName(r.code, locale);
+          const photo = photoFor(r.code);
+          return (
+            <button
+              key={r.code}
+              type="button"
+              className={`flowCard${d === 0 ? ' on' : ''}`}
+              style={{
+                width: cardW,
+                transform:
+                  `translateX(-50%) translateX(${d * Math.round(cardW * 0.72)}px)` +
+                  ` scale(${d === 0 ? 1 : 0.82}) rotateY(${d * -14}deg)`,
+                zIndex: 10 - Math.abs(d),
+              }}
+              aria-pressed={d === 0}
+              onClick={() => onActive(i)}
+            >
+              {!!photo && (
+                <div className="flowImg">
+                  <img src={photo.url} alt={name} loading={i === 0 ? 'eager' : 'lazy'} draggable={false} />
+                  <div className="rank">{`0${i + 1}`}</div>
+                  <div className="place">{photo.title}</div>
+                </div>
+              )}
+              <div className="flowBody">
+                <div className="flowName mincho">{name}</div>
+                <div className="flowEn">{(PREFECTURE_EN_BY_ID[r.code] ?? '').toUpperCase()}</div>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

@@ -7,6 +7,11 @@
  * 動かしたあとの「離した瞬間のクリック」で県が選ばれてしまうと操作にならないので、
  * 一定以上動いていたら次のクリックだけ握りつぶす。
  *
+ * **setPointerCapture は使わない。** capture すると pointerup 後の click が
+ * この枠自身に付け替えられ、県の <path>（react-native-svg が onPress→onClick に
+ * 変換している）まで届かなくなる ―― PCでマウスクリックしても県が選べなかった
+ * 原因がこれ。代わりに move/up は window で追い、枠の外で離しても取り残さない。
+ *
  * ---------------------------------------------------------------------------
  * 見た目は**使う側のCSSが持つ**。この中で使っているクラス名は
  *   .quizMap（外枠）/ .grabbing / .pan / .eased / .zoomBtns
@@ -14,7 +19,7 @@
  * 自分の親クラスの下に同じ名前で書いている。ここにスタイルを持たせると
  * 2枚のLPで別々に育てられなくなるので、持たせていない。
  */
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 export function ZoomPan({
   width,
@@ -57,10 +62,6 @@ export function ZoomPan({
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    // 捕捉に失敗しても操作は続けさせる（環境によっては例外を投げる）
-    try {
-      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-    } catch {}
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     moved.current = false;
     setEased(false);
@@ -74,35 +75,48 @@ export function ZoomPan({
     }
   };
 
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!pointers.current.has(e.pointerId)) return;
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  /** move / up は window で追う。枠の外へ出てもドラッグが続き、離せば必ず終わる */
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!pointers.current.has(e.pointerId)) return;
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    if (pointers.current.size === 2 && pinch.current) {
-      const [a, b] = [...pointers.current.values()];
-      const d = Math.hypot(a.x - b.x, a.y - b.y);
-      const k = (pinch.current.k * d) / (pinch.current.dist || 1);
-      moved.current = true;
-      setView((v) => clamp({ ...v, k }));
-      return;
-    }
-    const st = start.current;
-    if (!st) return;
-    const dx = e.clientX - st.x;
-    const dy = e.clientY - st.y;
-    if (Math.hypot(dx, dy) > 6) moved.current = true;
-    setView((v) => clamp({ ...v, x: st.vx + dx, y: st.vy + dy }));
-  };
-
-  const endPointer = (e: React.PointerEvent) => {
-    pointers.current.delete(e.pointerId);
-    if (pointers.current.size < 2) pinch.current = null;
-    if (pointers.current.size === 0) {
-      start.current = null;
-      setGrabbing(false);
-      setEased(true);
-    }
-  };
+      if (pointers.current.size === 2 && pinch.current) {
+        const [a, b] = [...pointers.current.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        const k = (pinch.current.k * d) / (pinch.current.dist || 1);
+        moved.current = true;
+        setView((v) => clamp({ ...v, k }));
+        return;
+      }
+      const st = start.current;
+      if (!st) return;
+      const dx = e.clientX - st.x;
+      const dy = e.clientY - st.y;
+      if (Math.hypot(dx, dy) > 6) moved.current = true;
+      setView((v) => clamp({ ...v, x: st.vx + dx, y: st.vy + dy }));
+    };
+    const onEnd = (e: PointerEvent) => {
+      if (!pointers.current.has(e.pointerId)) return;
+      pointers.current.delete(e.pointerId);
+      if (pointers.current.size < 2) pinch.current = null;
+      if (pointers.current.size === 0) {
+        start.current = null;
+        setGrabbing(false);
+        setEased(true);
+      }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onEnd);
+    window.addEventListener('pointercancel', onEnd);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onEnd);
+      window.removeEventListener('pointercancel', onEnd);
+    };
+    // clamp が width/height を見るので、寸法が変わったら貼り直す
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [width, height]);
 
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -115,9 +129,6 @@ export function ZoomPan({
       className={`quizMap${grabbing ? ' grabbing' : ''}`}
       style={{ width, height }}
       onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endPointer}
-      onPointerCancel={endPointer}
       onWheel={onWheel}
       // 動かした直後のクリックは県の選択に回さない
       onClickCapture={(e) => {
