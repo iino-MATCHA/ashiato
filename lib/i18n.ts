@@ -2309,7 +2309,7 @@ const QUIZ: Record<Locale, Dict> = {
       'The {n} prefectures you tapped? Already painted onto your map! Create an account to make this map truly yours. Every trip and photo you add stamps a Goshuin Badge on that prefecture — pop! — and watching them fill up never gets old.',
     'quiz.cta.leadEmpty':
       'Create an account to make this map truly yours. Every trip and photo you add stamps a Goshuin Badge on that prefecture — pop! — and watching them fill up never gets old.',
-    // ブランドの言い回しなので全言語共通（ashiato = footprint）。中身はGoogleでの登録
+    // 足あと(ashiato)を残す、というブランドの言い回し。中身はGoogleでの登録
     'quiz.cta.keep': 'Keep your footprint',
     'quiz.cta.apple': 'Continue with Apple',
     'quiz.cta.have': 'Already have an account?',
@@ -2438,7 +2438,7 @@ const QUIZ: Record<Locale, Dict> = {
       'タップしてくれた{n}県、さっそく地図に色を塗っておきました！アカウント登録で、このマップを「あなた専用」に保存できます。旅の思い出や写真を追加するたびに、県ごとの『御朱印バッジ』がポンッ！と押されるワクワクをお楽しみください。',
     'quiz.cta.leadEmpty':
       'アカウント登録で、このマップを「あなた専用」に保存できます。旅の思い出や写真を追加するたびに、県ごとの『御朱印バッジ』がポンッ！と押されるワクワクをお楽しみください。',
-    'quiz.cta.keep': 'Keep your footprint',
+    'quiz.cta.keep': '足あとを残す',
     'quiz.cta.apple': 'Appleでつづける',
     'quiz.cta.have': 'アカウントをお持ちですか？',
     'quiz.cta.signin': 'ログイン',
@@ -2566,7 +2566,7 @@ const QUIZ: Record<Locale, Dict> = {
       '탭해 주신 {n}곳, 바로 지도에 색을 칠해 두었습니다! 계정을 만들면 이 지도를 「나만의 것」으로 저장할 수 있습니다. 여행의 추억과 사진을 더할 때마다 지역마다 『고슈인 배지』가 콩! 하고 찍히는 설렘을 즐겨 보세요.',
     'quiz.cta.leadEmpty':
       '계정을 만들면 이 지도를 「나만의 것」으로 저장할 수 있습니다. 여행의 추억과 사진을 더할 때마다 지역마다 『고슈인 배지』가 콩! 하고 찍히는 설렘을 즐겨 보세요.',
-    'quiz.cta.keep': 'Keep your footprint',
+    'quiz.cta.keep': '내 발자국 남기기',
     'quiz.cta.apple': 'Apple로 계속하기',
     'quiz.cta.have': '계정이 있으신가요?',
     'quiz.cta.signin': '로그인',
@@ -2694,7 +2694,7 @@ const QUIZ: Record<Locale, Dict> = {
       '你点选的 {n} 个地方，已经帮你在地图上涂好颜色了！注册账号，就能把这张地图保存为「你的专属」。每添加一段旅行回忆或照片，对应的『御朱印徽章』就会「啪」地盖下——请享受这份小小的期待。',
     'quiz.cta.leadEmpty':
       '注册账号，就能把这张地图保存为「你的专属」。每添加一段旅行回忆或照片，对应的『御朱印徽章』就会「啪」地盖下——请享受这份小小的期待。',
-    'quiz.cta.keep': 'Keep your footprint',
+    'quiz.cta.keep': '留下你的足迹',
     'quiz.cta.apple': '使用 Apple 继续',
     'quiz.cta.have': '已经有账号了？',
     'quiz.cta.signin': '登录',
@@ -2822,7 +2822,7 @@ const QUIZ: Record<Locale, Dict> = {
       '你點選的 {n} 個地方，已經幫你在地圖上塗好顏色了！註冊帳號，就能把這張地圖保存為「你的專屬」。每添加一段旅行回憶或照片，對應的『御朱印徽章』就會「啪」地蓋下——請享受這份小小的期待。',
     'quiz.cta.leadEmpty':
       '註冊帳號，就能把這張地圖保存為「你的專屬」。每添加一段旅行回憶或照片，對應的『御朱印徽章』就會「啪」地蓋下——請享受這份小小的期待。',
-    'quiz.cta.keep': 'Keep your footprint',
+    'quiz.cta.keep': '留下你的足跡',
     'quiz.cta.apple': '使用 Apple 繼續',
     'quiz.cta.have': '已經有帳號了？',
     'quiz.cta.signin': '登入',

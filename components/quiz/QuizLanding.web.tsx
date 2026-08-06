@@ -36,6 +36,7 @@ import { QUESTIONS, type QuizQuestion } from '@/lib/quiz/questions';
 import { recommend, weightsFor, type Answers, type Recommendation } from '@/lib/quiz/score';
 import type { Axis } from '@/lib/quiz/data';
 import { photoFor } from '@/lib/quiz/photos';
+import { QuizIcon, hasQuizIcon } from '@/components/quiz/QuizIcon';
 import { prefectureDescription } from '@/lib/quiz/descriptions';
 import { affiliatesFor, type AffiliateCard } from '@/lib/quiz/affiliates';
 import { funnel } from '@/lib/quiz/funnel';
@@ -129,6 +130,9 @@ const CSS = `
 .mjq .optMark { flex:0 0 auto; width:20px; height:20px; border-radius:50%; border:1px solid #D7D2C4;
   display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; }
 .mjq .opt.on .optMark { background:var(--matcha); border-color:var(--matcha); }
+/* 自作の絵（components/quiz/QuizIcon）。墨より少し退かせて、字を主役にする */
+.mjq .optIcon { flex:0 0 auto; display:flex; align-items:center; color:#4A453C; opacity:.9; }
+.mjq .opt.on .optIcon { color:var(--ink); opacity:1; }
 
 /* --- 日数・予算のスライダー --- */
 .mjq .sliderWrap { margin-top:30px; max-width:440px; }
@@ -737,6 +741,11 @@ export function QuizLanding() {
                         aria-pressed={on}
                       >
                         <span className="optMark">{on ? '✓' : ''}</span>
+                        {hasQuizIcon(o.id) && (
+                          <span className="optIcon">
+                            <QuizIcon id={o.id} />
+                          </span>
+                        )}
                         <span>{t(o.labelKey)}</span>
                       </button>
                     );

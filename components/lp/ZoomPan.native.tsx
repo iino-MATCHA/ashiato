@@ -16,6 +16,8 @@ export function ZoomPan({
   width: number;
   height: number;
   children: React.ReactNode;
+  /** Web版に合わせて受け取るだけ（ネイティブは操作そのものを持たない） */
+  zoomButtons?: boolean;
 }) {
   return <View style={{ width, height, overflow: 'hidden' }}>{children}</View>;
 }

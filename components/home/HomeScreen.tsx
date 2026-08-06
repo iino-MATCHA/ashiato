@@ -143,15 +143,19 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
           {...(Platform.OS === 'web' ? ({ dataSet: { mjmap: '1' } } as any) : null)}
         >
           {/* つまんで動かせる白地図。タップは県名を教えるだけ（保存の意味は無い） */}
-          <ZoomPan width={mapW} height={Math.round(mapH)}>
+          <ZoomPan width={mapW} height={Math.round(mapH)} zoomButtons={false}>
             <JapanSvgMap visited={visited} width={mapW} okinawaInset onToggle={showName} />
           </ZoomPan>
 
-          {/* タップした県の名前。地図の下辺に浮かせて、勝手に消える */}
+          {/*
+            タップした県の名前。地図の紙の上に重ねる。
+            中ほどの高さに置く ―― 下辺だと沖縄インセットに重なり、
+            上辺だと「n/47」とぶつかる。
+          */}
           {!!tapped && (
             <View style={styles.tapName} pointerEvents="none">
               <View style={[styles.tapPill, { backgroundColor: palette.washiPaper, borderColor: palette.ruleStrong }]}>
-                <AppText style={{ fontFamily: fonts.minchoBold, fontSize: 13, color: palette.ink }}>
+                <AppText style={{ fontFamily: fonts.minchoBold, fontSize: 14, color: palette.ink }}>
                   {tapped}
                 </AppText>
               </View>
@@ -211,11 +215,11 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
 const styles = StyleSheet.create({
   // 北海道は地図の右上にあるので、その左隣＝左上が空いている
   countSlot: { position: 'absolute', left: 0, top: '4%' },
-  // タップした県名。地図の下辺の中央
-  tapName: { position: 'absolute', left: 0, right: 0, bottom: 6, alignItems: 'center', zIndex: 4 },
+  // タップした県名。地図の紙の上、中ほどの高さに重ねる
+  tapName: { position: 'absolute', left: 0, right: 0, top: '44%', alignItems: 'center', zIndex: 4 },
   tapPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
     borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
   },

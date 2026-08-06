@@ -139,23 +139,31 @@ export function JapanSvgMap({
         )}
         {okinawaInset && oki && okiBox && (() => {
           /**
-           * 本土との区切り。千葉との隙間の中ほどに、3つの線分の点線を引いて
-           * 「地続きではない」ことを見せる（地図帳のインセットの慣例）。
-           * 色は県境と同じ ―― 明るい紙でも暗い紙でも必ず見える。
+           * 沖縄インセットの囲み。
+           *
+           * 地図帳の慣例に倣い、右上の角を斜めに落とした「開いた囲み」にする
+           * ―― 上辺と左辺だけを引き、下と右は紙に開放したまま。閉じた四角に
+           * すると図の中に別の図が入っているように見え、地図の一部という
+           * 感じが出ない。
+           *
+           * 線は点線。色は県境と同じで、明るい紙でも暗い紙でも必ず見える
+           * （白にすると明るい地の上で消える）。
            */
-          const y = okiBox.minY + oki.dy - 26;
-          const x1 = okiBox.minX + oki.dx - 30;
-          const x2 = okiBox.maxX + oki.dx + 30;
-          const len = x2 - x1;
-          const dash = len * 0.24;
-          const gap = len * 0.14;
+          const pad = 26;
+          const left = okiBox.minX + oki.dx - pad;
+          const top = okiBox.minY + oki.dy - pad;
+          const bottom = okiBox.maxY + oki.dy + pad;
+          // OKINAWA のラベルまで覆う長さにする（枠の外に文字が落ちると別物に見える）
+          const right = Math.min(VB_W - 6, okiBox.maxX + oki.dx + 104);
+          const cut = 46; // 右上の角を落とす長さ
           return (
             <Path
-              d={`M ${x1} ${y} L ${x2} ${y}`}
+              d={`M ${left} ${bottom} L ${left} ${top + cut} L ${left + cut} ${top} L ${right} ${top}`}
               stroke={strokeFill ?? palette.inkFaint}
-              strokeWidth={1.6}
-              strokeDasharray={`${dash} ${gap}`}
+              strokeWidth={1.4}
+              strokeDasharray="7 6"
               strokeLinecap="round"
+              strokeLinejoin="round"
               fill="none"
             />
           );

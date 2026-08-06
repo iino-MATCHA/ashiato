@@ -25,10 +25,13 @@ export function ZoomPan({
   width,
   height,
   children,
+  /** ＋− を出すか。地図を眺めるだけの面では邪魔なので消せるようにしてある */
+  zoomButtons = true,
 }: {
   width: number;
   height: number;
   children: React.ReactNode;
+  zoomButtons?: boolean;
 }) {
   const MIN = 1;
   const MAX = 4;
@@ -146,10 +149,12 @@ export function ZoomPan({
         {children}
       </div>
 
-      <div className="zoomBtns">
-        <button type="button" aria-label="zoom in" disabled={view.k >= MAX} onClick={() => zoomBy(1.5)}>+</button>
-        <button type="button" aria-label="zoom out" disabled={view.k <= MIN} onClick={() => zoomBy(1 / 1.5)}>−</button>
-      </div>
+      {zoomButtons && (
+        <div className="zoomBtns">
+          <button type="button" aria-label="zoom in" disabled={view.k >= MAX} onClick={() => zoomBy(1.5)}>+</button>
+          <button type="button" aria-label="zoom out" disabled={view.k <= MIN} onClick={() => zoomBy(1 / 1.5)}>−</button>
+        </div>
+      )}
     </div>
   );
 }
