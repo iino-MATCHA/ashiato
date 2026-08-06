@@ -110,9 +110,29 @@ const CSS = `
   padding-top:clamp(72px,12vw,110px); padding-bottom:clamp(72px,12vw,110px); }
 .mjq .bar { position:fixed; top:0; left:0; right:0; height:3px; background:rgba(0,0,0,.06); z-index:5; }
 .mjq .barFill { height:100%; background:var(--matcha); transition:width .3s cubic-bezier(.2,.7,.2,1); }
-/* 設問が切り替わるときの入場。透明から自然な位置へ寄せるだけの短い動き */
-.mjq .qIn { animation:mjqStep .4s cubic-bezier(.2,.7,.2,1) both; }
-@keyframes mjqStep { from { opacity:0; transform:translateY(22px); } to { opacity:1; transform:none; } }
+/* 設問が切り替わるときの入場。下からふわっと上がってくる */
+.mjq .qIn { animation:mjqStep .28s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes mjqStep { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
+
+/* --- 押した所から広がる水面 ---
+   答えた瞬間に、指を置いた点から波紋が外へ抜ける。抜けきってから
+   次の設問が下から入る。**全部あわせて0.5秒**に収める（診断は12問あるので、
+   1問ごとの待ちが伸びると全体で体感が重くなる）。
+   位置は fixed ―― この面自身がスクロールの器なので、絶対配置だと
+   スクロール量ぶん波紋がずれる。 */
+.mjq .splash { position:fixed; z-index:40; width:0; height:0; pointer-events:none; }
+.mjq .splash i, .mjq .splash b { position:absolute; left:0; top:0; display:block; border-radius:50%;
+  width:var(--d); height:var(--d); margin-left:calc(var(--d) / -2); margin-top:calc(var(--d) / -2);
+  transform:scale(0); }
+/* 水の面。内側がほんのり緑に染まって、すぐ引く */
+.mjq .splash b { background:radial-gradient(circle, rgba(105,175,0,.16) 0%, rgba(105,175,0,.05) 55%, rgba(105,175,0,0) 72%);
+  animation:mjqSplash .34s cubic-bezier(.22,.7,.2,1) forwards; }
+/* 波の輪。3本を少しずつ遅らせて、水が広がるように見せる */
+.mjq .splash i { border:1.5px solid rgba(105,175,0,.5);
+  animation:mjqSplash .4s cubic-bezier(.22,.7,.2,1) forwards; }
+.mjq .splash i:nth-child(2) { animation-delay:.06s; border-color:rgba(105,175,0,.34); }
+.mjq .splash i:nth-child(3) { animation-delay:.12s; border-color:rgba(105,175,0,.2); }
+@keyframes mjqSplash { from { transform:scale(0); opacity:1; } to { transform:scale(1); opacity:0; } }
 .mjq .step { font-size:10.5px; letter-spacing:3px; color:#9B978F; }
 .mjq .qTitle { font-size:clamp(23px,5.2vw,38px); line-height:1.35; margin-top:12px; }
 .mjq .qHint { color:#6B6862; font-size:13px; line-height:1.8; margin-top:12px; }
@@ -291,6 +311,7 @@ const CSS = `
   .mjq .opt:hover, .mjq .likert button:hover { transform:none; }
   .mjq .flowCard { transition:none; }
   .mjq .detail, .mjq .qIn, .mjq .keepVeil, .mjq .keepCard { animation:none; }
+  .mjq .splash { display:none; }
 }
 `;
 
@@ -343,6 +364,12 @@ export function QuizLanding() {
   const [error, setError] = useState<string | null>(null);
   /** 体験の枠を数えた県。同じ県を二重に数えないための目印 */
   const affSeen = useRef<Set<number>>(new Set());
+  /**
+   * 押した所から広がる水面。座標と、毎回作り直すための番号を持つ。
+   * 番号を key にして要素を作り直さないと、2問目以降でCSSの動きが走らない。
+   */
+  const [splash, setSplash] = useState<{ x: number; y: number; n: number } | null>(null);
+  const splashN = useRef(0);
   /** 「Keep your footprint」モーダル。最後のカードまで見た人に1回だけ出す */
   const [keepOpen, setKeepOpen] = useState(false);
   const keepShown = useRef(false);
@@ -390,14 +417,28 @@ export function QuizLanding() {
     setStep(0);
   };
 
-  const choose = (optId: string) => {
+  /**
+   * 押した点から波紋を出す。
+   * 波紋が抜けはじめてから設問を差し替える ―― 同時にやると、
+   * 消えていく設問と広がる波が重なって画面が濁る。
+   */
+  const RIPPLE_MS = 220;
+  const ripple = (e?: { clientX: number; clientY: number }) => {
+    if (!e) return;
+    splashN.current += 1;
+    setSplash({ x: e.clientX, y: e.clientY, n: splashN.current });
+    // 動きが終わったら片付ける（残しておくと次の波紋と重なる）
+    window.setTimeout(() => setSplash(null), 560);
+  };
+
+  const choose = (optId: string, e?: { clientX: number; clientY: number }) => {
     if (!q) return;
     // 5段階(scale)も「1つ選べば次へ」は single と同じ
     if (q.kind === 'single' || q.kind === 'scale') {
       setAnswers((a) => ({ ...a, [q.id]: [optId] }));
       funnel.answer(q.id, step, total, optId);
-      // 1つ選べば次へ。押した手応えが残るように少しだけ待つ
-      window.setTimeout(() => advance({ ...answers, [q.id]: [optId] }), 180);
+      ripple(e);
+      window.setTimeout(() => advance({ ...answers, [q.id]: [optId] }), RIPPLE_MS);
       return;
     }
     setAnswers((a) => {
@@ -719,7 +760,7 @@ export function QuizLanding() {
                         className={picked.includes(o.id) ? 'on' : ''}
                         aria-label={t(o.labelKey)}
                         aria-pressed={picked.includes(o.id)}
-                        onClick={() => choose(o.id)}
+                        onClick={(e) => choose(o.id, e)}
                       />
                     ))}
                   </div>
@@ -737,7 +778,7 @@ export function QuizLanding() {
                         key={o.id}
                         type="button"
                         className={`opt${on ? ' on' : ''}`}
-                        onClick={() => choose(o.id)}
+                        onClick={(e) => choose(o.id, e)}
                         aria-pressed={on}
                       >
                         <span className="optMark">{on ? '✓' : ''}</span>
@@ -762,7 +803,16 @@ export function QuizLanding() {
                   ← {t('quiz.back')}
                 </button>
                 {q.kind !== 'single' && q.kind !== 'scale' && (
-                  <button type="button" className="cta" disabled={!canGo} onClick={() => advance()}>
+                  <button
+                    type="button"
+                    className="cta"
+                    disabled={!canGo}
+                    onClick={(e) => {
+                      // 複数選択・スライダー・地図も「次へ」を押した点から波紋を出す
+                      ripple(e);
+                      window.setTimeout(() => advance(), RIPPLE_MS);
+                    }}
+                  >
                     {step + 1 === total ? t('quiz.seeResult') : t('quiz.next')} →
                   </button>
                 )}
@@ -964,6 +1014,30 @@ export function QuizLanding() {
             </div>
           </section>
         </>
+      )}
+
+      {/*
+        押した所から広がる水面。
+        画面の隅から押されても抜けきるよう、直径は長辺の1.8倍を取る。
+      */}
+      {!!splash && (
+        <div
+          className="splash"
+          key={splash.n}
+          aria-hidden
+          style={
+            {
+              left: splash.x,
+              top: splash.y,
+              '--d': `${Math.round(Math.max(vw, typeof window === 'undefined' ? 800 : window.innerHeight) * 1.8)}px`,
+            } as React.CSSProperties
+          }
+        >
+          <b />
+          <i />
+          <i />
+          <i />
+        </div>
       )}
 
       {/* ============================================ Keep your footprint モーダル */}
