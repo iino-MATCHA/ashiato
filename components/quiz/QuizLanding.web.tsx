@@ -57,7 +57,9 @@ const CSS = `
   height:var(--vh,100svh); overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;
   background:var(--paper); color:var(--ink);
   font-family:'ZenKakuGothicNew_400Regular','Zen Kaku Gothic New',system-ui,sans-serif;
-  -webkit-font-smoothing:antialiased; }
+  -webkit-font-smoothing:antialiased;
+  /* iOSのタップで灰色や緑の残像が出ないように。押した手応えは .on / :active が持つ */
+  -webkit-tap-highlight-color:transparent; }
 .mjq .mincho { font-family:'ShipporiMincho_700Bold','Shippori Mincho',serif; }
 .mjq section { padding:clamp(52px,10vw,104px) 22px; }
 .mjq .wrap { max-width:900px; margin:0 auto; }
@@ -97,11 +99,19 @@ const CSS = `
 .mjq .cta:disabled { opacity:.5; cursor:default; }
 .mjq .ctaWide { width:100%; max-width:360px; }
 
-/* --- 質問の段 --- */
-.mjq .qStage { min-height:var(--vh,100svh); display:flex; flex-direction:column; justify-content:center;
-  padding-top:clamp(72px,12vw,110px); }
+/* --- 質問の段 ---
+   min-height はパディング込み(border-box)にする。content-box のままだと
+   段の実高が 100svh+パディングになり、justify-content:center の中心が
+   画面の中心より下へ沈む（スマホで「中央に来ていない」と指摘された原因）。
+   上下のパディングも同じ値にして、真ん中に落ちるようにする。 */
+.mjq .qStage { box-sizing:border-box; min-height:var(--vh,100svh);
+  display:flex; flex-direction:column; justify-content:center;
+  padding-top:clamp(72px,12vw,110px); padding-bottom:clamp(72px,12vw,110px); }
 .mjq .bar { position:fixed; top:0; left:0; right:0; height:3px; background:rgba(0,0,0,.06); z-index:5; }
 .mjq .barFill { height:100%; background:var(--matcha); transition:width .3s cubic-bezier(.2,.7,.2,1); }
+/* 設問が切り替わるときの入場。透明から自然な位置へ寄せるだけの短い動き */
+.mjq .qIn { animation:mjqStep .4s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes mjqStep { from { opacity:0; transform:translateY(22px); } to { opacity:1; transform:none; } }
 .mjq .step { font-size:10.5px; letter-spacing:3px; color:#9B978F; }
 .mjq .qTitle { font-size:clamp(23px,5.2vw,38px); line-height:1.35; margin-top:12px; }
 .mjq .qHint { color:#6B6862; font-size:13px; line-height:1.8; margin-top:12px; }
@@ -112,7 +122,9 @@ const CSS = `
   background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px;
   font-family:inherit; font-size:14.5px; color:var(--ink); line-height:1.4;
   transition:border-color .18s, background .18s, transform .18s; }
-.mjq .opt:hover { border-color:#C9C4B4; transform:translateY(-2px); }
+/* hoverの浮き上がりはマウスにだけ。タッチだと:hoverが張り付いて、
+   変形した層が残像になることがある（iOSで実際に緑の欠片が残った） */
+@media (hover:hover) { .mjq .opt:hover { border-color:#C9C4B4; transform:translateY(-2px); } }
 .mjq .opt.on { border-color:var(--matcha); background:#F4FAEA; }
 .mjq .optMark { flex:0 0 auto; width:20px; height:20px; border-radius:50%; border:1px solid #D7D2C4;
   display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; }
@@ -162,7 +174,7 @@ const CSS = `
   margin:38px auto 0; max-width:520px; }
 .mjq .likert button { flex:0 0 auto; border-radius:50%; background:#fff; cursor:pointer; padding:0;
   border:2px solid #D7D2C4; transition:border-color .15s, background .15s, transform .15s; }
-.mjq .likert button:hover { transform:scale(1.08); }
+@media (hover:hover) { .mjq .likert button:hover { transform:scale(1.08); } }
 /* 端ほど大きい丸。左（当てはまる）は抹茶、右（当てはまらない）は墨 */
 .mjq .likert button:nth-child(1) { width:56px; height:56px; border-color:#A5CE63; }
 .mjq .likert button:nth-child(2) { width:44px; height:44px; border-color:#C2DC94; }
@@ -245,6 +257,27 @@ const CSS = `
   font-size:12.5px; text-decoration:underline; text-underline-offset:3px; }
 .mjq footer { padding:34px 22px 48px; color:#9B978F; font-size:10.5px; letter-spacing:2.6px; }
 
+/* --- 「Keep your footprint」の中央モーダル ---
+   3枚目のカードまで見た＝結果を見終わった人にだけ、保存への導線を1回出す。
+   中身は下の save セクションと同じ暗い紙＋日本地図。 */
+.mjq .keepVeil { position:fixed; inset:0; z-index:50; background:rgba(12,10,8,.62);
+  display:flex; align-items:center; justify-content:center; padding:22px;
+  animation:mjqFade .25s ease-out both; }
+@keyframes mjqFade { from { opacity:0; } to { opacity:1; } }
+.mjq .keepCard { position:relative; width:100%; max-width:360px; background:var(--ink); color:#fff;
+  border-radius:20px; padding:32px 24px 26px; text-align:center;
+  box-shadow:0 24px 70px rgba(0,0,0,.42); animation:mjqPop .35s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes mjqPop { from { opacity:0; transform:translateY(18px) scale(.95); } to { opacity:1; transform:none; } }
+.mjq .keepCard h3 { font-size:22px; margin-top:10px; }
+.mjq .keepMap { display:flex; justify-content:center; margin:18px 0 8px; }
+.mjq .keepCount { font-size:12.5px; color:rgba(255,255,255,.7); }
+.mjq .keepCount b { font-size:20px; color:#8FC93A; font-family:'ShipporiMincho_700Bold',serif; }
+.mjq .keepCard .cta { width:100%; margin-top:18px; }
+.mjq .keepClose { position:absolute; top:10px; right:10px; width:34px; height:34px; padding:0;
+  border:0; border-radius:50%; background:rgba(255,255,255,.12); color:rgba(255,255,255,.85);
+  font-size:15px; line-height:1; cursor:pointer; }
+.mjq .keepClose:hover { background:rgba(255,255,255,.2); }
+
 @media (max-width:560px) {
   .mjq .opts { grid-template-columns:1fr; }
   .mjq section { padding-top:clamp(40px,9vw,64px); }
@@ -253,7 +286,7 @@ const CSS = `
   .mjq .heroGrid img { animation:none; }
   .mjq .opt:hover, .mjq .likert button:hover { transform:none; }
   .mjq .flowCard { transition:none; }
-  .mjq .detail { animation:none; }
+  .mjq .detail, .mjq .qIn, .mjq .keepVeil, .mjq .keepCard { animation:none; }
 }
 `;
 
@@ -306,6 +339,10 @@ export function QuizLanding() {
   const [error, setError] = useState<string | null>(null);
   /** 体験の枠を数えた県。同じ県を二重に数えないための目印 */
   const affSeen = useRef<Set<number>>(new Set());
+  /** 「Keep your footprint」モーダル。最後のカードまで見た人に1回だけ出す */
+  const [keepOpen, setKeepOpen] = useState(false);
+  const keepShown = useRef(false);
+  const saveRef = useRef<HTMLElement | null>(null);
 
   // 流入元を預かる。LP表示を1回だけ数える
   const viewed = useRef(false);
@@ -409,6 +446,8 @@ export function QuizLanding() {
     setActive(0);
     setSpots({});
     affSeen.current = new Set();
+    keepShown.current = false;
+    setKeepOpen(false);
     setStage('quiz');
     setStep(0);
   };
@@ -490,6 +529,26 @@ export function QuizLanding() {
     );
   }, [stage, current, gygLinks]);
 
+  /**
+   * 最後のカードまで送った＝結果を見終わった合図。少し置いてモーダルを出す。
+   * 出すのは結果1回につき1度だけ（カードを行き来しても再表示しない）。
+   */
+  useEffect(() => {
+    if (stage !== 'result') return;
+    if (results.length < 2 || active !== results.length - 1 || keepShown.current) return;
+    keepShown.current = true;
+    const id = window.setTimeout(() => setKeepOpen(true), 550);
+    return () => window.clearTimeout(id);
+  }, [stage, active, results.length]);
+
+  /** モーダルの「Keep your footprint」。閉じて save セクションへ滑らかに送る */
+  const goKeep = () => {
+    setKeepOpen(false);
+    try {
+      saveRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch {}
+  };
+
   // --- 登録 ------------------------------------------------------------
   const handoff = () => saveHandoff(Array.from(visited), results.map((r) => r.code));
 
@@ -519,12 +578,6 @@ export function QuizLanding() {
       setBusy(false);
       setError(t('quiz.cta.failed'));
     }
-  };
-
-  const signUpEmail = () => {
-    handoff();
-    funnel.saveMapClick(visited.size, 'email');
-    router.push('/(auth)/login?signup=1');
   };
 
   const signIn = () => {
@@ -604,7 +657,8 @@ export function QuizLanding() {
             <div className="barFill" style={{ width: `${((step + 1) / total) * 100}%` }} />
           </div>
           <section className="qStage">
-            <div className="wrap">
+            {/* key=step で問いごとに作り直し、入場の動き(qIn)を毎回走らせる */}
+            <div className="wrap qIn" key={step}>
               <div className="step">{t('quiz.progress', { n: step + 1, total })}</div>
               <h2 className="qTitle mincho">{t(q.titleKey)}</h2>
               {!!q.hintKey && <p className="qHint">{t(q.hintKey)}</p>}
@@ -848,7 +902,7 @@ export function QuizLanding() {
           </section>
 
           {/* ------------------------------------------------ 登録 */}
-          <section className="save">
+          <section className="save" ref={saveRef}>
             <div className="wrap">
               <div className="eyebrow">{t('quiz.cta.eyebrow')}</div>
               <h2 className="mincho">{t('quiz.cta.title')}</h2>
@@ -871,17 +925,15 @@ export function QuizLanding() {
               </div>
 
               <div className="authBtns">
+                {/* ボタンは1つに絞る（中身はGoogleでの登録）。メールの経路は置かない */}
                 <button type="button" className="oauth" disabled={busy} onClick={signUpGoogle}>
-                  {t('quiz.cta.google')}
+                  {t('quiz.cta.keep')}
                 </button>
                 {APPLE_ENABLED && (
                   <button type="button" className="oauth" disabled={busy} onClick={signUpApple}>
                     {t('quiz.cta.apple')}
                   </button>
                 )}
-                <button type="button" className="oauth oauthGhost" disabled={busy} onClick={signUpEmail}>
-                  {t('quiz.cta.email')}
-                </button>
               </div>
               {!!error && <p className="err">{error}</p>}
 
@@ -903,6 +955,35 @@ export function QuizLanding() {
             </div>
           </section>
         </>
+      )}
+
+      {/* ============================================ Keep your footprint モーダル */}
+      {keepOpen && (
+        <div className="keepVeil" onClick={() => setKeepOpen(false)}>
+          <div className="keepCard" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="keepClose" aria-label="Close" onClick={() => setKeepOpen(false)}>
+              ✕
+            </button>
+            <div className="eyebrow">{t('quiz.cta.eyebrow')}</div>
+            <h3 className="mincho">{t('quiz.cta.title')}</h3>
+            <div className="keepMap">
+              <JapanSvgMap
+                visited={visited}
+                width={190}
+                okinawaInset
+                emptyFill="#3A362E"
+                strokeFill="#5C564A"
+                tint="#8FC93A"
+              />
+            </div>
+            <div className="keepCount">
+              <b>{visited.size}</b> / 47
+            </div>
+            <button type="button" className="cta" onClick={goKeep}>
+              {t('quiz.cta.keep')} →
+            </button>
+          </div>
+        </div>
       )}
 
       <footer>MY JAPAN BY MATCHA, INC. · ALL RIGHTS RESERVED</footer>
