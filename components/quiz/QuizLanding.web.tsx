@@ -110,29 +110,32 @@ const CSS = `
   padding-top:clamp(72px,12vw,110px); padding-bottom:clamp(72px,12vw,110px); }
 .mjq .bar { position:fixed; top:0; left:0; right:0; height:3px; background:rgba(0,0,0,.06); z-index:5; }
 .mjq .barFill { height:100%; background:var(--matcha); transition:width .3s cubic-bezier(.2,.7,.2,1); }
-/* 設問が切り替わるときの入場。下からふわっと上がってくる */
-.mjq .qIn { animation:mjqStep .28s cubic-bezier(.2,.7,.2,1) both; }
-@keyframes mjqStep { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
+/* 設問が切り替わるときの入場。覆いが引くのと入れ違いに、下から上がってくる */
+.mjq .qIn { animation:mjqStep .3s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes mjqStep { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:none; } }
 
-/* --- 押した所から広がる水面 ---
-   答えた瞬間に、指を置いた点から波紋が外へ抜ける。抜けきってから
-   次の設問が下から入る。**全部あわせて0.5秒**に収める（診断は12問あるので、
-   1問ごとの待ちが伸びると全体で体感が重くなる）。
-   位置は fixed ―― この面自身がスクロールの器なので、絶対配置だと
-   スクロール量ぶん波紋がずれる。 */
-.mjq .splash { position:fixed; z-index:40; width:0; height:0; pointer-events:none; }
-.mjq .splash i, .mjq .splash b { position:absolute; left:0; top:0; display:block; border-radius:50%;
+/* --- 押した所から広がる面（旅を開くときと同じ作り） ---
+   lib/transition.tsx と同じ考え方。**薄い輪を散らすのではなく、色の面が
+   タップ点から膨らんで画面を覆う。** 覆いきった下で設問を差し替え、
+   面が引くのと入れ違いに次の設問が下から入る。
+   最初は緑の輪を3重に広げるだけにしていたが、白い紙の上では動きが
+   目に入らなかった（「全く分からない」と指摘された）―― 覆う面が要る。
+
+   色は選択肢を選んだときと同じ薄い抹茶(#F4FAEA)。紙(#FBFAF7)と同色では
+   広がりが見えず、濃い色では診断の途中で画面が暗転して驚かせる。
+
+   位置は fixed。この面自身がスクロールの器なので、絶対配置だと
+   スクロール量ぶんずれる。進捗の帯(z-index:5)より下に置いて、
+   覆っている間も残りの問数が見えるようにする。 */
+.mjq .splash { position:fixed; z-index:4; width:0; height:0; pointer-events:none; }
+.mjq .splash b { position:absolute; left:0; top:0; display:block; border-radius:50%;
   width:var(--d); height:var(--d); margin-left:calc(var(--d) / -2); margin-top:calc(var(--d) / -2);
-  transform:scale(0); }
-/* 水の面。内側がほんのり緑に染まって、すぐ引く */
-.mjq .splash b { background:radial-gradient(circle, rgba(105,175,0,.16) 0%, rgba(105,175,0,.05) 55%, rgba(105,175,0,0) 72%);
-  animation:mjqSplash .34s cubic-bezier(.22,.7,.2,1) forwards; }
-/* 波の輪。3本を少しずつ遅らせて、水が広がるように見せる */
-.mjq .splash i { border:1.5px solid rgba(105,175,0,.5);
-  animation:mjqSplash .4s cubic-bezier(.22,.7,.2,1) forwards; }
-.mjq .splash i:nth-child(2) { animation-delay:.06s; border-color:rgba(105,175,0,.34); }
-.mjq .splash i:nth-child(3) { animation-delay:.12s; border-color:rgba(105,175,0,.2); }
-@keyframes mjqSplash { from { transform:scale(0); opacity:1; } to { transform:scale(1); opacity:0; } }
+  background:#F4FAEA; transform:scale(0);
+  /* 膨らみは加速（ease-in）、引きは減速（ease-out）。別々の動きなので2本に分ける */
+  animation:mjqWipeGrow .26s cubic-bezier(.4,0,1,1) forwards,
+            mjqWipeFade .24s cubic-bezier(0,0,.4,1) .3s forwards; }
+@keyframes mjqWipeGrow { from { transform:scale(0); } to { transform:scale(1); } }
+@keyframes mjqWipeFade { from { opacity:1; } to { opacity:0; } }
 .mjq .step { font-size:10.5px; letter-spacing:3px; color:#9B978F; }
 .mjq .qTitle { font-size:clamp(23px,5.2vw,38px); line-height:1.35; margin-top:12px; }
 .mjq .qHint { color:#6B6862; font-size:13px; line-height:1.8; margin-top:12px; }
@@ -348,6 +351,17 @@ const TYPES_BY_AXIS: Partial<Record<Axis, string[]>> = {
 
 type Stage = 'hero' | 'quiz' | 'result';
 
+/**
+ * 覆いの円が画面を覆いきる直径。
+ * タップ点からいちばん遠い角までの距離を半径にする（lib/transition.tsx と同じ）。
+ */
+function coverDiameter(x: number, y: number): number {
+  if (typeof window === 'undefined') return 2000;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  return (Math.hypot(Math.max(x, w - x), Math.max(y, h - y)) + 40) * 2;
+}
+
 export function QuizLanding() {
   const { t, locale } = useI18n();
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -418,17 +432,18 @@ export function QuizLanding() {
   };
 
   /**
-   * 押した点から波紋を出す。
-   * 波紋が抜けはじめてから設問を差し替える ―― 同時にやると、
-   * 消えていく設問と広がる波が重なって画面が濁る。
+   * 押した点から面を広げる。
+   * **覆いきってから設問を差し替える。** 早すぎると差し替えが見えてしまい、
+   * 遅すぎると覆いが引いたあとに古い設問が残って見える。
+   * 覆い(.26s) → 差し替え(.28s) → 引き(.3s〜.54s) の順で、全体 約0.55秒。
    */
-  const RIPPLE_MS = 220;
+  const RIPPLE_MS = 280;
   const ripple = (e?: { clientX: number; clientY: number }) => {
     if (!e) return;
     splashN.current += 1;
     setSplash({ x: e.clientX, y: e.clientY, n: splashN.current });
-    // 動きが終わったら片付ける（残しておくと次の波紋と重なる）
-    window.setTimeout(() => setSplash(null), 560);
+    // 動きが終わったら片付ける（残しておくと次の面と重なる）
+    window.setTimeout(() => setSplash(null), 580);
   };
 
   const choose = (optId: string, e?: { clientX: number; clientY: number }) => {
@@ -1017,8 +1032,9 @@ export function QuizLanding() {
       )}
 
       {/*
-        押した所から広がる水面。
-        画面の隅から押されても抜けきるよう、直径は長辺の1.8倍を取る。
+        押した所から広がる面。
+        画面のどこを押されても四隅まで届くよう、いちばん遠い角までの距離から
+        直径を出す（決め打ちの倍率だと、隅を押したときに覆いきれない）。
       */}
       {!!splash && (
         <div
@@ -1029,14 +1045,11 @@ export function QuizLanding() {
             {
               left: splash.x,
               top: splash.y,
-              '--d': `${Math.round(Math.max(vw, typeof window === 'undefined' ? 800 : window.innerHeight) * 1.8)}px`,
+              '--d': `${Math.round(coverDiameter(splash.x, splash.y))}px`,
             } as React.CSSProperties
           }
         >
           <b />
-          <i />
-          <i />
-          <i />
         </div>
       )}
 
