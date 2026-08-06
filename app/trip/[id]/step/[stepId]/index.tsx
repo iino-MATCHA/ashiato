@@ -129,12 +129,22 @@ export default function StepDetail() {
         title={step.placeName}
         right={
           canEdit ? (
+            /* 歯車だと「設定」に見えて編集に辿り着けない（ユーザー指摘）。言葉で出す */
             <Pressable
               onPress={() => router.push(`/trip/${trip.id}/step/${step.id}/edit`)}
               hitSlop={10}
               style={({ pressed }) => [pressed && { opacity: 0.6 }]}
             >
-              <Ionicons name="settings-outline" size={20} color={palette.ink} />
+              <AppText
+                style={{
+                  fontFamily: fonts.gothicMedium,
+                  fontSize: 13,
+                  color: palette.matcha,
+                  textDecorationLine: 'underline',
+                }}
+              >
+                {t('common.edit')}
+              </AppText>
             </Pressable>
           ) : undefined
         }

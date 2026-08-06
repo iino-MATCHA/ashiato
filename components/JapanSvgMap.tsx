@@ -137,6 +137,29 @@ export function JapanSvgMap({
             OKINAWA
           </SvgText>
         )}
+        {okinawaInset && oki && okiBox && (() => {
+          /**
+           * 本土との区切り。千葉との隙間の中ほどに、3つの線分の点線を引いて
+           * 「地続きではない」ことを見せる（地図帳のインセットの慣例）。
+           * 色は県境と同じ ―― 明るい紙でも暗い紙でも必ず見える。
+           */
+          const y = okiBox.minY + oki.dy - 26;
+          const x1 = okiBox.minX + oki.dx - 30;
+          const x2 = okiBox.maxX + oki.dx + 30;
+          const len = x2 - x1;
+          const dash = len * 0.24;
+          const gap = len * 0.14;
+          return (
+            <Path
+              d={`M ${x1} ${y} L ${x2} ${y}`}
+              stroke={strokeFill ?? palette.inkFaint}
+              strokeWidth={1.6}
+              strokeDasharray={`${dash} ${gap}`}
+              strokeLinecap="round"
+              fill="none"
+            />
+          );
+        })()}
       </Svg>
     </View>
   );

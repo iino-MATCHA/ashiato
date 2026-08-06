@@ -48,7 +48,9 @@ export function okinawaOffset(): { dx: number; dy: number } {
   const okiCx = (okinawa.minX + okinawa.maxX) / 2;
   return {
     dx: chibaCx - okiCx,
-    dy: chiba.maxY + 28 - okinawa.minY, // 千葉の下端から少し離す
+    // 千葉と地続きに見えない距離を空ける（28では近すぎた）。
+    // この隙間には JapanSvgMap が区切りの点線を引く
+    dy: chiba.maxY + 52 - okinawa.minY,
   };
 }
 

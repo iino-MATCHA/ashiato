@@ -13,6 +13,8 @@ const CSS = `
 .bkp { --paper:#FBF8F0; position:relative; margin:0 auto; perspective:2000px; user-select:none; }
 .bkp .book { position:relative; width:100%; height:100%; display:flex;
   border-radius:3px 6px 6px 3px; overflow:visible;
+  /* 横スワイプでめくるので、横は本が受け取り、縦のスクロールはページに返す */
+  touch-action:pan-y;
   box-shadow:0 26px 60px rgba(0,0,0,.28), 0 3px 10px rgba(0,0,0,.16); }
 /* 背（綴じ側）の陰 */
 .bkp .book::after { content:''; position:absolute; left:50%; top:0; bottom:0; width:26px;
@@ -110,6 +112,24 @@ export function BookPreview({ total, getPage, width, ratio = 1654 / 1165 }: Book
   };
 
   /**
+   * 横スワイプでめくる。紙をめくる操作なので、矢印より先にこちらが自然
+   * （ユーザー要望）。縦成分の方が大きい動きはページのスクロールに譲る。
+   */
+  const drag = useRef<{ x: number; y: number } | null>(null);
+  const onPointerDown = (e: React.PointerEvent) => {
+    drag.current = { x: e.clientX, y: e.clientY };
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    const s = drag.current;
+    drag.current = null;
+    if (!s) return;
+    const dx = e.clientX - s.x;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(e.clientY - s.y)) {
+      go(dx < 0 ? 'next' : 'prev'); // 左へ払う＝次のページ
+    }
+  };
+
+  /**
    * 紙は「表 = page(2k+1) / 裏 = page(2k+2)」の1枚。
    * 次へ: 右の紙(表 at+1 / 裏 at+2)が左へ倒れる。倒れた先の左は裏(at+2)、
    *       持ち上がった右からは at+3 が現れる。
@@ -124,14 +144,15 @@ export function BookPreview({ total, getPage, width, ratio = 1654 / 1165 }: Book
 
   const Face = ({ src, className }: { src: string | null; className: string }) => (
     <div className={className}>
-      {src ? <img src={src} alt="" /> : <div className="empty">…</div>}
+      {/* draggable を切らないと、スワイプが画像のドラッグに化けて pointerup が来ない */}
+      {src ? <img src={src} alt="" draggable={false} /> : <div className="empty">…</div>}
     </div>
   );
 
   return (
     <div className="bkp" style={{ width, height }}>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
-      <div className="book" style={{ height }}>
+      <div className="book" style={{ height }} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
         <Face src={leftStatic} className="side left" />
         <Face src={rightStatic} className="side right" />
 

@@ -18,18 +18,18 @@ import { useI18n } from '@/lib/i18n';
 const LEN = 132;
 const THICK = 7;
 
-export interface Region { key: string; label: string; codes: number[] }
+export interface Region { key: string; codes: number[] }
 
-/** 地方区分（JISコード順） */
+/** 地方区分（JISコード順）。表示名は i18n の region.* から引く（日本語直書きにしない） */
 export const REGIONS: Region[] = [
-  { key: 'hokkaido', label: '北海道', codes: [1] },
-  { key: 'tohoku', label: '東北', codes: [2, 3, 4, 5, 6, 7] },
-  { key: 'kanto', label: '関東', codes: [8, 9, 10, 11, 12, 13, 14] },
-  { key: 'chubu', label: '中部', codes: [15, 16, 17, 18, 19, 20, 21, 22, 23] },
-  { key: 'kinki', label: '近畿', codes: [24, 25, 26, 27, 28, 29, 30] },
-  { key: 'chugoku', label: '中国', codes: [31, 32, 33, 34, 35] },
-  { key: 'shikoku', label: '四国', codes: [36, 37, 38, 39] },
-  { key: 'kyushu', label: '九州・沖縄', codes: [40, 41, 42, 43, 44, 45, 46, 47] },
+  { key: 'hokkaido', codes: [1] },
+  { key: 'tohoku', codes: [2, 3, 4, 5, 6, 7] },
+  { key: 'kanto', codes: [8, 9, 10, 11, 12, 13, 14] },
+  { key: 'chubu', codes: [15, 16, 17, 18, 19, 20, 21, 22, 23] },
+  { key: 'kinki', codes: [24, 25, 26, 27, 28, 29, 30] },
+  { key: 'chugoku', codes: [31, 32, 33, 34, 35] },
+  { key: 'shikoku', codes: [36, 37, 38, 39] },
+  { key: 'kyushu', codes: [40, 41, 42, 43, 44, 45, 46, 47] },
 ];
 
 /**
@@ -212,11 +212,12 @@ export function CoverageGauge({
                   ],
                 }}
               >
+                {/* 英語の「Kyushu · Okinawa」は1行に入らないので、2行まで折り返す */}
                 <AppText
-                  style={{ width: labelW, fontFamily: fonts.minchoBold, fontSize: 13, color: 'rgba(255,255,255,0.92)' }}
-                  numberOfLines={1}
+                  style={{ width: labelW, fontFamily: fonts.minchoBold, fontSize: 12, lineHeight: 16, color: 'rgba(255,255,255,0.92)' }}
+                  numberOfLines={2}
                 >
-                  {r.label}
+                  {t(`region.${r.key}`)}
                 </AppText>
                 <View style={[styles.hTrack, { width: gaugeLen }]}>
                   <View style={[styles.hFill, { width: `${Math.max(2, ratio * 100)}%`, backgroundColor: GREENS[i % GREENS.length] }]} />
