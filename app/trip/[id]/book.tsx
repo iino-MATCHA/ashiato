@@ -14,6 +14,7 @@ import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
 import { planBook, MIN_PHOTOS, type Page } from '@/lib/photobook/plan';
+import { readBookEdits, writeBookEdits, applyBookEdits, applyCover, type BookEdits } from '@/lib/photobook/edits';
 import { renderPage, renderPdf, PAGE_SIZE, type RenderProgress } from '@/lib/photobook/render';
 
 import { useI18n } from '@/lib/i18n';
@@ -35,15 +36,52 @@ export default function TripBook() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { trip } = useTrip(id);
 
-  const plan = useMemo(() => (trip ? planBook(trip) : null), [trip]);
+  /**
+   * 手直し（写真の取捨・表紙）。端末に残すので、開き直しても消えない。
+   * 台割は「編集で削った旅」から毎回組み直す ―― plan.ts は純関数なので
+   * 一瞬で終わり、ページ配分も帯も自動で追従する。
+   */
+  const [edits, setEdits] = useState<BookEdits>({ excluded: [] });
+  useEffect(() => { if (id) setEdits(readBookEdits(id)); }, [id]);
+  const updateEdits = (next: BookEdits) => {
+    setEdits(next);
+    if (id) writeBookEdits(id, next);
+  };
+  const toggPhoto = (uri: string) =>
+    updateEdits({
+      ...edits,
+      excluded: edits.excluded.includes(uri)
+        ? edits.excluded.filter((u) => u !== uri)
+        : [...edits.excluded, uri],
+    });
+
+  const plan = useMemo(
+    () => (trip ? applyCover(planBook(applyBookEdits(trip, edits)), edits) : null),
+    [trip, edits]
+  );
+
+  /** 取捨の候補。旅の全写真（外したものも、戻せるようにここには残す） */
+  const allPhotos = useMemo(
+    () =>
+      (trip?.steps ?? []).flatMap((s) =>
+        s.images.filter(Boolean).map((uri) => ({ uri, title: s.title }))
+      ),
+    [trip]
+  );
+  const coverCandidates = useMemo(
+    () => allPhotos.filter((p) => !edits.excluded.includes(p.uri)).slice(0, 12),
+    [allPhotos, edits.excluded]
+  );
+
   const [previews, setPreviews] = useState<(string | null)[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
-  // 全ページを順に描いてプレビューにする（大きな本は上限まで）
+  // 全ページを順に描いてプレビューにする（大きな本は上限まで）。
+  // 写真の取捨で plan が連続で変わるので、手が止まってから描き直す
   useEffect(() => {
     if (!plan || Platform.OS !== 'web') return;
     let alive = true;
-    (async () => {
+    const timer = setTimeout(async () => {
       const out: (string | null)[] = [];
       for (let i = 0; i < Math.min(plan.pages.length, PREVIEW_LIMIT); i++) {
         const url = await renderPage(plan, i);
@@ -51,8 +89,8 @@ export default function TripBook() {
         out.push(url);
         setPreviews([...out]);
       }
-    })();
-    return () => { alive = false; };
+    }, 350);
+    return () => { alive = false; clearTimeout(timer); };
   }, [plan]);
 
   if (!trip || !plan) {
@@ -109,6 +147,55 @@ export default function TripBook() {
             </Row>
           </>
         )}
+
+        {/* ---------------- 手直し（表紙と写真の取捨） ---------------- */}
+        <Gap h={space.xl} />
+        <Eyebrow tone="matcha">{t('book.cover')}</Eyebrow>
+        <Gap h={space.md} />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+          {coverCandidates.map((p, i) => {
+            const chosen = (edits.cover ?? coverCandidates[0]?.uri) === p.uri;
+            return (
+              <Pressable
+                // 同じ写真を2つのstopで使う旅があるので、URIだけを鍵にしない
+                key={`${p.uri}-${i}`}
+                onPress={() => updateEdits({ ...edits, cover: p.uri })}
+                style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+              >
+                <View style={[styles.coverThumb, chosen && { borderColor: palette.matcha, borderWidth: 2 }]}>
+                  <Image source={{ uri: p.uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <Gap h={space.xl} />
+        <Eyebrow tone="matcha">{t('book.customize')}</Eyebrow>
+        <Gap h={space.sm} />
+        <AppText variant="small" tone="inkFaint">{t('book.customizeHint')}</AppText>
+        <Gap h={space.md} />
+        <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
+          {allPhotos.map((p, i) => {
+            const off = edits.excluded.includes(p.uri);
+            return (
+              <Pressable key={`${p.uri}-${i}`} onPress={() => toggPhoto(p.uri)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                <View style={[styles.pickThumb, { width: thumbW, height: thumbW }]}>
+                  <Image
+                    source={{ uri: p.uri }}
+                    style={{ width: '100%', height: '100%', opacity: off ? 0.3 : 1 }}
+                    resizeMode="cover"
+                  />
+                  {off && (
+                    <View style={styles.pickOff} pointerEvents="none">
+                      <Ionicons name="close" size={22} color="#fff" />
+                    </View>
+                  )}
+                </View>
+              </Pressable>
+            );
+          })}
+        </Row>
 
         {/* 台割 */}
         <Gap h={space.xl} />
@@ -195,4 +282,9 @@ export default function TripBook() {
 const styles = StyleSheet.create({
   chapter: { alignItems: 'center', gap: space.sm, paddingVertical: space.md },
   thumb: { borderWidth: hairline, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  // 表紙候補。選んだ1枚だけ抹茶の枠が付く
+  coverThumb: { width: 96, height: 68, borderRadius: 8, overflow: 'hidden', borderWidth: hairline, borderColor: 'rgba(0,0,0,0.12)' },
+  // 取捨のマス目。外した写真は薄くして ✕ を重ねる
+  pickThumb: { borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.05)' },
+  pickOff: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,18,15,0.25)' },
 });

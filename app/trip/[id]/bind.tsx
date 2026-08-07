@@ -24,6 +24,7 @@ import { useTheme } from '@/lib/useTheme';
 import { useTrip, useCart } from '@/lib/useData';
 import { useI18n } from '@/lib/i18n';
 import { planBook, MIN_PHOTOS } from '@/lib/photobook/plan';
+import { readBookEdits, applyBookEdits, applyCover } from '@/lib/photobook/edits';
 import { renderPage, PAGE_SIZE } from '@/lib/photobook/render';
 import { BookPreview } from '@/components/BookPreview';
 import { addToCart, PLAN_PRICE, type BookPlanKey } from '@/lib/api';
@@ -50,7 +51,13 @@ export default function TripBind() {
 
   // プレビューは実際のPDFのページをそのまま使う（見本と本番で見え方を変えない）。
   // 最初に全ページを描くと重いので、BookPreview から求められた分だけ描く。
-  const book = useMemo(() => (trip ? planBook(trip) : null), [trip]);
+  // ジャーナル画面(book.tsx)での手直し（写真の取捨・表紙）をここにも効かせる ――
+  // 見本・かごに入れて焼く本・PDF がすべて同じ台割になる
+  const book = useMemo(() => {
+    if (!trip) return null;
+    const edits = readBookEdits(trip.id);
+    return applyCover(planBook(applyBookEdits(trip, edits)), edits);
+  }, [trip]);
   const cache = useRef(new Map<number, string | null>());
   const getPage = useCallback(
     async (i: number) => {

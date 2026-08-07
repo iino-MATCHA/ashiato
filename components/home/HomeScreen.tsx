@@ -11,7 +11,7 @@
  * 地の色はシートと同じ和紙。全面まで伸ばしたときに継ぎ目が出ず、
  * そのまま一枚の紙になる。
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { router, usePathname } from 'expo-router';
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +20,7 @@ import { AppText, Row } from '@/components/ui';
 import { JapanSvgMap } from '@/components/JapanSvgMap';
 import { ZoomPan } from '@/components/lp/ZoomPan';
 import { CoverageGauge } from '@/components/CoverageGauge';
-import { prefectureName } from '@/lib/prefectures';
+import { PrefectureSheet } from '@/components/home/PrefectureSheet';
 import { BottomSheet } from '@/components/BottomSheet';
 import { TripsPane } from '@/components/home/TripsPane';
 import { GoshuinPane } from '@/components/home/GoshuinPane';
@@ -29,7 +29,6 @@ import { useTheme } from '@/lib/useTheme';
 import { PREFECTURE_TOTAL } from '@/lib/mock';
 import { useVisitedPrefectures } from '@/lib/useData';
 import { contentHeight, VB_W } from '@/lib/ugc/geo';
-import { useI18n } from '@/lib/i18n';
 
 /**
  * 中身が入れ替わったときのフェードだけ、CSS に任せる。
@@ -73,7 +72,6 @@ export type HomeView = 'map' | 'goshuin';
 
 export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) {
   const { palette } = useTheme();
-  const { t, locale } = useI18n();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { codes: visited } = useVisitedPrefectures();
@@ -86,17 +84,10 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
   const pathname = usePathname();
 
   /**
-   * タップした県の名前。しばらく見せて勝手に消える。
-   * 地図はここでは「眺めるもの」なので、タップに保存などの意味は持たせない。
+   * タップした県。名前だけのピルをやめて、その県のカード
+   * （自分の記録・みんなの旅・県の紹介）を下から出す。
    */
-  const [tapped, setTapped] = useState<string | null>(null);
-  const tappedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showName = (code: number) => {
-    setTapped(prefectureName(code, locale));
-    if (tappedTimer.current) clearTimeout(tappedTimer.current);
-    tappedTimer.current = setTimeout(() => setTapped(null), 1600);
-  };
-  useEffect(() => () => { if (tappedTimer.current) clearTimeout(tappedTimer.current); }, []);
+  const [cardCode, setCardCode] = useState<number | null>(null);
 
   /**
    * 「＜」で旅の面へ戻る。
@@ -142,25 +133,10 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
           style={{ width: mapW }}
           {...(Platform.OS === 'web' ? ({ dataSet: { mjmap: '1' } } as any) : null)}
         >
-          {/* つまんで動かせる白地図。タップは県名を教えるだけ（保存の意味は無い） */}
+          {/* つまんで動かせる白地図。県をタップするとその県のカードが開く */}
           <ZoomPan width={mapW} height={Math.round(mapH)} zoomButtons={false}>
-            <JapanSvgMap visited={visited} width={mapW} okinawaInset onToggle={showName} />
+            <JapanSvgMap visited={visited} width={mapW} okinawaInset onToggle={setCardCode} />
           </ZoomPan>
-
-          {/*
-            タップした県の名前。地図の紙の上に重ねる。
-            中ほどの高さに置く ―― 下辺だと沖縄インセットに重なり、
-            上辺だと「n/47」とぶつかる。
-          */}
-          {!!tapped && (
-            <View style={styles.tapName} pointerEvents="none">
-              <View style={[styles.tapPill, { backgroundColor: palette.washiPaper, borderColor: palette.ruleStrong }]}>
-                <AppText style={{ fontFamily: fonts.minchoBold, fontSize: 14, color: palette.ink }}>
-                  {tapped}
-                </AppText>
-              </View>
-            </View>
-          )}
 
           {/* 集めた数。北海道の左隣、地図の空いている所に置く */}
           <View style={styles.countSlot} pointerEvents="none">
@@ -208,6 +184,9 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
           <Ionicons name="chevron-back" size={24} color={palette.ink} />
         </Pressable>
       )}
+
+      {/* タップした県のカード。自分の記録 → みんなの旅 → 県の紹介の順 */}
+      <PrefectureSheet code={cardCode} onClose={() => setCardCode(null)} />
     </SafeAreaView>
   );
 }
@@ -215,14 +194,6 @@ export function HomeScreen({ initialView = 'map' }: { initialView?: HomeView }) 
 const styles = StyleSheet.create({
   // 北海道は地図の右上にあるので、その左隣＝左上が空いている
   countSlot: { position: 'absolute', left: 0, top: '4%' },
-  // タップした県名。地図の紙の上、中ほどの高さに重ねる
-  tapName: { position: 'absolute', left: 0, right: 0, top: '44%', alignItems: 'center', zIndex: 4 },
-  tapPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
   // 地図の右端・上下中ほど（この高さは海しか無いので絵に重ならない）
   gaugeSlot: { position: 'absolute', right: -6, top: '26%' },
   // 丸ではなく、角を丸めた正方形。指で押しやすい大きさにする
