@@ -57,6 +57,13 @@ export interface QuizQuestion {
   default?: number;
   /** slider の値 → 軸の重み。なだらかな連続量にするための変換式 */
   axisFromValue?: (value: number) => Partial<Record<Axis, number>>;
+  /**
+   * ここまでの答えから、この問いを出さない判断。
+   * 「初来日」と答えた人に訪問済みの県を聞くと矛盾する（ユーザー指摘）、
+   * のような分岐をここに書く。画面側(QuizLanding)は skipIf が真の問いを
+   * 素通りするだけで、分岐の理由を知らない。
+   */
+  skipIf?: (answers: Record<string, string[]>) => boolean;
 }
 
 /** 0〜1 に収める小さな助け（slider の変換式だけで使う） */
@@ -240,6 +247,8 @@ export const QUESTIONS: QuizQuestion[] = [
     kind: 'prefectures',
     titleKey: 'quiz.q.visited',
     hintKey: 'quiz.q.visitedHint',
+    // 初来日の人に「どこに行ったことがあるか」を聞くのは矛盾する。そのまま結果へ
+    skipIf: (a) => (a.experience ?? [])[0] === 'first',
   },
 ];
 

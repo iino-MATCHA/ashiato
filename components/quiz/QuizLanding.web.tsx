@@ -471,11 +471,22 @@ export function QuizLanding() {
       const value = q.kind === 'prefectures' ? String(visited.size) : (a[q.id] ?? []).join('|');
       funnel.answer(q.id, step, total, value);
     }
-    if (step + 1 < total) {
-      setStep(step + 1);
+    // skipIf が真の問いは素通りする（初来日の人に訪問済みを聞かない、など）
+    let next = step + 1;
+    while (next < total && QUESTIONS[next].skipIf?.(a)) next += 1;
+    if (next < total) {
+      setStep(next);
       return;
     }
     finish(a);
+  };
+
+  /** 戻るときも skipIf の問いは素通りする（行きに出なかった問いを帰りに出さない） */
+  const goBack = () => {
+    let prev = step - 1;
+    while (prev >= 0 && QUESTIONS[prev].skipIf?.(answers)) prev -= 1;
+    if (prev < 0) setStage('hero');
+    else setStep(prev);
   };
 
   const finish = (a: Answers = answers) => {
@@ -810,11 +821,7 @@ export function QuizLanding() {
               )}
 
               <div className="qNav">
-                <button
-                  type="button"
-                  className="ghost"
-                  onClick={() => (step === 0 ? setStage('hero') : setStep(step - 1))}
-                >
+                <button type="button" className="ghost" onClick={goBack}>
                   ← {t('quiz.back')}
                 </button>
                 {q.kind !== 'single' && q.kind !== 'scale' && (
