@@ -1,0 +1,257 @@
+========================================================================
+My Japan / diagnosis quiz — icon generation prompts (18 files)
+========================================================================
+
+HOW TO USE
+  1. Copy one PROMPT block below and give it to the image AI.
+  2. Save the result under the FILE name shown for that block.
+  3. Put the files in  public/quiz-icons/  in this repository.
+
+FORMAT
+  SVG preferred (one file covers every screen density).
+  If the tool only makes raster: transparent PNG, 1024x1024. Do NOT use webp.
+
+REJECT AND RETRY IF
+  - any red / vermilion appears (that colour is reserved for goshuin seals)
+  - more than one green element
+  - lines are thick/filled, or the drawing is busy in the middle
+    (it must still read at 26 x 26 pixels)
+
+
+FILE NAMES ONLY (for pasting into a folder / checklist)
+------------------------------------------------------------------------
+ramen.svg
+sake.svg
+sweets.svg
+shrines.svg
+castles.svg
+crafts.svg
+festivals.svg
+cityShopping.svg
+nightlife.svg
+artMuseums.svg
+onsen.svg
+mountainHikes.svg
+snow.svg
+beaches.svg
+island.svg
+wildlife.svg
+gardens.svg
+popCulture.svg
+
+
+========================================================================
+01 / 18
+FILE: ramen.svg      (ラーメン・郷土料理)
+------------------------------------------------------------------------
+Minimal line icon of a ramen bowl seen from the side with chopsticks resting on the rim, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — two small steam wisps rising above the bowl.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+02 / 18
+FILE: sake.svg      (日本酒蔵めぐり)
+------------------------------------------------------------------------
+Minimal line icon of a Japanese sake bottle (tokkuri) with a small cup (ochoko) beside it, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — a small leaf mark on the bottle.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+03 / 18
+FILE: sweets.svg      (スイーツ・カフェ)
+------------------------------------------------------------------------
+Minimal line icon of a slice of cake on a small plate with a fork, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — a mint leaf on top of the cake.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+04 / 18
+FILE: shrines.svg      (古い神社・寺院)
+------------------------------------------------------------------------
+Minimal line icon of a Japanese torii gate, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — a tiny pine branch beside the gate.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+05 / 18
+FILE: castles.svg      (城)
+------------------------------------------------------------------------
+Minimal line icon of a Japanese castle keep with tiered roofs, outline only, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — a small flag on the top roof.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+06 / 18
+FILE: crafts.svg      (伝統工芸・陶芸)
+------------------------------------------------------------------------
+Minimal line icon of a pottery bowl on a potter's wheel with two shaping hands, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — the stripe of clay on the bowl.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+07 / 18
+FILE: festivals.svg      (祭り・地元の行事)
+------------------------------------------------------------------------
+Minimal line icon of a round Japanese festival fan (uchiwa) with a small hanging lantern beside it, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — the pattern on the fan.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+08 / 18
+FILE: cityShopping.svg      (都会・ショッピング)
+------------------------------------------------------------------------
+Minimal line icon of two tall city buildings with a shopping bag in front, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — the handle of the shopping bag.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+09 / 18
+FILE: nightlife.svg      (夜の街・バー)
+------------------------------------------------------------------------
+Minimal line icon of a cocktail glass with a crescent moon behind it, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — an olive on a pick in the glass.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+10 / 18
+FILE: artMuseums.svg      (美術館・ギャラリー)
+------------------------------------------------------------------------
+Minimal line icon of a framed picture standing on an easel, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — one brushstroke inside the frame.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+11 / 18
+FILE: onsen.svg      (温泉)
+------------------------------------------------------------------------
+Minimal line icon of a round open-air hot spring bath with a stone edge, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — three rising steam curls.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+12 / 18
+FILE: mountainHikes.svg      (山歩き・トレイル)
+------------------------------------------------------------------------
+Minimal line icon of two mountain peaks with a small winding trail, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — a tiny pine tree on the slope.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+13 / 18
+FILE: snow.svg      (雪・スキー)
+------------------------------------------------------------------------
+Minimal line icon of a large snowflake with a single ski leaning beside it, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — the binding on the ski.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+14 / 18
+FILE: beaches.svg      (ビーチ・ダイビング)
+------------------------------------------------------------------------
+Minimal line icon of a beach umbrella with a single wave line beneath it, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — one panel of the umbrella.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+15 / 18
+FILE: island.svg      (離島)
+------------------------------------------------------------------------
+Minimal line icon of a small island with one palm tree and a simple ferry boat on the water, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — the palm leaves.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+16 / 18
+FILE: wildlife.svg      (野生動物との出会い)
+------------------------------------------------------------------------
+Minimal line icon of a deer standing in profile with antlers, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — a small tuft of grass at its feet.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+17 / 18
+FILE: gardens.svg      (庭園・花畑)
+------------------------------------------------------------------------
+Minimal line icon of a pruned round Japanese garden tree with a stone lantern beside it, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — the canopy of the tree.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
+
+========================================================================
+18 / 18
+FILE: popCulture.svg      (アニメ・ポップカルチャー)
+------------------------------------------------------------------------
+Minimal line icon of a speech bubble with a star inside, and a game controller below it, Japanese travel app style.
+Thin outline strokes only, no fill, stroke weight equivalent to 1.5px at 28px size (bold enough to stay legible when shrunk to 26px), rounded stroke caps and rounded corners.
+Exactly two colors: dark warm charcoal #4A453C for all outlines, and one single small accent in matcha green #69AF00 — the star inside the speech bubble.
+Flat vector style, generous negative space, very few lines, no interior clutter.
+Centered on a fully transparent background, square 1:1 canvas, subject fills about 85% of the frame.
+No text, no background, no gradients, no shadows, no 3D, no emoji style, no thick filled shapes.
+
