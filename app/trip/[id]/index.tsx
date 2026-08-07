@@ -33,7 +33,7 @@ const CARD_GAP = 68;
 export default function TripDetail() {
   const { palette } = useTheme();
   const { width, height: winH } = useWindowDimensions();
-  const { id, readonly, invite } = useLocalSearchParams<{ id: string; readonly?: string; invite?: string }>();
+  const { id, readonly, invite, stop } = useLocalSearchParams<{ id: string; readonly?: string; invite?: string; stop?: string }>();
   /**
    * 招待リンクの合鍵。
    * 読み取りの前に差し込む。これが載っていれば、ログインしていなくても
@@ -68,11 +68,17 @@ export default function TripDetail() {
   const n = steps.length;
 
   // after adding a stop (or on first load) return to the overview instead of
-  // slamming the camera onto the newest pin
+  // slamming the camera onto the newest pin.
+  // ?stop=<stepId> 付きで開かれたときだけ、その立ち寄り先を前に出す
+  // （地図の県カードから「その県のスポット」へ直行させるための入口）
   useEffect(() => {
-    setActive(0);
-    scrollRef.current?.scrollTo({ x: 0, animated: false });
-  }, [n]);
+    const idx = typeof stop === 'string' && stop ? steps.findIndex((s) => s.id === stop) : -1;
+    const target = idx >= 0 ? idx + 1 : 0;
+    setActive(target);
+    // 一覧がまだ描かれていないと scrollTo が空振りするので、1フレーム置く
+    requestAnimationFrame(() => scrollRef.current?.scrollTo({ x: target * SNAP, animated: false }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [n, stop]);
   const canEdit = (trip?.canEdit || trip?.authorId === 'me' || !trip?.authorId) && readonly !== '1';
   /**
    * 招待リンクで来て、まだ登録していない人。

@@ -78,6 +78,7 @@ export function BottomSheet({
   expandedHeight,
   children,
   onOpenChange,
+  onDismiss,
 }: {
   /** たたんだときに見えている高さ */
   collapsedHeight: number;
@@ -86,6 +87,12 @@ export function BottomSheet({
   children: React.ReactNode;
   /** 全面まで開いているかを外へ知らせる（戻る矢印の出し分けに使う） */
   onOpenChange?: (open: boolean) => void;
+  /**
+   * たたんだ状態から、さらに下へ払われたときに呼ぶ。
+   * 渡すとシートが「閉じられるもの」になる（県のカードなど、
+   * 常設ではないシート用）。渡さなければ従来どおり2段で止まる。
+   */
+  onDismiss?: () => void;
 }) {
   const { palette } = useTheme();
   const travel = Math.max(0, expandedHeight - collapsedHeight);
@@ -179,11 +186,19 @@ export function BottomSheet({
    */
   const settle = useCallback(
     (from: number, moved: number, speed: number) => {
+      /**
+       * たたんだ状態から、なお下へ払われた ―― シートを片付ける意思。
+       * onDismiss を持つシートだけが応じる（常設のシートは2段で止まる）。
+       */
+      if (onDismiss && from >= travel - 4 && (speed > 0.22 || moved > 48)) {
+        onDismiss();
+        return;
+      }
       if (speed < -0.22) return snapTo(0);
       if (speed > 0.22) return snapTo(travel);
       snapTo(from + moved < travel / 2 ? 0 : travel);
     },
-    [snapTo, travel]
+    [snapTo, travel, onDismiss]
   );
 
   // ---- Web: シートの DOM に直接イベントをつける ----
