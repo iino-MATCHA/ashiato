@@ -29,8 +29,12 @@ export function ArticleModal({ article, onClose }: { article: MatchaArticle | nu
 
   const paragraphs = article.body.split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
   const cardW = Math.min(width - space.lg * 2, 640);
-  // 「少しだけ」の拡大。小さい写真(38%)の2倍強、カードの9割まで
-  const zoomW = Math.round(cardW * 0.9);
+  /**
+   * 「少しだけ」の拡大。小さい写真(132px)の3倍ほど。
+   * カードの9割だけを上限にしていたら、PCの広い版面(640px)で
+   * 記事をほぼ覆ってしまった ―― 絶対値でも抑える。
+   */
+  const zoomW = Math.round(Math.min(cardW * 0.9, 420));
 
   const openMatcha = () => Linking.openURL(article.url);
 

@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText, Row, Rule, Gap, Eyebrow } from '@/components/ui';
-import { BottomSheet, useSheetOpen, useSheetScroll } from '@/components/BottomSheet';
+import { BottomSheet, useSheetScroll } from '@/components/BottomSheet';
 import { SignInPrompt } from '@/components/SignInPrompt';
 import { space, fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
@@ -73,9 +73,12 @@ export function PrefectureSheet({ code, onClose }: { code: number | null; onClos
   );
 }
 
-/** 中身。BottomSheet の下に置いて、開いているときだけスクロールさせる */
+/** 中身。BottomSheet の下に置く（たたんだ状態でもスクロールできる） */
 function SheetBody({ code, onClose }: { code: number; onClose: () => void }) {
   const { palette } = useTheme();
+  const { width: winW } = useWindowDimensions();
+  /** PC幅か。写真の大きさをここで切り替える */
+  const wide = winW >= 700;
   const { t, locale } = useI18n();
   const { guest } = useSession();
   const { navigate } = useRippleNav();
@@ -86,7 +89,7 @@ function SheetBody({ code, onClose }: { code: number; onClose: () => void }) {
   /** アプリ内で開いている記事（新聞風のポップアップ） */
   const [reading, setReading] = useState<MatchaArticle | null>(null);
   const [askSignIn, setAskSignIn] = useState(false);
-  const open = useSheetOpen();
+  // 開閉の状態は BottomSheet が持つ。ここでは使わない（常にスクロール可）
   const sheetScroll = useSheetScroll();
 
   const slug = PREFECTURE_SLUG_BY_ID[code];
@@ -235,7 +238,16 @@ function SheetBody({ code, onClose }: { code: number; onClose: () => void }) {
     <>
       <ScrollView
         {...sheetScroll}
-        scrollEnabled={open}
+        /**
+         * たたんだ状態でも中身をスクロールさせる。
+         * ホームの常設シートは「開くまで動かさない」でよいが、こちらは
+         * 一時的なカードで、下の段（県の紹介・MATCHAの記事）まで必ず読ませたい。
+         * PCではつまみをマウスで掴まないと開けず、ホイールも効かないため、
+         * 記事に辿り着けなかった（実測）。
+         * 指の操作は BottomSheet 側が先に取る（一番上で下へ払えば閉じる）ので、
+         * ここを開けても閉じる操作は壊れない。
+         */
+        scrollEnabled
         contentContainerStyle={{
           paddingHorizontal: space.lg,
           paddingBottom: space.xxl * 2,
@@ -322,7 +334,14 @@ function SheetBody({ code, onClose }: { code: number; onClose: () => void }) {
         {!!photo && (
           <Image
             source={{ uri: photo.url }}
-            style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: palette.fill }}
+            style={{
+              // PCでは版面いっぱいに伸ばさない。記事の扉写真くらいの大きさに留める
+              // （620pxのまま16:9にすると高さ350pxの壁になり、下の文章が押し出される）
+              width: wide ? 360 : '100%',
+              aspectRatio: 16 / 9,
+              borderRadius: 10,
+              backgroundColor: palette.fill,
+            }}
             resizeMode="cover"
           />
         )}
