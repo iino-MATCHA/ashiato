@@ -30,6 +30,13 @@ export function ArticleModal({ article, onClose }: { article: MatchaArticle | nu
   const paragraphs = article.body.split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
   const cardW = Math.min(width - space.lg * 2, 640);
   /**
+   * 段落の横に写真を置けるのは版面に余裕があるときだけ。
+   * スマホ(390px)では版面が342px、写真132pxと余白を引くと文章が146pxしか
+   * 残らず、1行に9文字ほどしか入らなかった（実測）。狭いときは写真を
+   * 段落の上に置き、左右を交互にして新聞の呼吸だけ残す
+   */
+  const sideBySide = cardW - space.lg * 2 >= 420;
+  /**
    * 「少しだけ」の拡大。小さい写真(132px)の3倍ほど。
    * カードの9割だけを上限にしていたら、PCの広い版面(640px)で
    * 記事をほぼ覆ってしまった ―― 絶対値でも抑える。
@@ -69,15 +76,44 @@ export function ArticleModal({ article, onClose }: { article: MatchaArticle | nu
               }
               const imgLeft = i % 2 === 0;
               const photo = (
-                <Pressable key="img" onPress={() => setZoom(img)} style={({ pressed }) => [pressed && { opacity: 0.8 }]}>
-                  <Image source={{ uri: img }} style={[styles.thumb, { backgroundColor: palette.fill }]} resizeMode="cover" />
+                <Pressable
+                  key="img"
+                  onPress={() => setZoom(img)}
+                  style={({ pressed }) => [
+                    !sideBySide && { alignSelf: imgLeft ? 'flex-start' : 'flex-end', marginBottom: space.sm },
+                    pressed && { opacity: 0.8 },
+                  ]}
+                >
+                  <Image
+                    source={{ uri: img }}
+                    style={[
+                      styles.thumb,
+                      // 横に並べないときは、文章を細らせないぶん写真を大きく取る
+                      !sideBySide && { width: Math.round((cardW - space.lg * 2) * 0.62) },
+                      { backgroundColor: palette.fill },
+                    ]}
+                    resizeMode="cover"
+                  />
                 </Pressable>
               );
               const body = (
-                <AppText key="txt" variant="body" tone="inkSoft" style={[styles.para, { flex: 1, marginBottom: 0 }]}>
+                <AppText
+                  key="txt"
+                  variant="body"
+                  tone="inkSoft"
+                  style={[styles.para, sideBySide && { flex: 1, marginBottom: 0 }]}
+                >
                   {text}
                 </AppText>
               );
+              if (!sideBySide) {
+                return (
+                  <View key={i}>
+                    {photo}
+                    {body}
+                  </View>
+                );
+              }
               return (
                 <Row key={i} style={styles.paraRow}>
                   {imgLeft ? [photo, body] : [body, photo]}

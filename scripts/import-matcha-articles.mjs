@@ -4,6 +4,7 @@
  *
  *   node scripts/import-matcha-articles.mjs --dry-run          何を入れるか見るだけ
  *   node scripts/import-matcha-articles.mjs --dry-run --sql    貼れるINSERT文を出す
+ *   node scripts/import-matcha-articles.mjs --dry-run --json   中身をJSONで出す
  *   node scripts/import-matcha-articles.mjs --lang jp --limit 40
  *   node scripts/import-matcha-articles.mjs --urls list.txt    URLを自分で並べる
  *   node scripts/import-matcha-articles.mjs --drop             取り込んだ分を消す
@@ -63,6 +64,7 @@ const has = (name) => args.includes(`--${name}`);
 const DRY = has('dry-run');
 const DROP = has('drop');
 const SQL_OUT = has('sql');
+const JSON_OUT = has('json');
 /** MATCHA側の言語のパス。アプリの言語札へはこの表で変換する */
 const LANG = flag('lang', 'jp');
 const LIMIT = Number(flag('limit', '40'));
@@ -284,8 +286,15 @@ function imagesOf(html, ogImage) {
     if (w && Number(w[1]) < 400) return;
     urls.push(u);
   };
-  push(ogImage);
   for (const m of (bodyHtml(html) ?? '').matchAll(/<img[^>]+src=["']([^"']+)["']/gi)) push(m[1]);
+  /**
+   * og:image は本文に無いときだけ使う。
+   * **MATCHAは同じ写真をOGP用に別IDで上げ直していることがある**
+   * （MAPPAの記事: og が 268642、本文の1枚目が 268548。絵は同一）。
+   * URLも中身も違うので突き合わせでは見抜けず、ポップアップに同じ写真が
+   * 2度出る。本文の写真だけを使えばこの重なりは起きない
+   */
+  if (!urls.length) push(ogImage);
   return urls.slice(0, 4);
 }
 
@@ -413,6 +422,27 @@ async function main() {
 
   console.log(`\n入れる: ${rows.length} 件 / 見送り: ${skipped} 件`);
   if (!rows.length) return;
+
+  if (JSON_OUT) {
+    // 取り込む前に中身を確かめたいとき（画面での見え方の確認に使う）
+    console.log(
+      JSON.stringify(
+        rows.map((r) => ({
+          id: r.url.split('/').pop(),
+          url: r.url,
+          lang: LOCALE,
+          prefecture_code: r.code,
+          title: r.title,
+          body: r.body,
+          images: r.images,
+          published_at: r.published,
+        })),
+        null,
+        0
+      )
+    );
+    return;
+  }
 
   if (SQL_OUT) {
     console.log(`\n${insertSql(rows)}`);

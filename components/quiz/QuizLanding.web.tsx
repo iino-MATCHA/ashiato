@@ -40,7 +40,7 @@ import { QuizIcon, hasQuizIcon } from '@/components/quiz/QuizIcon';
 import { prefectureDescription } from '@/lib/quiz/descriptions';
 import { affiliatesFor, type AffiliateCard } from '@/lib/quiz/affiliates';
 import { funnel } from '@/lib/quiz/funnel';
-import { saveHandoff } from '@/lib/quiz/handoff';
+import { saveHandoff, clearHandoff } from '@/lib/quiz/handoff';
 import { captureUtm } from '@/lib/utm';
 import { searchTourismAreas, type TourismArea } from '@/lib/api';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
@@ -504,6 +504,18 @@ export function QuizLanding() {
     else setStep(prev);
   };
 
+  /**
+   * 画面に出す訪問済みの県。
+   * 「初めての来日」と答えた人に訪問済みは無い。地図の問いは飛ばしているが、
+   * 「経験あり」で県を選んだあと戻って「初めて」に変えると選択が残るので、
+   * 出すときにも空にする ―― 最後の登録の画面の日本地図が、答えと食い違って
+   * 光ったままになる。結果の計算（finish）と同じ扱いに揃えている
+   */
+  const shownVisited = useMemo(
+    () => ((answers.experience ?? [])[0] === 'first' ? new Set<number>() : visited),
+    [answers.experience, visited]
+  );
+
   const finish = (a: Answers = answers) => {
     /**
      * 初来日の人に訪問済みは無い。地図の問いは飛ばしているが、
@@ -531,13 +543,22 @@ export function QuizLanding() {
    * もう一度答える。
    * **前の答えを消してから始める。** 残したまま戻ると、複数選択の問いが
    * 前回の選択に足す形になり、選んでいない軸が結果の理由に出てしまう（実測）。
-   * 訪問済みの県は答えではなく事実なので、そのまま残す。
+   *
+   * **訪問済みの県も消す。** 以前は「答えではなく事実だから」と残していたが、
+   * 前回「経験あり」で選んだ県が残ったまま今回「初めての来日」と答えると、
+   * 最後の登録の画面の日本地図にその県が光ったまま出る（実際に起きた）。
+   * 初来日の人に訪問済みは無いので、画面が答えと食い違う。
+   *
+   * localStorage の預かりも一緒に消す。あれは前回の結果を持っており、
+   * 消さないまま登録すると、選び直したはずの県がアカウントに入る。
    */
   const retake = () => {
     setAnswers({});
     setResults([]);
     setActive(0);
     setSpots({});
+    setVisited(new Set());
+    clearHandoff();
     affSeen.current = new Set();
     keepShown.current = false;
     setKeepOpen(false);
@@ -643,7 +664,7 @@ export function QuizLanding() {
   };
 
   // --- 登録 ------------------------------------------------------------
-  const handoff = () => saveHandoff(Array.from(visited), results.map((r) => r.code));
+  const handoff = () => saveHandoff(Array.from(shownVisited), results.map((r) => r.code));
 
   const signUpGoogle = async () => {
     setError(null);
@@ -1017,12 +1038,12 @@ export function QuizLanding() {
               <div className="eyebrow">{t('quiz.cta.eyebrow')}</div>
               <h2 className="mincho">{t('quiz.cta.title')}</h2>
               <p className="lead">
-                {visited.size ? t('quiz.cta.lead', { n: visited.size }) : t('quiz.cta.leadEmpty')}
+                {shownVisited.size ? t('quiz.cta.lead', { n: shownVisited.size }) : t('quiz.cta.leadEmpty')}
               </p>
 
               <div className="saveMap">
                 <JapanSvgMap
-                  visited={visited}
+                  visited={shownVisited}
                   width={Math.min(mapW, 300)}
                   okinawaInset
                   emptyFill="#3A362E"
@@ -1031,7 +1052,7 @@ export function QuizLanding() {
                 />
               </div>
               <div className="saveCount">
-                <b>{visited.size}</b> / 47
+                <b>{shownVisited.size}</b> / 47
               </div>
 
               <div className="authBtns">
@@ -1100,7 +1121,7 @@ export function QuizLanding() {
             <h3 className="mincho">{t('quiz.cta.title')}</h3>
             <div className="keepMap">
               <JapanSvgMap
-                visited={visited}
+                visited={shownVisited}
                 width={190}
                 okinawaInset
                 emptyFill="#3A362E"
@@ -1109,7 +1130,7 @@ export function QuizLanding() {
               />
             </div>
             <div className="keepCount">
-              <b>{visited.size}</b> / 47
+              <b>{shownVisited.size}</b> / 47
             </div>
             <button type="button" className="cta" onClick={goKeep}>
               {t('quiz.cta.keep')} →
