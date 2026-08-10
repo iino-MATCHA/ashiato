@@ -8,6 +8,13 @@
  * 得点は **重みの合計で割った平均** にしてある。単純な合計だと
  * 「何でも揃っている県」（北海道・兵庫）が質問の内容に関わらず上に来る。
  *
+ * **軸は2階級ある。** 「何がしたいか」（興味・地形）が主で、
+ * 静か/有名・予算・日数・季節は従（主72% + 従28%で合成する）。
+ * 全軸を同じ土俵で平均していた頃、離島・ビーチと答えたのに沖縄が
+ * 一度も出ない事故が起きた ―― 性格設問の「静かな場所」で知名度5の
+ * 沖縄が0点になり、予算の軸でも沈み、興味の満点が埋もれていた。
+ * 行きたい場所の希望を、性格や財布の事情より先に立てる。
+ *
  * 訪問済みの県は結果から必ず外す。行った所を勧めても意味がない。
  */
 import { PREFECTURE_PROFILES, PROFILE_BY_CODE, REGION_BY_CODE, type Axis, type PrefectureProfile } from './data';
@@ -100,22 +107,46 @@ export function chosenSeason(answers: Answers): 'spring' | 'summer' | 'autumn' |
 const LEAD_RATIO = 0.82;
 const MAX_PER_REGION = 2;
 
+/**
+ * 従の軸。合成では28%しか持たない。
+ * ここに無い軸（興味・地形）が主で、72%を持つ。
+ */
+const SECONDARY = new Set<Axis>([
+  'famous', 'quiet', 'cheap', 'premium', 'short', 'long',
+  'spring', 'summer', 'autumn', 'winter',
+]);
+const PRIMARY_SHARE = 0.72;
+
 export function recommend(answers: Answers, visited: Iterable<number>, limit = 3): Recommendation[] {
   const w = weightsFor(answers);
   const axes = Object.keys(w) as Axis[];
-  const totalW = axes.reduce((sum, a) => sum + (w[a] ?? 0), 0);
+  const priAxes = axes.filter((a) => !SECONDARY.has(a));
+  const secAxes = axes.filter((a) => SECONDARY.has(a));
+  const priW = priAxes.reduce((sum, a) => sum + (w[a] ?? 0), 0);
+  const secW = secAxes.reduce((sum, a) => sum + (w[a] ?? 0), 0);
   const skip = new Set(visited);
   const season = chosenSeason(answers);
 
   const scored = PREFECTURE_PROFILES.filter((p) => !skip.has(p.code)).map((p) => {
     // 軸ごとの寄与。あとで「効いた軸」を選ぶのにも使う
     const parts = axes.map((a) => ({ axis: a, v: (w[a] ?? 0) * axisScore(p, a) }));
-    const sum = parts.reduce((t, x) => t + x.v, 0);
     // 3 が素点の上限なので、重み合計×3 が満点
-    const fit = totalW > 0 ? sum / (totalW * 3) : 0;
-    const matched = parts
-      .filter((x) => x.v > 0)
-      .sort((a, b) => b.v - a.v)
+    const avg = (list: Axis[], total: number) =>
+      total > 0
+        ? parts.filter((x) => list.includes(x.axis)).reduce((t, x) => t + x.v, 0) / (total * 3)
+        : null;
+    const pri = avg(priAxes, priW);
+    const sec = avg(secAxes, secW);
+    // どちらかしか答えが無ければ、あるほうだけで測る
+    const fit =
+      pri != null && sec != null
+        ? pri * PRIMARY_SHARE + sec * (1 - PRIMARY_SHARE)
+        : pri ?? sec ?? 0;
+    // 「効いた軸」は主を先に出す（従の理由だけが並ぶと結果の説明にならない）
+    const matched = [
+      ...parts.filter((x) => !SECONDARY.has(x.axis) && x.v > 0).sort((a, b) => b.v - a.v),
+      ...parts.filter((x) => SECONDARY.has(x.axis) && x.v > 0).sort((a, b) => b.v - a.v),
+    ]
       .slice(0, 3)
       .map((x) => x.axis);
     return {

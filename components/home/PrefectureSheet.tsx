@@ -42,6 +42,14 @@ import type { Locale } from '@/lib/i18n';
 /** step.placeName（"Kanazawa, Ishikawa" など）から市区町村ぶんだけを取る */
 const townOf = (placeName: string) => (placeName ?? '').split(',')[0].trim();
 
+/**
+ * 中身の版面の上限。
+ * シートは画面いっぱいに広がるが、パソコンの幅で中身まで広げると
+ * 県の写真が壁一面になってしまう（実際に「大きすぎる」と指摘された）。
+ * 読み物の幅に留めて、左右は紙の余白にする。
+ */
+const CONTENT_MAX = 620;
+
 export function PrefectureSheet({ code, onClose }: { code: number | null; onClose: () => void }) {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -188,7 +196,14 @@ function SheetBody({ code, onClose }: { code: number; onClose: () => void }) {
       <ScrollView
         {...sheetScroll}
         scrollEnabled={open}
-        contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl * 2 }}
+        contentContainerStyle={{
+          paddingHorizontal: space.lg,
+          paddingBottom: space.xxl * 2,
+          // PCの幅では読み物の幅に留める（写真が壁一面になるのを防ぐ）
+          width: '100%',
+          maxWidth: CONTENT_MAX,
+          alignSelf: 'center',
+        }}
         showsVerticalScrollIndicator={false}
       >
         {/* 見出し。閉じる印は置かない ―― 下へ払えば閉じる */}

@@ -30,7 +30,7 @@ import { router } from 'expo-router';
 import { JapanSvgMap } from '@/components/JapanSvgMap';
 import { ZoomPan } from '@/components/lp/ZoomPan';
 import { contentHeight } from '@/lib/ugc/geo';
-import { PREFECTURE_EN_BY_ID, prefectureName, prefectureMatchaUrl } from '@/lib/prefectures';
+import { PREFECTURE_EN_BY_ID, PREFECTURE_JA_BY_ID, prefectureName, prefectureMatchaUrl } from '@/lib/prefectures';
 import { useI18n, localizeMatchaUrl, type Locale } from '@/lib/i18n';
 import { QUESTIONS, type QuizQuestion } from '@/lib/quiz/questions';
 import { recommend, weightsFor, type Answers, type Recommendation } from '@/lib/quiz/score';
@@ -241,6 +241,19 @@ const CSS = `
 .mjq .flowName { font-size:19px; line-height:1.3; color:var(--ink); }
 .mjq .flowCard.on .flowName { color:var(--matcha); }
 .mjq .flowEn { font-size:9.5px; letter-spacing:3px; color:#9B978F; margin-top:4px; }
+/* 英語表示のときの添え書き（漢字の県名）。ローマ字ほど字間を空けない */
+.mjq .flowJa { font-size:11px; letter-spacing:1px; color:#9B978F; margin-top:4px; }
+
+/* --- 結果を出す前のため（judging） --- */
+.mjq .judgeWrap { box-sizing:border-box; min-height:var(--vh,100svh); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:24px; }
+.mjq .judgeSpin { width:46px; height:46px; border-radius:50%;
+  border:3px solid var(--line); border-top-color:var(--matcha);
+  animation:mjqSpin .8s linear infinite; }
+@keyframes mjqSpin { to { transform:rotate(360deg); } }
+.mjq .judgeText { color:#6B6862; font-size:14px; letter-spacing:.5px;
+  animation:mjqPulse 1.6s ease-in-out infinite; }
+@keyframes mjqPulse { 0%,100% { opacity:.55; } 50% { opacity:1; } }
 .mjq .flowDots { display:flex; justify-content:center; gap:8px; margin-top:16px; }
 .mjq .flowDots button { width:8px; height:8px; border-radius:50%; border:0; padding:0; cursor:pointer;
   background:#D7D2C4; transition:background .2s, transform .2s; }
@@ -260,7 +273,6 @@ const CSS = `
 .mjq .spot span { font-size:11.5px; color:#9B978F; }
 .mjq .spot em { margin-left:auto; font-style:normal; font-size:10px; letter-spacing:1.5px; color:var(--matcha);
   white-space:nowrap; }
-.mjq .disclosure { font-size:11px; color:#9B978F; line-height:1.8; margin-top:16px; }
 
 /* --- 締め（登録） --- */
 .mjq .save { background:var(--ink); color:#fff; }
@@ -349,7 +361,10 @@ const TYPES_BY_AXIS: Partial<Record<Axis, string[]>> = {
   wildlife: ['nature', 'island', 'coastal_area'],
 };
 
-type Stage = 'hero' | 'quiz' | 'result';
+type Stage = 'hero' | 'quiz' | 'judging' | 'result';
+
+/** 結果を見せる前にためる時間。答えた直後に出ると軽く見える（ユーザー指摘） */
+const JUDGING_MS = 1800;
 
 /**
  * 覆いの円が画面を覆いきる直径。
@@ -490,12 +505,19 @@ export function QuizLanding() {
   };
 
   const finish = (a: Answers = answers) => {
-    const codes = Array.from(visited);
+    /**
+     * 初来日の人に訪問済みは無い。地図の問いは飛ばしているが、
+     * 「経験あり」で county を選んだあと戻って「初めて」に変えた場合に
+     * 古い選択が残るので、ここでも空にする（結果から除外させない）。
+     */
+    const codes = (a.experience ?? [])[0] === 'first' ? [] : Array.from(visited);
     funnel.complete(codes.length);
     const list = recommend(a, codes, 3);
     setResults(list);
     setActive(0);
-    setStage('result');
+    // 計算は一瞬で終わるが、すぐ出すと占いの軽さになる。少しためてから開く
+    setStage('judging');
+    window.setTimeout(() => setStage('result'), JUDGING_MS);
     // 診断で選んだ県は、この時点で預けておく。CTAを押す前に離れても残る
     saveHandoff(codes, list.map((r) => r.code));
     funnel.resultView(
@@ -844,6 +866,14 @@ export function QuizLanding() {
         </>
       )}
 
+      {/* ============================================================ ため */}
+      {stage === 'judging' && (
+        <section className="judgeWrap">
+          <div className="judgeSpin" aria-hidden />
+          <p className="judgeText">{t('quiz.judging')}</p>
+        </section>
+      )}
+
       {/* ============================================================ 結果 */}
       {stage === 'result' && (
         <>
@@ -975,7 +1005,6 @@ export function QuizLanding() {
                         </>
                       );
                     })()}
-                    {!!gygLinks.length && <p className="disclosure">{t('quiz.aff.disclosure')}</p>}
                   </div>
                 </div>
               )}
@@ -1210,7 +1239,16 @@ function ResultFlow({
               )}
               <div className="flowBody">
                 <div className="flowName mincho">{name}</div>
-                <div className="flowEn">{(PREFECTURE_EN_BY_ID[r.code] ?? '').toUpperCase()}</div>
+                {/*
+                  小さい方の行。英語表示では大きい方が既に英語なので、
+                  同じ字を二度並べず（Kagoshima / KAGOSHIMA になっていた）、
+                  漢字の県名を添える。他言語では従来どおりローマ字
+                */}
+                <div className={locale === 'en' ? 'flowJa' : 'flowEn'}>
+                  {locale === 'en'
+                    ? PREFECTURE_JA_BY_ID[r.code] ?? ''
+                    : (PREFECTURE_EN_BY_ID[r.code] ?? '').toUpperCase()}
+                </div>
               </div>
             </button>
           );
