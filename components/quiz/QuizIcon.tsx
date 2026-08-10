@@ -31,21 +31,25 @@
 import React from 'react';
 
 /**
- * 絵を持っている選択肢。
- * ここに id を足すと、その選択肢に `/quiz-icons/<id>.svg` が出る。
+ * 絵を持っている選択肢と、その拡張子。
+ * ここに足すと、その選択肢に `/quiz-icons/<id>.<拡張子>` が出る。
  * **ファイルを置いてから足すこと** ―― 無い画像を指すと枠だけ空く。
+ *
+ * ラスタで受け取ったものは `scripts/normalize-quiz-icons.mjs` を通す
+ * （余白を落として96pxに揃える）。SVGはそのまま置ける。
  */
-const HAS_ICON = new Set<string>([]);
+const ICONS: Record<string, 'svg' | 'png'> = {};
 
 export function hasQuizIcon(id: string): boolean {
-  return HAS_ICON.has(id);
+  return !!ICONS[id];
 }
 
 export function QuizIcon({ id, size = 28 }: { id: string; size?: number }) {
-  if (!HAS_ICON.has(id)) return null;
+  const ext = ICONS[id];
+  if (!ext) return null;
   return (
     <img
-      src={`/quiz-icons/${id}.svg`}
+      src={`/quiz-icons/${id}.${ext}`}
       width={size}
       height={size}
       alt=""

@@ -1,0 +1,7 @@
+生成した画像をここに置いて、リポジトリの root で
+
+    node scripts/normalize-quiz-icons.mjs
+
+を実行すると、余白を落として 96x96 のPNGにして親フォルダへ出します。
+ファイル名は選択肢のID（ramen / sake / … prompts.txt の一覧）にしてください。
+SVGで受け取ったものはここを通さず、直接 public/quiz-icons/ に置けます。

@@ -52,6 +52,7 @@
     "@babel/core": "^7.25.2",
     "@types/mapbox-gl": "^3.4.1",
     "@types/react": "~18.3.12",
+    "sharp": "^0.35.3",
     "typescript": "~5.3.3"
   },
   "private": true
