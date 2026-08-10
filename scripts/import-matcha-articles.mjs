@@ -104,24 +104,39 @@ const get = (url) => fetch(url, { headers: { 'User-Agent': UA } });
 // ---------------------------------------------------------------- 取り出し
 
 /**
- * 実体参照はMATCHAの題にそのまま出てくる（`&times;` `&hellip;` など）。
- * 取りこぼすと「『薬屋のひとりごと』&times;東京シティビュー」のまま画面に出る
+ * 実体参照はMATCHAの題・要約・画像URLにそのまま出てくる
+ * （`&times;` `&mdash;` `&rsquo;`、URLの `&amp;` など）。
+ * 取りこぼすと「『薬屋のひとりごと』&times;東京シティビュー」のまま画面に出るし、
+ * 画像のURLは `&amp;` のせいで開けなくなる
  */
 const NAMED = {
   nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'",
   times: '×', hellip: '…', mdash: '—', ndash: '–', middot: '・',
   laquo: '«', raquo: '»', lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”',
   yen: '¥', deg: '°', bull: '•', copy: '©', reg: '®', trade: '™',
+  euro: '€', pound: '£', frac12: '½', sup2: '²', sup3: '³',
+  aacute: 'á', agrave: 'à', acirc: 'â', auml: 'ä', aring: 'å', atilde: 'ã', aelig: 'æ',
+  eacute: 'é', egrave: 'è', ecirc: 'ê', euml: 'ë',
+  iacute: 'í', igrave: 'ì', icirc: 'î', iuml: 'ï',
+  oacute: 'ó', ograve: 'ò', ocirc: 'ô', ouml: 'ö', otilde: 'õ', oslash: 'ø',
+  uacute: 'ú', ugrave: 'ù', ucirc: 'û', uuml: 'ü',
+  ntilde: 'ñ', ccedil: 'ç', szlig: 'ß',
 };
 
-const text = (html) =>
-  html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<[^>]+>/g, '')
+/** 実体参照だけを戻す（タグには触らない ―― URLにも使う） */
+const decode = (s) =>
+  String(s ?? '')
     .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&([a-z]+);/gi, (m, n) => NAMED[n.toLowerCase()] ?? m)
+    .replace(/&([a-z0-9]+);/gi, (m, n) => NAMED[n.toLowerCase()] ?? m);
+
+const text = (html) =>
+  decode(
+    String(html ?? '')
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, '')
+  )
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -260,8 +275,9 @@ function imagesOf(html, ogImage) {
   const urls = [];
   const push = (raw) => {
     if (!raw || !/^https?:\/\//.test(raw)) return;
+    // 画像のURLは属性のまま拾うので `&amp;` が残る。戻さないと開けない。
     // `original/` は原寸（4MB超のものがある）。同じ画像の720px版に置き換える
-    const u = raw.replace(/\/original\//, '/resize/720x2000/');
+    const u = decode(raw).replace(/\/original\//, '/resize/720x2000/');
     if (urls.includes(u)) return;
     if (/(logo|icon|sprite|avatar|banner)/i.test(u)) return;
     const w = u.match(/\/resize\/(\d+)x/);
@@ -372,7 +388,8 @@ async function main() {
 
       const code = await prefectureOf(html);
       const title = titleOf(html, ld);
-      const description = ld?.description ?? meta(html, 'og:description');
+      // JSON-LD の中の文字列も実体参照のまま（`Nara&mdash;Japan` が出ていた）
+      const description = text(ld?.description ?? '') || meta(html, 'og:description');
       const body = bodyOf(html, description);
       const images = imagesOf(html, ld?.image?.url ?? meta(html, 'og:image'));
       const published = publishedOf(html, ld);
