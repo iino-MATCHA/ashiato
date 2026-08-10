@@ -232,3 +232,56 @@ export function findGoshuin(id?: string) {
 export function findFriend(id?: string) {
   return friends.find((f) => f.id === id) ?? friends[0];
 }
+
+/**
+ * MATCHAの記事のサンプル（未接続のとき県カードのポップアップに出す）。
+ * 本番は matcha_articles テーブル（0027）から。形は lib/api の MatchaArticle と同じ。
+ * body の段落は空行区切り ―― ポップアップが新聞風に写真を左右へ差し込む。
+ */
+export const mockMatchaArticles = [
+  {
+    id: 'ma-akita-1',
+    url: 'https://matcha-jp.com/jp/list?region=105&category=all',
+    title: '角館 ― 武家屋敷としだれ桜の町を歩く',
+    body:
+      '秋田県仙北市の角館は「みちのくの小京都」と呼ばれる城下町。黒板塀の武家屋敷が並ぶ通りは、江戸時代の町割りがほぼそのまま残っています。\n\n' +
+      '見頃は4月下旬。武家屋敷のしだれ桜と、桧木内川堤の2kmにわたるソメイヨシノが同時に咲き、町全体が薄紅色に包まれます。\n\n' +
+      '屋敷の内部は公開されているものも多く、青柳家や石黒家では武具や生活道具をそのまま見ることができます。樺細工の体験工房もこの通りにあります。\n\n' +
+      '駅から武家屋敷通りまでは徒歩15分ほど。冬は雪に埋もれた黒塀も美しく、季節を変えて訪れたくなる町です。',
+    images: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Bukeyashiki_Street_in_Kakunodate_20060506.jpg/960px-Bukeyashiki_Street_in_Kakunodate_20060506.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Lake_Tazawa_and_Kansa-g%C5%AB_20210213.jpg/960px-Lake_Tazawa_and_Kansa-g%C5%AB_20210213.jpg',
+    ],
+    prefectureCode: 5,
+    publishedAt: '2026-04-01',
+  },
+  {
+    id: 'ma-akita-2',
+    url: 'https://matcha-jp.com/jp/list?region=105&category=all',
+    title: '乳頭温泉郷 ― 7つの秘湯をめぐる',
+    body:
+      '十和田八幡平国立公園の山あいに、7つの宿が点在する乳頭温泉郷。それぞれ源泉が異なり、泉質も色も湯ごとに違います。\n\n' +
+      '最も知られる鶴の湯は江戸時代開湯の本陣が残る宿。乳白色の露天風呂は、雪の季節がいちばん絵になります。\n\n' +
+      '「湯めぐり帖」を買えば7湯すべてに入れます。巡回バスも走っているので、日帰りでも2〜3湯は回れます。',
+    images: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Risshaku-ji_konponchudo.jpg/960px-Risshaku-ji_konponchudo.jpg',
+    ],
+    prefectureCode: 5,
+    publishedAt: '2026-02-10',
+  },
+  {
+    id: 'ma-tokyo-1',
+    url: 'https://matcha-jp.com/jp/list?region=113&category=all',
+    title: '浅草 ― 雷門から始まる下町歩き',
+    body:
+      '東京の下町観光といえばまず浅草。雷門の大提灯をくぐると、仲見世通りの90軒ほどの店が浅草寺まで続きます。\n\n' +
+      '人形焼や揚げまんじゅうを食べ歩きつつ、宝蔵門を抜けると本堂。参拝のあとは五重塔と、スカイツリーが並ぶ景色が待っています。\n\n' +
+      '朝8時前の仲見世は人がまばらで、シャッターに描かれた浅草絵巻を見られる時間帯。夕方からは提灯に灯が入り、また別の顔になります。',
+    images: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Sensoji_2023.jpg/960px-Sensoji_2023.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Skyscrapers_of_Shinjuku_2009_January.jpg/960px-Skyscrapers_of_Shinjuku_2009_January.jpg',
+    ],
+    prefectureCode: 13,
+    publishedAt: '2026-05-20',
+  },
+];

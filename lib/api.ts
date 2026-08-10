@@ -12,6 +12,7 @@ import { supabase, isSupabaseConfigured } from './supabase';
 import { prefectureCodeForQuery } from './prefectures';
 import { bump } from './refresh';
 import type { Trip, Step, TransportMode } from './mock';
+import { mockMatchaArticles } from './mock';
 import { getLocale } from './i18n';
 
 const PHOTO_BUCKET = 'photos';
@@ -1051,6 +1052,54 @@ export interface TourismArea {
   prefectureCode: number | null;
   areaType: string;
   matchaUrl: string | null;
+}
+
+/**
+ * MATCHAの記事（県カードのアプリ内ポップアップ用、0027）。
+ * body は本文の抜粋で、段落は空行(\n\n)区切り。全文は持たない ――
+ * 続きはMATCHAで読ませる。
+ */
+export interface MatchaArticle {
+  id: string;
+  url: string;
+  title: string;
+  body: string;
+  images: string[];
+  prefectureCode: number;
+  publishedAt: string | null;
+}
+
+/**
+ * その県の記事を表示言語で引く。無ければ日本語 → 英語の順で拾う
+ * （取り込みが言語ごとに進むため、欠けた言語で空にしない）。
+ */
+export async function fetchMatchaArticles(prefectureCode: number, lang: string): Promise<MatchaArticle[]> {
+  if (!isSupabaseConfigured) {
+    return mockMatchaArticles.filter((a) => a.prefectureCode === prefectureCode);
+  }
+  const pull = async (l: string) => {
+    const { data } = await supabase
+      .from('matcha_articles')
+      .select('id, url, title, body, images, prefecture_code, published_at')
+      .eq('prefecture_code', prefectureCode)
+      .eq('lang', l)
+      .order('published_at', { ascending: false })
+      .limit(6);
+    return (data ?? []).map((a: any) => ({
+      id: a.id,
+      url: a.url,
+      title: a.title,
+      body: a.body ?? '',
+      images: Array.isArray(a.images) ? a.images.filter((u: unknown) => typeof u === 'string') : [],
+      prefectureCode: a.prefecture_code,
+      publishedAt: a.published_at ?? null,
+    })) as MatchaArticle[];
+  };
+  for (const l of Array.from(new Set([lang, 'ja', 'en']))) {
+    const rows = await pull(l);
+    if (rows.length) return rows;
+  }
+  return [];
 }
 
 /** 観光エリアも表示言語で見せる。無ければ英語、それも無ければ日本語 */

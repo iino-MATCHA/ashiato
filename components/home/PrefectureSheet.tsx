@@ -35,7 +35,8 @@ import {
 } from '@/lib/prefectures';
 import { prefectureDescription } from '@/lib/quiz/descriptions';
 import { photoFor } from '@/lib/quiz/photos';
-import { searchTourismAreas, type TourismArea } from '@/lib/api';
+import { searchTourismAreas, fetchMatchaArticles, type TourismArea, type MatchaArticle } from '@/lib/api';
+import { ArticleModal } from '@/components/home/ArticleModal';
 import type { Trip } from '@/lib/mock';
 import type { Locale } from '@/lib/i18n';
 
@@ -81,6 +82,9 @@ function SheetBody({ code, onClose }: { code: number; onClose: () => void }) {
   const { trips } = useTrips();
   const { trips: publicTrips } = usePublicTrips();
   const [areas, setAreas] = useState<TourismArea[]>([]);
+  const [articles, setArticles] = useState<MatchaArticle[]>([]);
+  /** アプリ内で開いている記事（新聞風のポップアップ） */
+  const [reading, setReading] = useState<MatchaArticle | null>(null);
   const [askSignIn, setAskSignIn] = useState(false);
   const open = useSheetOpen();
   const sheetScroll = useSheetScroll();
@@ -116,6 +120,16 @@ function SheetBody({ code, onClose }: { code: number; onClose: () => void }) {
       .catch(() => {});
     return () => { alive = false; };
   }, [code]);
+
+  // 県のMATCHA記事（アプリ内で読める抜粋）。表示言語で引き、無ければ日→英
+  useEffect(() => {
+    let alive = true;
+    setArticles([]);
+    fetchMatchaArticles(code, locale)
+      .then((a) => alive && setArticles(a))
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [code, locale]);
 
   const name = prefectureName(code, locale);
   const photo = photoFor(code);
@@ -163,33 +177,59 @@ function SheetBody({ code, onClose }: { code: number; onClose: () => void }) {
     );
   };
 
-  /** MATCHAの記事カード。エリア名・市区町村・行き先 */
-  const matchaCards = useMemo(() => {
-    const cards = areas.map((a) => ({
-      key: a.id,
-      title: a.name,
-      sub: a.municipality,
-      url: localizeMatchaUrl(a.matchaUrl),
-    }));
+  /**
+   * MATCHAの段のカード。
+   * 抜粋を持つ記事（アプリ内で読める）を先に、観光エリアのリンクを後に。
+   * 記事カードはタップでその場のポップアップ、リンクカードはMATCHAへ。
+   */
+  type MatchaItem =
+    | { kind: 'article'; key: string; article: MatchaArticle }
+    | { kind: 'link'; key: string; title: string; sub: string; url: string | null };
+
+  const matchaCards = useMemo<MatchaItem[]>(() => {
+    const cards: MatchaItem[] = articles.map((a) => ({ kind: 'article', key: a.id, article: a }));
+    areas.forEach((a) =>
+      cards.push({ kind: 'link', key: a.id, title: a.name, sub: a.municipality, url: localizeMatchaUrl(a.matchaUrl) })
+    );
     if (matchaUrl) {
-      cards.push({ key: 'pref', title: t('quiz.aff.matchaTitle', { name }), sub: name, url: matchaUrl });
+      cards.push({ kind: 'link', key: 'pref', title: t('quiz.aff.matchaTitle', { name }), sub: name, url: matchaUrl });
     }
     return cards;
-  }, [areas, matchaUrl, name, t, locale]);
+  }, [articles, areas, matchaUrl, name, t, locale]);
 
-  const renderMatcha = ({ item }: { item: { key: string; title: string; sub: string; url: string | null } }) => (
-    <Pressable
-      onPress={() => item.url && Linking.openURL(item.url)}
-      style={({ pressed }) => [pressed && { opacity: 0.85 }]}
-    >
-      <View style={[styles.matchaCard, { borderColor: palette.rule, backgroundColor: palette.washiPaper }]}>
-        <AppText variant="bodyStrong" tone="ink" numberOfLines={2} style={{ flex: 1 }}>{item.title}</AppText>
-        <AppText variant="small" tone="inkFaint" numberOfLines={1}>{item.sub}</AppText>
-        <Gap h={6} />
-        <AppText variant="small" tone="matcha">MATCHA →</AppText>
-      </View>
-    </Pressable>
-  );
+  const renderMatcha = ({ item }: { item: MatchaItem }) => {
+    if (item.kind === 'article') {
+      const a = item.article;
+      return (
+        <Pressable onPress={() => setReading(a)} style={({ pressed }) => [pressed && { opacity: 0.85 }]}>
+          <View style={[styles.matchaCard, { borderColor: palette.rule, backgroundColor: palette.washiPaper, padding: 0 }]}>
+            <View style={[styles.articleCover, { backgroundColor: palette.fill }]}>
+              {!!a.images[0] && (
+                <Image source={{ uri: a.images[0] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              )}
+            </View>
+            <View style={{ padding: space.sm, flex: 1 }}>
+              <AppText variant="bodyStrong" tone="ink" numberOfLines={2} style={{ flex: 1 }}>{a.title}</AppText>
+              <AppText variant="small" tone="matcha">{t('article.read')}</AppText>
+            </View>
+          </View>
+        </Pressable>
+      );
+    }
+    return (
+      <Pressable
+        onPress={() => item.url && Linking.openURL(item.url)}
+        style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+      >
+        <View style={[styles.matchaCard, { borderColor: palette.rule, backgroundColor: palette.washiPaper }]}>
+          <AppText variant="bodyStrong" tone="ink" numberOfLines={2} style={{ flex: 1 }}>{item.title}</AppText>
+          <AppText variant="small" tone="inkFaint" numberOfLines={1}>{item.sub}</AppText>
+          <Gap h={6} />
+          <AppText variant="small" tone="matcha">MATCHA →</AppText>
+        </View>
+      </Pressable>
+    );
+  };
 
   return (
     <>
@@ -315,6 +355,9 @@ function SheetBody({ code, onClose }: { code: number; onClose: () => void }) {
         )}
       </ScrollView>
 
+      {/* 記事のポップアップ。文章が主役・写真は左右に小さく・下にMATCHAへの導線 */}
+      <ArticleModal article={reading} onClose={() => setReading(null)} />
+
       <SignInPrompt visible={askSignIn} onClose={() => setAskSignIn(false)} reason="save" />
     </>
   );
@@ -327,5 +370,7 @@ const styles = StyleSheet.create({
   tripCard: { width: 200, borderRadius: 12, borderWidth: hairline, overflow: 'hidden' },
   tripCover: { height: 104, width: '100%' },
   // MATCHAの記事。文字だけのカード
-  matchaCard: { width: 176, minHeight: 108, borderRadius: 12, borderWidth: hairline, padding: space.md },
+  matchaCard: { width: 176, minHeight: 108, borderRadius: 12, borderWidth: hairline, padding: space.md, overflow: 'hidden' },
+  // 抜粋つき記事カードのサムネイル
+  articleCover: { width: '100%', height: 76 },
 });
