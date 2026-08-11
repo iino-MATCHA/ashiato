@@ -1089,7 +1089,14 @@ export async function fetchMatchaArticles(prefectureCode: number, lang: string):
       id: a.id,
       url: a.url,
       title: a.title,
-      body: a.body ?? '',
+      /**
+       * 改行を LF に揃える。
+       * 段落は空行区切りで持っており、読む側は `\n\n` で切る。
+       * **SQL Editor に貼って入れると CRLF になる**（実際に81件すべてが
+       * `\r\n\r\n` で入り、段落が1つに潰れて写真も1枚しか出なかった）。
+       * 入れ方に左右されないよう、読むときに正す
+       */
+      body: String(a.body ?? '').replace(/\r\n?/g, '\n'),
       images: Array.isArray(a.images) ? a.images.filter((u: unknown) => typeof u === 'string') : [],
       prefectureCode: a.prefecture_code,
       publishedAt: a.published_at ?? null,

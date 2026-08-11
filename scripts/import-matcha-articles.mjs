@@ -5,6 +5,7 @@
  *   node scripts/import-matcha-articles.mjs --dry-run          何を入れるか見るだけ
  *   node scripts/import-matcha-articles.mjs --dry-run --sql    貼れるINSERT文を出す
  *   node scripts/import-matcha-articles.mjs --dry-run --json   中身をJSONで出す
+ *   node scripts/import-matcha-articles.mjs --by-prefecture      47県ぜんぶから集める
  *   node scripts/import-matcha-articles.mjs --lang jp --limit 40
  *   node scripts/import-matcha-articles.mjs --urls list.txt    URLを自分で並べる
  *   node scripts/import-matcha-articles.mjs --drop             取り込んだ分を消す
@@ -72,6 +73,12 @@ const URLS_FILE = flag('urls');
 const ORIGIN = flag('origin', 'https://matcha-jp.com');
 /** 何か月ぶんの記事一覧を遡るか */
 const MONTHS = Number(flag('months', '6'));
+/** 県ごとの一覧から集める（47県ぜんぶを埋めたいとき） */
+const BY_PREF = has('by-prefecture');
+/** 県ごとに何件まで取るか */
+const PER_PREF = Number(flag('per-prefecture', '3'));
+/** 一覧のページを何枚めくるか */
+const PAGES = Number(flag('pages', '2'));
 const UA = 'my-japan-importer/1.0 (+https://www.my-japan-matcha.com)';
 
 /** MATCHAのパス → アプリの言語札（lib/i18n の Locale と同じ） */
@@ -309,11 +316,57 @@ function publishedOf(html, ld) {
 const locsIn = (xml) =>
   [...xml.matchAll(/<loc>\s*(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?\s*<\/loc>/g)].map((m) => m[1].trim());
 
+/**
+ * 県ごとの記事一覧（`list?region={100+県コード}`）から集める。
+ *
+ * **sitemapの新着順だけでは県が偏る。** 直近6か月の先頭20件では
+ * 東京と大阪ばかりが取れて、47県のうち17県しか埋まらなかった
+ * （日本語で何か出るのは11県だけ）。県のカードは47県ぜんぶで開くので、
+ * 「押しても何も出ない県」が30もあると機能そのものが無いのと同じ。
+ *
+ * 一覧のページは右側にランキングと新着を持っており、そこには他県の記事が
+ * 並ぶ。`id="sidebar"` より前だけを見る。
+ * どの県の記事かは、結局それぞれの記事のパンくずで決める（prefectureOf）ので、
+ * 取りこぼしても他県の記事が混ざっても正しい県に入る。
+ */
+async function collectByPrefecture() {
+  const host = new URL(ORIGIN).host;
+  const out = [];
+  const seen = new Set();
+  for (let code = 1; code <= 47; code++) {
+    const urls = [];
+    for (let page = 1; page <= PAGES; page++) {
+      const listUrl = `${ORIGIN}/${LANG}/list?region=${code + 100}${page > 1 ? `&page=${page}` : ''}`;
+      try {
+        const r = await get(listUrl);
+        if (!r.ok) break;
+        const html = await r.text();
+        const head = html.slice(0, html.indexOf('id="sidebar"') + 1 || html.length);
+        for (const m of head.matchAll(new RegExp(`href="https://${host}/${LANG}/(\\d+)"`, 'g'))) {
+          const u = `${ORIGIN}/${LANG}/${m[1]}`;
+          if (!seen.has(u)) { seen.add(u); urls.push(u); }
+        }
+      } catch {}
+      if (urls.length >= PER_PREF) break;
+    }
+    const take = urls.slice(0, PER_PREF);
+    out.push(...take);
+    process.stdout.write(`  ${String(code).padStart(2, '0')}:${take.length}${code % 12 === 0 ? '\n' : ' '}`);
+    await new Promise((s) => setTimeout(s, 250));
+  }
+  console.log('');
+  return out;
+}
+
 async function collectUrls() {
   if (URLS_FILE) {
     const { readFile } = await import('node:fs/promises');
     const raw = await readFile(URLS_FILE, 'utf8');
     return raw.split('\n').map((s) => s.trim()).filter((s) => /^https?:\/\//.test(s));
+  }
+  if (BY_PREF) {
+    console.log(`県ごとの一覧を読む（1県あたり最大 ${PER_PREF} 件）`);
+    return collectByPrefecture();
   }
   const index = `${ORIGIN}/${LANG}/sitemap.xml`;
   console.log(`sitemap を読む: ${index}`);

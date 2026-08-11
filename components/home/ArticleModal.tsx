@@ -27,7 +27,8 @@ export function ArticleModal({ article, onClose }: { article: MatchaArticle | nu
 
   if (!article) return null;
 
-  const paragraphs = article.body.split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
+  // 空行で段落に切る。CR混じりでも落ちないようにしておく（lib/api でも正している）
+  const paragraphs = article.body.split(/\r?\n\s*\r?\n/).map((s) => s.trim()).filter(Boolean);
   const cardW = Math.min(width - space.lg * 2, 640);
   /**
    * 段落の横に写真を置けるのは版面に余裕があるときだけ。
