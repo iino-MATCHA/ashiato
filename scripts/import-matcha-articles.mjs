@@ -448,35 +448,87 @@ async function main() {
 
   const rows = [];
   let skipped = 0;
+
+  /** 1本ぶんの取り出し。入れられれば行を、駄目なら理由を返す */
+  async function extract(url) {
+    const r = await get(url);
+    if (!r.ok) return { why: `HTTP ${r.status}` };
+    const html = await r.text();
+    const ld = jsonLd(html);
+
+    const code = await prefectureOf(html);
+    const title = titleOf(html, ld);
+    // JSON-LD の中の文字列も実体参照のまま（`Nara&mdash;Japan` が出ていた）
+    const description = text(ld?.description ?? '') || meta(html, 'og:description');
+    const body = bodyOf(html, description);
+    const images = imagesOf(html, ld?.image?.url ?? meta(html, 'og:image'));
+    const published = publishedOf(html, ld);
+
+    if (!code || !title || body.length < 60) {
+      return { why: !code ? '県が特定できない' : !title ? '題が無い' : '本文が短い' };
+    }
+    return { row: { url, title, body, images, code, published } };
+  }
+
+  const note = (r) =>
+    console.log(
+      `  ok    [${String(r.code).padStart(2, '0')}] 段落${r.body.split('\n\n').length} 写真${r.images.length}  ${r.title.slice(0, 40)}`
+    );
+
   for (const url of urls.slice(0, LIMIT)) {
     try {
-      const r = await get(url);
-      if (!r.ok) { skipped++; console.log(`  skip  ${url}  (HTTP ${r.status})`); continue; }
-      const html = await r.text();
-      const ld = jsonLd(html);
-
-      const code = await prefectureOf(html);
-      const title = titleOf(html, ld);
-      // JSON-LD の中の文字列も実体参照のまま（`Nara&mdash;Japan` が出ていた）
-      const description = text(ld?.description ?? '') || meta(html, 'og:description');
-      const body = bodyOf(html, description);
-      const images = imagesOf(html, ld?.image?.url ?? meta(html, 'og:image'));
-      const published = publishedOf(html, ld);
-
-      if (!code || !title || body.length < 60) {
-        skipped++;
-        console.log(`  skip  ${url}  (${!code ? '県が特定できない' : !title ? '題が無い' : '本文が短い'})`);
-        continue;
-      }
-      rows.push({ url, title, body, images, code, published });
-      console.log(
-        `  ok    [${String(code).padStart(2, '0')}] 段落${body.split('\n\n').length} 写真${images.length}  ${title.slice(0, 40)}`
-      );
+      const { row, why } = await extract(url);
+      if (!row) { skipped++; console.log(`  skip  ${url}  (${why})`); continue; }
+      rows.push(row);
+      note(row);
       // 相手のサーバに負荷をかけない
       await new Promise((s) => setTimeout(s, 400));
     } catch (e) {
       skipped++;
       console.log(`  fail  ${url}  ${e.message.slice(0, 60)}`);
+    }
+  }
+
+  /**
+   * 1件も取れなかった県を埋める。
+   *
+   * 県の一覧の先頭に、その県を扱っていても**パンくずが隣県の記事**が
+   * 並ぶことがある（佐賀の一覧は九州のまとめ記事が3本続き、先頭3件を
+   * 取ると全部が福岡になっていた）。取ってみるまで県が分からないので、
+   * 足りなかった県だけ、一覧を深く見て当たりが出るまで引く
+   */
+  if (BY_PREF) {
+    const have = new Set(rows.map((r) => r.code));
+    const missing = Array.from({ length: 47 }, (_, i) => i + 1).filter((c) => !have.has(c));
+    if (missing.length) {
+      console.log(`\n1件も取れなかった県: ${missing.join(' ')} → 一覧を深く見ます`);
+      const taken = new Set(rows.map((r) => r.url));
+      for (const code of missing) {
+        let done = false;
+        for (let page = 1; page <= PAGES + 1 && !done; page++) {
+          const listUrl = `${ORIGIN}/${LANG}/list?region=${code + 100}${page > 1 ? `&page=${page}` : ''}`;
+          let cands = [];
+          try {
+            const r = await get(listUrl);
+            if (!r.ok) break;
+            const html = await r.text();
+            const head = html.slice(0, html.indexOf('id="sidebar"') + 1 || html.length);
+            for (const m of head.matchAll(new RegExp(`href="https://${new URL(ORIGIN).host}/${LANG}/(\\d+)"`, 'g'))) {
+              const u = `${ORIGIN}/${LANG}/${m[1]}`;
+              if (!taken.has(u) && !cands.includes(u)) cands.push(u);
+            }
+          } catch { break; }
+          for (const u of cands.slice(0, 12)) {
+            try {
+              const { row } = await extract(u);
+              taken.add(u);
+              if (row?.code === code) { rows.push(row); note(row); done = true; break; }
+            } catch {}
+            await new Promise((s) => setTimeout(s, 300));
+          }
+        }
+        if (!done) console.log(`  ${String(code).padStart(2, '0')}: 見つかりませんでした`);
+      }
     }
   }
 
