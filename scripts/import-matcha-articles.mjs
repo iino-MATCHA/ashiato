@@ -344,12 +344,19 @@ async function collectByPrefecture() {
         const head = html.slice(0, html.indexOf('id="sidebar"') + 1 || html.length);
         for (const m of head.matchAll(new RegExp(`href="https://${host}/${LANG}/(\\d+)"`, 'g'))) {
           const u = `${ORIGIN}/${LANG}/${m[1]}`;
-          if (!seen.has(u)) { seen.add(u); urls.push(u); }
+          if (!seen.has(u) && !urls.includes(u)) urls.push(u);
         }
       } catch {}
       if (urls.length >= PER_PREF) break;
     }
+    /**
+     * **既出の印は「実際に取ったURL」にだけ付ける。**
+     * 見つけたURL全部に付けていたら、隣県の一覧に相手の記事が並んでいる
+     * ぶんまで消費され、その県の番になったときに何も残っていなかった
+     * （佐賀がこれで0件になった。一覧には7件あるのに1件も取れていない）
+     */
     const take = urls.slice(0, PER_PREF);
+    take.forEach((u) => seen.add(u));
     out.push(...take);
     process.stdout.write(`  ${String(code).padStart(2, '0')}:${take.length}${code % 12 === 0 ? '\n' : ' '}`);
     await new Promise((s) => setTimeout(s, 250));
