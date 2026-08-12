@@ -18,6 +18,8 @@ interface Props {
   modes?: TransportMode[];
   /** when true, frame the whole route (overview) instead of the active stop */
   overview?: boolean;
+  /** タイルが描けて幕を上げた瞬間に一度だけ呼ぶ（遷移の白を剥がす合図） */
+  onReady?: () => void;
 }
 
 /**
@@ -32,6 +34,7 @@ export function TripMap({
   bottomInset = 150,
   modes,
   overview = false,
+  onReady,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const veilRef = useRef<HTMLDivElement | null>(null);
@@ -47,6 +50,8 @@ export function TripMap({
   activeRef.current = activeIndex;
   const overviewRef = useRef(overview);
   overviewRef.current = overview;
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
 
   const effectiveModes = modes ?? steps.map((s) => s.transport);
   const modesKey = effectiveModes.join('|');
@@ -70,7 +75,13 @@ export function TripMap({
         mapRef.current = map;
 
         // lift the veil only once real tiles are painted (avoids a black flash)
-        const reveal = () => { if (veilRef.current) veilRef.current.style.opacity = '0'; };
+        let revealed = false;
+        const reveal = () => {
+          if (revealed) return;
+          revealed = true;
+          if (veilRef.current) veilRef.current.style.opacity = '0';
+          onReadyRef.current?.();
+        };
         map.once('idle', reveal);
         setTimeout(reveal, 2500); // safety net if 'idle' never fires
 

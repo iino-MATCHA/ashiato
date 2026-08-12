@@ -8,6 +8,7 @@ import { AppText, Row, Rule, Gap, Eyebrow, Button } from '@/components/ui';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
+import { useRippleNav } from '@/lib/transition';
 import { useProfile } from '@/lib/useProfile';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { fetchStepSocial, toggleLike, addComment, type StepSocial } from '@/lib/api';
@@ -31,6 +32,12 @@ export default function StepDetail() {
   const { trip } = useTrip(id);
   const { profile } = useProfile();
   const step = trip?.steps.find((s) => s.id === stepId);
+  const { markReady } = useRippleNav();
+  // 立ち寄り先の中身が出せた時点で、遷移の白い覆いを剥がしてよい
+  useEffect(() => {
+    if (step || trip) markReady();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!step, !!trip]);
   // バディーも持ち主と同じように直せる。canEdit が「持ち主か同行者か」を持っている
   const canEdit = (trip?.canEdit || trip?.authorId === 'me' || !trip?.authorId) && readonly !== '1';
 

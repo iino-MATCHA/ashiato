@@ -20,6 +20,8 @@ export interface BookEdits {
   cover?: string;
   /** 本に載せない写真のURI */
   excluded: string[];
+  /** 1ページに置く写真の枚数（1〜6）。未指定なら自動（2〜3枚） */
+  photosPerPage?: number;
 }
 
 const KEY = (tripId: string) => `mj-book-edits-${tripId}`;
@@ -42,6 +44,10 @@ export function readBookEdits(tripId: string): BookEdits {
     return {
       cover: typeof v.cover === 'string' ? v.cover : undefined,
       excluded: Array.isArray(v.excluded) ? v.excluded.filter((x: unknown) => typeof x === 'string') : [],
+      photosPerPage:
+        typeof v.photosPerPage === 'number' && v.photosPerPage >= 1 && v.photosPerPage <= 6
+          ? Math.round(v.photosPerPage)
+          : undefined,
     };
   } catch {
     return { excluded: [] };
@@ -52,7 +58,7 @@ export function writeBookEdits(tripId: string, edits: BookEdits): void {
   const s = storage();
   if (!s) return;
   try {
-    if (!edits.cover && !edits.excluded.length) s.removeItem(KEY(tripId));
+    if (!edits.cover && !edits.excluded.length && !edits.photosPerPage) s.removeItem(KEY(tripId));
     else s.setItem(KEY(tripId), JSON.stringify(edits));
   } catch {}
 }

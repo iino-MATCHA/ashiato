@@ -56,7 +56,8 @@ export default function TripBind() {
   const book = useMemo(() => {
     if (!trip) return null;
     const edits = readBookEdits(trip.id);
-    return applyCover(planBook(applyBookEdits(trip, edits)), edits);
+    // 焼く本はプレビューと同じ台割にする（写真の密度の注文も含めて）
+    return applyCover(planBook(applyBookEdits(trip, edits), { photosPerPage: edits.photosPerPage }), edits);
   }, [trip]);
   const cache = useRef(new Map<number, string | null>());
   const getPage = useCallback(

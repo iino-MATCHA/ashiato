@@ -150,28 +150,38 @@ export function buildChapters(steps: Step[]): Chapter[] {
 }
 
 /**
- * n枚の写真を「1ページ2〜3枚」に分ける。
- * 端数が1のときは [.., 3, 1] にせず [.., 2, 2] に直す（1枚だけのページを作らない）。
+ * n枚の写真をページに分ける。
+ * 既定は「1ページ2〜3枚」の自動。`per` を渡すと、その枚数（1〜6）で割る
+ * ―― 置く位置までは決められなくても、密度は選べるようにする（要望）。
+ * どちらの場合も、端数が1のときは [.., k, 1] にせず [.., k-1, 2] に直す
+ * （1枚だけのページを作らない。1枚を選んだときは別）。
  */
-export function groupPhotos(n: number): number[] {
+export function groupPhotos(n: number, per?: number): number[] {
   if (n <= 0) return [];
   if (n === 1) return [1]; // 1枚しか無いときだけ許す
+  const size = per && per >= 1 && per <= 6 ? Math.round(per) : 3;
   const groups: number[] = [];
   let left = n;
   while (left > 0) {
-    groups.push(Math.min(3, left));
-    left -= 3;
+    groups.push(Math.min(size, left));
+    left -= size;
   }
-  if (groups[groups.length - 1] === 1) {
-    groups[groups.length - 2] = 2;
+  if (size > 1 && groups.length > 1 && groups[groups.length - 1] === 1) {
+    groups[groups.length - 2] -= 1;
     groups[groups.length - 1] = 2;
   }
   return groups;
 }
 
+/** 台割の注文。写真の密度だけ（並べる位置は自動のまま） */
+export interface PlanOptions {
+  /** 1ページに置く写真の枚数（1〜6）。未指定なら自動（2〜3枚） */
+  photosPerPage?: number;
+}
+
 // ---------------------------------------------------------------- 台割
 
-export function planBook(trip: Trip): BookPlan {
+export function planBook(trip: Trip, opts: PlanOptions = {}): BookPlan {
   const steps = trip.steps ?? [];
   const chapters = buildChapters(steps);
   const totalPhotos = chapters.reduce((n, c) => n + c.photoCount, 0);
@@ -240,7 +250,7 @@ export function planBook(trip: Trip): BookPlan {
     };
 
     let cursor = 0;
-    const groups = groupPhotos(photos.length);
+    const groups = groupPhotos(photos.length, opts.photosPerPage);
     ch.pages = groups.length;
     groups.forEach((take, gi) => {
       const slice = photos.slice(cursor, cursor + take);

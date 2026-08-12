@@ -1030,10 +1030,30 @@ export async function fetchUserProfile(id: string): Promise<UserSummary | null> 
 }
 
 /** 指定ユーザーの旅（RLSが公開範囲を自動判定：public＋友達ならfriendsも）。 */
+/**
+ * その人のプロフィールに出す旅。**持ち主の旅と、バディーとして
+ * 参加した旅の両方。** 持ち主だけに絞ると、友だちの旅に写真を
+ * 足している人（trip_members の editor）のプロフィールが
+ * 「0 trips」になる（iino_matcha が「日本縦断」のバディーなのに
+ * 空だった）。見える範囲は今までどおり RLS が決める ――
+ * 公開の旅と、自分に見せられている旅しか返らない。
+ */
 export async function fetchTripsByOwner(ownerId: string): Promise<Trip[]> {
-  const { data } = await supabase.from('trips').select(TRIP_COLS).eq('owner_id', ownerId).order('start_date', { ascending: false });
-  if (!data) return [];
-  return assembleTrips(data);
+  const [{ data: owned }, { data: memberOf }] = await Promise.all([
+    supabase.from('trips').select(TRIP_COLS).eq('owner_id', ownerId),
+    supabase.from('trip_members').select('trip_id').eq('user_id', ownerId),
+  ]);
+  const extraIds = (memberOf ?? [])
+    .map((r: any) => r.trip_id)
+    .filter((tid: string) => !(owned ?? []).some((t: any) => t.id === tid));
+  const { data: joined } = extraIds.length
+    ? await supabase.from('trips').select(TRIP_COLS).in('id', extraIds)
+    : { data: [] as any[] };
+  const all = [...(owned ?? []), ...(joined ?? [])].sort((a: any, b: any) =>
+    String(b.start_date ?? '').localeCompare(String(a.start_date ?? ''))
+  );
+  if (!all.length) return [];
+  return assembleTrips(all);
 }
 
 /** 友達（または本人）の訪問都道府県コード。RPCがRLS相当の判定を行う。 */

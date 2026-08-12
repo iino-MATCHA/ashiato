@@ -312,14 +312,28 @@ async function paintPhotos(ctx: CanvasRenderingContext2D, p: Extract<Page, { kin
     drawCover(ctx, imgs[0], M, top, PW - M * 2, h1);
     drawCover(ctx, imgs[1], M, top + h1 + gap, (PW - M * 2) * 0.62, h2);
   } else {
-    // 3枚: 主1 + 従2（均等グリッドにしない）
+    /**
+     * 3枚以上: 主1 + 従（均等グリッドにしない）。
+     * 従は下の段に2〜3枚ずつ。6枚まで受ける（1ページの枚数を
+     * 1〜6で選べるようにした）。主の高さは枚数が増えるほど譲る
+     */
     const gap = M * 0.45;
-    const hMain = areaH * 0.58;
+    const subs = imgs.slice(1);
+    // 従の段割り: 1段2〜3枚。[2] [3] [2,2] [2,3]
+    const rows: number[] =
+      subs.length <= 3 ? [subs.length] : subs.length === 4 ? [2, 2] : [2, 3];
+    const hMain = areaH * (imgs.length <= 3 ? 0.58 : imgs.length === 4 ? 0.5 : 0.42);
     drawCover(ctx, imgs[0], M, top, PW - M * 2, hMain);
-    const wSub = (PW - M * 2 - gap) / 2;
-    const hSub = areaH - hMain - gap;
-    drawCover(ctx, imgs[1], M, top + hMain + gap, wSub, hSub);
-    drawCover(ctx, imgs[2], M + wSub + gap, top + hMain + gap, wSub, hSub);
+    const hSub = (areaH - hMain - gap * rows.length) / rows.length;
+    let i = 0;
+    let y = top + hMain + gap;
+    for (const cols of rows) {
+      const wSub = (PW - M * 2 - gap * (cols - 1)) / cols;
+      for (let c = 0; c < cols && i < subs.length; c++, i++) {
+        drawCover(ctx, subs[i], M + c * (wSub + gap), y, wSub, hSub);
+      }
+      y += hSub + gap;
+    }
   }
 
   ctx.fillStyle = FAINT;

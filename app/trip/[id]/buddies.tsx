@@ -104,12 +104,16 @@ export default function TripBuddies() {
           </>
         ) : (
           <>
-            <Eyebrow>{t('friends.yours')}</Eyebrow>
-            <Gap h={space.md} />
-            <Rule />
-            {list.map((u) => {
-              const on = chosen.includes(u.id);
-              return (
+            {/**
+             * バディーと、まだバディーでない友だちを分けて出す。
+             * ひとつの一覧に混ぜると、友だち全員がこの旅のバディーに
+             * 見えてしまう（指摘を受けた）。上が「この旅のバディー」、
+             * 下が「友だちから足す」
+             */}
+            {(() => {
+              const buddies = list.filter((u) => chosen.includes(u.id));
+              const others = list.filter((u) => !chosen.includes(u.id));
+              const row = (u: UserSummary, on: boolean) => (
                 <View key={u.id}>
                   <Pressable onPress={() => toggle(u.id)} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
                     <Row style={styles.row}>
@@ -125,7 +129,7 @@ export default function TripBuddies() {
                         <AppText variant="small" tone="inkFaint">@{u.username}</AppText>
                       </View>
                       <Ionicons
-                        name={on ? 'checkmark-circle' : 'ellipse-outline'}
+                        name={on ? 'checkmark-circle' : 'add-circle-outline'}
                         size={24}
                         color={on ? palette.matcha : palette.ruleStrong}
                       />
@@ -134,7 +138,24 @@ export default function TripBuddies() {
                   <Rule />
                 </View>
               );
-            })}
+              return (
+                <>
+                  <Eyebrow tone="matcha">{t('buddy.current')}</Eyebrow>
+                  <Gap h={space.md} />
+                  <Rule />
+                  {buddies.length ? (
+                    buddies.map((u) => row(u, true))
+                  ) : (
+                    <><Gap h={space.sm} /><AppText variant="small" tone="inkFaint">—</AppText><Gap h={space.sm} /><Rule /></>
+                  )}
+                  <Gap h={space.xl} />
+                  <Eyebrow>{t('buddy.addFrom')}</Eyebrow>
+                  <Gap h={space.md} />
+                  <Rule />
+                  {others.map((u) => row(u, false))}
+                </>
+              );
+            })()}
             {term !== '' && list.length === 0 && (
               <><Gap h={space.md} /><AppText variant="small" tone="inkFaint">{t('friends.noneFound', { q: q.trim() })}</AppText></>
             )}

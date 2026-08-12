@@ -35,7 +35,7 @@ import { useI18n, localizeMatchaUrl, type Locale } from '@/lib/i18n';
 import { QUESTIONS, type QuizQuestion } from '@/lib/quiz/questions';
 import { recommend, weightsFor, type Answers, type Recommendation } from '@/lib/quiz/score';
 import type { Axis } from '@/lib/quiz/data';
-import { photoFor } from '@/lib/quiz/photos';
+import { photoFor, PREFECTURE_PHOTO } from '@/lib/quiz/photos';
 import { QuizIcon, hasQuizIcon } from '@/components/quiz/QuizIcon';
 import { usePrefectureText } from '@/lib/usePrefectureText';
 import { affiliatesFor, type AffiliateCard } from '@/lib/quiz/affiliates';
@@ -52,6 +52,46 @@ import { authRedirectTo } from '@/lib/authRedirect';
  * （管理画面で Apple を有効にしたら true にする）。
  */
 const APPLE_ENABLED = false;
+
+/**
+ * 設問ごとの背景（日本の観光地）。
+ * 白い紙のままでは診断が事務的に見える、という指摘で入れた。
+ * 写真は結果カードと同じ PREFECTURE_PHOTO（実際に200が返るもの）を使い回す。
+ * 設問の順に、雰囲気の合う土地を並べてある。文字の可読性は上の
+ * 白いベール（.qBg::after）が受け持つ。
+ */
+const QUESTION_BG: number[] = [
+  19, // 興味        … 新倉山の五重塔と富士
+  21, // 目覚めの景色 … 白川郷
+  26, // 予約派か    … 伏見稲荷
+  20, // 歩く旅か    … 上高地
+  27, // 夜の街か    … 道頓堀
+  17, // 静けさか    … 兼六園
+  13, // 定番か穴場か … 浅草寺
+  22, // 日数        … 三保松原
+  10, // 予算        … 草津の湯畑
+  2,  // 季節        … 弘前城の桜
+  45, // 来日歴      … 高千穂峡
+  31, // 訪問済み    … 鳥取砂丘
+];
+
+/**
+ * 興味の問い（bento）。**写真の面と、抹茶色の面を半々に混ぜる。**
+ * 景色で選ばせたいもの（神社・城・温泉…）は写真、
+ * 写真にすると嘘くさくなるもの（ラーメン・買い物・アニメ…）は
+ * 色の面＋既存の線画アイコンのまま。
+ */
+const BENTO_PHOTO: Record<string, number> = {
+  shrines: 26,        // 伏見稲荷
+  castles: 28,        // 姫路城
+  onsen: 10,          // 草津の湯畑
+  mountainHikes: 20,  // 上高地
+  snow: 5,            // 冬の田沢湖
+  beaches: 47,        // 川平湾
+  island: 46,         // 桜島
+  gardens: 17,        // 兼六園
+  festivals: 13,      // 浅草
+};
 
 const CSS = `
 .mjq { --ink:#14120F; --paper:#FBFAF7; --matcha:#69AF00; --shu:#C4432B; --line:#E6E3DA;
@@ -105,14 +145,22 @@ const CSS = `
    段の実高が 100svh+パディングになり、justify-content:center の中心が
    画面の中心より下へ沈む（スマホで「中央に来ていない」と指摘された原因）。
    上下のパディングも同じ値にして、真ん中に落ちるようにする。 */
-.mjq .qStage { box-sizing:border-box; min-height:var(--vh,100svh);
+.mjq .qStage { box-sizing:border-box; min-height:var(--vh,100svh); position:relative; overflow:hidden;
   display:flex; flex-direction:column; justify-content:center;
   padding-top:clamp(72px,12vw,110px); padding-bottom:clamp(72px,12vw,110px); }
+/* 設問の背景（日本の観光地）。紙の白は上のベールが守る */
+.mjq .qBg { position:absolute; inset:0; background-size:cover; background-position:center;
+  animation:mjqBgIn .9s ease-out both; }
+.mjq .qBg::after { content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(251,250,247,.82) 0%, rgba(251,250,247,.90) 45%, rgba(251,250,247,.97) 100%); }
+@keyframes mjqBgIn { from { opacity:0; } to { opacity:1; } }
+.mjq .qStage .wrap { position:relative; }
 .mjq .bar { position:fixed; top:0; left:0; right:0; height:3px; background:rgba(0,0,0,.06); z-index:5; }
 .mjq .barFill { height:100%; background:var(--matcha); transition:width .3s cubic-bezier(.2,.7,.2,1); }
-/* 設問が切り替わるときの入場。覆いが引くのと入れ違いに、下から上がってくる */
-.mjq .qIn { animation:mjqStep .3s cubic-bezier(.2,.7,.2,1) both; }
-@keyframes mjqStep { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:none; } }
+/* 設問が切り替わるときの入場。覆いが引いたあと、**ひと呼吸おいて**
+   下からふわっと浮き上がる（即座に出すと事務的に見える、という指摘） */
+.mjq .qIn { animation:mjqStep .55s cubic-bezier(.16,.84,.28,1) .22s both; }
+@keyframes mjqStep { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:none; } }
 
 /* --- 押した所から広がる面（旅を開くときと同じ作り） ---
    lib/transition.tsx と同じ考え方。**薄い輪を散らすのではなく、色の面が
@@ -156,6 +204,39 @@ const CSS = `
 /* 自作の絵（components/quiz/QuizIcon）。墨より少し退かせて、字を主役にする */
 .mjq .optIcon { flex:0 0 auto; display:flex; align-items:center; color:#4A453C; opacity:.9; }
 .mjq .opt.on .optIcon { color:var(--ink); opacity:1; }
+
+/* --- 興味の問いの bento ---
+   写真の面（神社・城・温泉…）と抹茶色の面（ラーメン・買い物…）を
+   半々に敷き詰める。写真の面は横長2コマ、色の面は1コマ。
+   dense で穴を埋めるので、順番どおりでなくても隙間ができない */
+.mjq .bento { display:grid; gap:10px; margin-top:28px;
+  grid-template-columns:repeat(4,1fr); grid-auto-rows:96px; grid-auto-flow:dense; }
+.mjq .btile { position:relative; border:0; border-radius:16px; overflow:hidden; cursor:pointer;
+  padding:0; font-family:inherit; text-align:left; transition:transform .18s, box-shadow .18s; }
+@media (hover:hover) { .mjq .btile:hover { transform:translateY(-2px); } }
+/* 写真の面。下辺に墨のグラデーションを敷いて白文字を立たせる */
+.mjq .btile.photo { grid-column:span 2; background-size:cover; background-position:center; }
+.mjq .btile.photo::after { content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(10,12,8,0) 40%, rgba(10,12,8,.62) 100%); }
+.mjq .btile.photo .btLabel { color:#fff; text-shadow:0 1px 8px rgba(0,0,0,.35); }
+/* 色の面。抹茶のごく薄い面に線画アイコン */
+.mjq .btile.plain { background:linear-gradient(160deg,#F4FAEA 0%,#E8F3D4 100%);
+  border:1px solid #DFE9C9; display:flex; flex-direction:column; align-items:flex-start;
+  /* ラベルは写真の面と同じ左下。上に置くと右上の◯と重なる */
+  justify-content:flex-end; padding:12px; }
+.mjq .btile.plain .optIcon { color:#5E7A2C; }
+.mjq .btLabel { position:relative; z-index:1; font-size:13.5px; line-height:1.3; color:var(--ink); }
+.mjq .btile.photo .btLabel { position:absolute; left:12px; right:12px; bottom:10px; }
+/* 選択。緑の輪と ✓。写真でも色の面でも同じ作法 */
+.mjq .btile .btMark { position:absolute; top:8px; right:8px; z-index:1; width:22px; height:22px;
+  border-radius:50%; border:1.5px solid rgba(255,255,255,.85); background:rgba(10,12,8,.25);
+  color:#fff; font-size:13px; display:flex; align-items:center; justify-content:center; }
+.mjq .btile.plain .btMark { border-color:#C9D8A6; background:#fff; color:transparent; }
+.mjq .btile.on { box-shadow:0 0 0 2.5px var(--matcha) inset, 0 6px 18px rgba(105,175,0,.18); }
+.mjq .btile.on .btMark { background:var(--matcha); border-color:var(--matcha); color:#fff; }
+@media (max-width:560px) {
+  .mjq .bento { grid-template-columns:repeat(2,1fr); grid-auto-rows:88px; }
+}
 
 /* --- 日数・予算のスライダー --- */
 .mjq .sliderWrap { margin-top:30px; max-width:440px; }
@@ -773,6 +854,14 @@ export function QuizLanding() {
             <div className="barFill" style={{ width: `${((step + 1) / total) * 100}%` }} />
           </div>
           <section className="qStage">
+            {/* 設問ごとの背景（日本の観光地）。key で問いごとに焚き直す */}
+            {!!QUESTION_BG[step] && PREFECTURE_PHOTO[QUESTION_BG[step]] && (
+              <div
+                className="qBg"
+                key={`bg${step}`}
+                style={{ backgroundImage: `url(${PREFECTURE_PHOTO[QUESTION_BG[step]].url})` }}
+              />
+            )}
             {/* key=step で問いごとに作り直し、入場の動き(qIn)を毎回走らせる */}
             <div className="wrap qIn" key={step}>
               <div className="step">{t('quiz.progress', { n: step + 1, total })}</div>
@@ -841,6 +930,33 @@ export function QuizLanding() {
                   </div>
                 </>
               ) : (
+                q.id === 'interest' ? (
+                  /* 興味の問いは bento。景色もの＝写真、食・街・文化＝抹茶の面 */
+                  <div className="bento">
+                    {(q.options ?? []).map((o) => {
+                      const on = picked.includes(o.id);
+                      const photo = BENTO_PHOTO[o.id] ? PREFECTURE_PHOTO[BENTO_PHOTO[o.id]] : null;
+                      return (
+                        <button
+                          key={o.id}
+                          type="button"
+                          className={`btile ${photo ? 'photo' : 'plain'}${on ? ' on' : ''}`}
+                          style={photo ? { backgroundImage: `url(${photo.url})` } : undefined}
+                          onClick={(e) => choose(o.id, e)}
+                          aria-pressed={on}
+                        >
+                          <span className="btMark">{on ? '✓' : ''}</span>
+                          {!photo && hasQuizIcon(o.id) && (
+                            <span className="optIcon">
+                              <QuizIcon id={o.id} />
+                            </span>
+                          )}
+                          <span className="btLabel">{t(o.labelKey)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
                 <div className="opts">
                   {(q.options ?? []).map((o) => {
                     const on = picked.includes(o.id);
@@ -863,6 +979,7 @@ export function QuizLanding() {
                     );
                   })}
                 </div>
+                )
               )}
 
               <div className="qNav">

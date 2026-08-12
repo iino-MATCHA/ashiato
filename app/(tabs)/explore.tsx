@@ -225,10 +225,19 @@ function FeaturedCarousel({ trips, palette, screenW }: { trips: Trip[]; palette:
   const [idx, setIdx] = useState(0);
   const cardW = screenW - space.lg * 2;
   const SNAP = cardW + space.md;
+  /**
+   * 自動送りは**指に絶対に逆らわない**。
+   * 触れている間は止め、離れてからもしばらく黙る ―― 以前はスワイプの最中にも
+   * タイマーが scrollTo を打ち、指の下でカードが引き戻された（指摘を受けた）。
+   */
+  const touching = useRef(false);
+  const holdUntil = useRef(0);
+  const rest = () => { holdUntil.current = Date.now() + 6000; };
 
   useEffect(() => {
     if (trips.length < 2) return;
     const t = setInterval(() => {
+      if (touching.current || Date.now() < holdUntil.current) return;
       setIdx((cur) => {
         const next = (cur + 1) % trips.length;
         ref.current?.scrollTo({ x: next * SNAP, animated: true });
@@ -246,7 +255,14 @@ function FeaturedCarousel({ trips, palette, screenW }: { trips: Trip[]; palette:
         showsHorizontalScrollIndicator={false}
         snapToInterval={SNAP}
         decelerationRate="fast"
-        onMomentumScrollEnd={(e) => setIdx(Math.round(e.nativeEvent.contentOffset.x / SNAP))}
+        onTouchStart={() => { touching.current = true; }}
+        onTouchEnd={() => { touching.current = false; rest(); }}
+        onScrollBeginDrag={() => { touching.current = true; }}
+        onScrollEndDrag={() => { touching.current = false; rest(); }}
+        onMomentumScrollEnd={(e) => {
+          rest();
+          setIdx(Math.round(e.nativeEvent.contentOffset.x / SNAP));
+        }}
         contentContainerStyle={{ gap: space.md }}
       >
         {trips.map((t) => {

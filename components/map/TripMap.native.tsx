@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText } from '@/components/ui';
@@ -12,15 +13,19 @@ export function TripMap({
   steps,
   activeIndex,
   height = 360,
+  onReady,
 }: {
   steps: Step[];
   activeIndex: number;
   onSelect: (i: number) => void;
   height?: number;
   bottomInset?: number;
+  /** 描く準備ができた合図（遷移の白を剥がす）。プレースホルダは即座に */
+  onReady?: () => void;
 }) {
   const { palette } = useTheme();
   const active = steps[activeIndex];
+  useEffect(() => { onReady?.(); }, []);
   return (
     <View
       style={{

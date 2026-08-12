@@ -126,10 +126,15 @@ function FriendTripCard({ trip }: { trip: Trip }) {
 }
 
 function Stat({ value, label }: any) {
+  /**
+   * 3つの升は数字を上端でそろえる。「GOSHUIN BADGES」だけ2行に折り返して
+   * 升ごとに高さが変わり、中央ぞろえだと数字の位置がばらけていた（指摘を受けた）。
+   * ラベルは中央ぞろえで折り返しを許し、数字は常に同じ高さに置く
+   */
   return (
-    <View style={{ flex: 1, alignItems: 'center', paddingVertical: space.sm }}>
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-start', paddingVertical: space.sm }}>
       <AppText variant="h2" tone="ink">{value}</AppText>
-      <AppText variant="eyebrow" tone="inkFaint">{label}</AppText>
+      <AppText variant="eyebrow" tone="inkFaint" center style={{ lineHeight: 14 }}>{label}</AppText>
     </View>
   );
 }

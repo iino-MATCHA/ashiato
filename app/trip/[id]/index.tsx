@@ -8,6 +8,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText, Row, Gap } from '@/components/ui';
 import { TripMap } from '@/components/map/TripMap';
+import { isMapboxConfigured } from '@/lib/mapbox';
 import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
@@ -42,7 +43,7 @@ export default function TripDetail() {
   const invited = typeof invite === 'string' && invite.length > 0 ? invite : null;
   if (invited) setInviteToken(invited);
   const { trip, loading } = useTrip(id);
-  const { navigate } = useRippleNav();
+  const { navigate, markReady } = useRippleNav();
   const { t } = useI18n();
 
   const CARD_W = Math.min(width * 0.8, 340);
@@ -66,6 +67,18 @@ export default function TripDetail() {
 
   const steps = trip?.steps ?? [];
   const n = steps.length;
+
+  /**
+   * 遷移の白い覆いを剥がす合図。
+   * 地図が描けたら TripMap の onReady が呼ぶ。地図が出ない場合
+   * （トークン未設定・旅が見つからない）はここで剥がさないと
+   * くるくるのまま保険の6秒を待たせてしまう
+   */
+  useEffect(() => {
+    if (!loading && !trip) markReady();
+    if (trip && !isMapboxConfigured) markReady();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, trip]);
 
   // after adding a stop (or on first load) return to the overview instead of
   // slamming the camera onto the newest pin.
@@ -137,7 +150,7 @@ export default function TripDetail() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#0d1b2a' }} edges={['top']}>
       <View style={StyleSheet.absoluteFill}>
-        <TripMap steps={steps} activeIndex={mapStop} overview={isOverview} onSelect={selectFromMap} height={winH} bottomInset={240} modes={effModes} />
+        <TripMap steps={steps} activeIndex={mapStop} overview={isOverview} onSelect={selectFromMap} height={winH} bottomInset={240} modes={effModes} onReady={markReady} />
       </View>
 
       {/* Header — back + title stay top-left; action icons float top-right */}

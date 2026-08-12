@@ -56,7 +56,7 @@ export default function TripBook() {
     });
 
   const plan = useMemo(
-    () => (trip ? applyCover(planBook(applyBookEdits(trip, edits)), edits) : null),
+    () => (trip ? applyCover(planBook(applyBookEdits(trip, edits), { photosPerPage: edits.photosPerPage }), edits) : null),
     [trip, edits]
   );
 
@@ -170,6 +170,32 @@ export default function TripBook() {
           })}
         </ScrollView>
 
+        {/* 1ページの写真の枚数。置く位置は自動のまま、密度だけ選ばせる */}
+        <Gap h={space.xl} />
+        <Eyebrow tone="matcha">{t('book.perPage')}</Eyebrow>
+        <Gap h={space.sm} />
+        <AppText variant="small" tone="inkFaint">{t('book.perPageHint')}</AppText>
+        <Gap h={space.md} />
+        <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
+          {[undefined, 1, 2, 3, 4, 5, 6].map((n) => {
+            const on = edits.photosPerPage === n || (!edits.photosPerPage && n === undefined);
+            return (
+              <Pressable
+                key={String(n)}
+                onPress={() => updateEdits({ ...edits, photosPerPage: n })}
+                style={[
+                  styles.perChip,
+                  { borderColor: on ? palette.matcha : palette.ruleStrong, backgroundColor: on ? palette.matcha : 'transparent' },
+                ]}
+              >
+                <AppText variant="bodyStrong" style={{ color: on ? '#fff' : palette.ink }}>
+                  {n === undefined ? t('book.perPageAuto') : String(n)}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </Row>
+
         <Gap h={space.xl} />
         <Eyebrow tone="matcha">{t('book.customize')}</Eyebrow>
         <Gap h={space.sm} />
@@ -280,6 +306,7 @@ export default function TripBook() {
 }
 
 const styles = StyleSheet.create({
+  perChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5, minWidth: 44, alignItems: 'center' },
   chapter: { alignItems: 'center', gap: space.sm, paddingVertical: space.md },
   thumb: { borderWidth: hairline, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   // 表紙候補。選んだ1枚だけ抹茶の枠が付く
