@@ -9,7 +9,7 @@
  * コードで in() 取得して突き合わせる。
  */
 import { supabase, isSupabaseConfigured } from './supabase';
-import { prefectureCodeForQuery } from './prefectures';
+import { prefectureCodeForQuery, PREFECTURE_EN_BY_ID } from './prefectures';
 import { bump } from './refresh';
 import type { Trip, Step, TransportMode } from './mock';
 import { mockMatchaArticles } from './mock';
@@ -158,7 +158,13 @@ async function assembleTrips(tripRows: any[]): Promise<Trip[]> {
         id: l.id,
         title: l.title ?? m?.municipality_en ?? 'Untitled',
         placeName: m?.municipality_en ?? '',
-        prefectureName: m?.prefecture_en ?? '',
+        /**
+         * 県の名前はマスタの突き合わせに頼らない。
+         * logs には prefecture_code が直接入っているので、手元の一覧から引く。
+         * マスタが読めない状態（0031で修理した事故）のとき、ここが空だと
+         * 県カードの「みんなの旅」が全県で空になった（実際に起きた）。
+         */
+        prefectureName: m?.prefecture_en ?? PREFECTURE_EN_BY_ID[l.prefecture_code ?? 0] ?? '',
         note: l.note ?? '',
         loggedAt: (l.logged_at ?? '').slice(0, 10),
         lng: Number(l.lng ?? m?.longitude) || 0,
