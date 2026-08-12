@@ -2,10 +2,12 @@ import { View, ActivityIndicator } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useTheme } from '@/lib/useTheme';
 import { useSession } from '@/lib/useSession';
+import { usePrefersReducedMotion } from '@/lib/transition';
 import { FloatingTabBar } from '@/components/FloatingTabBar';
 
 export default function TabsLayout() {
   const { palette } = useTheme();
+  const reducedMotion = usePrefersReducedMotion();
 
   /**
    * ゲスト（未ログイン）でもタブの中に入れる。
@@ -36,7 +38,19 @@ export default function TabsLayout() {
        * 水玉を「バーの中を滑る一枚」として持つには、バーごと自分で持つのが早い。
        */
       tabBar={(props) => <FloatingTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
+      screenOptions={{
+        headerShown: false,
+        /**
+         * タブ間は画面（scene）だけを cross-fade する。バーは Tabs の外側の
+         * 兄弟なので動かない ―― ルート側の FadeThrough でタブ切替まで拾うと
+         * バーごと透明になって瞬いてしまうため、タブ間だけはこちらが受け持つ
+         * （lib/transition.tsx の TAB_ROUTES と対）。
+         */
+        animation: reducedMotion ? 'none' : 'fade',
+        transitionSpec: { animation: 'timing', config: { duration: 200 } },
+        // 透け合う瞬間に後ろの地が覗くので、紙色を敷いておく（暗所で白を光らせない）
+        sceneStyle: { backgroundColor: palette.washi },
+      }}
     >
       <Tabs.Screen name="map" />
       {/* 御朱印は /map の中のボトムシートで見せるので、タブには並べない。

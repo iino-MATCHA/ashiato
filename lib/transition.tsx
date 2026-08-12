@@ -1,13 +1,16 @@
-import React, { createContext, useContext, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
   Easing,
+  Platform,
   StyleSheet,
+  View,
   useWindowDimensions,
   type GestureResponderEvent,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
+import { useTheme } from './useTheme';
 
 /**
  * Ripple → white → fog-fade page transition.
@@ -37,6 +40,104 @@ const D = 64; // base circle diameter
 /** markReady を待つ行き先。それ以外は今までどおり一拍で剥がす */
 const WAITS_FOR_READY = /^\/trip\//;
 
+const WEB = Platform.OS === 'web';
+
+/**
+ * 端末が「動きを減らす」を選んでいるか。判定できるのはWebだけ
+ * （このアプリの演出はWeb専用なので、それで足りる）。
+ */
+export function usePrefersReducedMotion(): boolean {
+  const canQuery = WEB && typeof window !== 'undefined' && typeof window.matchMedia === 'function';
+  const [reduced, setReduced] = useState(
+    () => canQuery && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+  useEffect(() => {
+    if (!canQuery) return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onChange = () => setReduced(mq.matches);
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return reduced;
+}
+
+/** タブそのもの（バー付きで並ぶ4画面）。タブ間の切替は Tabs 側の
+ *  cross-fade に任せる ―― ここで全体を透明にするとタブバーまで瞬く */
+const TAB_ROUTES = /^\/(map|explore|goshuin|notifications)$/;
+
+/** 描く前に走らせたい（1フレームでも素の切替を見せない）。SSRでは警告が出るので分ける */
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
+/**
+ * ページ間の fade-through（Web専用）。
+ *
+ * expo-router のスタックは Web ではアニメーションを持たず、経路が変わると
+ * 画面がぶつ切りで差し替わる。ここで pathname の変化を拾い、新しい画面を
+ * 「紙の地色 → ふわっと浮かび上がる」形で出す（不透明度 0→1、ほんの少しの
+ * 拡大 0.98→1、220ms）。古い画面は既に居ないので、地色を一拍挟むことで
+ * fade-through に見せる。地色はテーマの palette.washi ―― 白固定にすると
+ * ダークモードで白が光る。
+ *
+ * やらないとき:
+ *   - 初回表示（何かから遷移したわけではない）
+ *   - prefers-reduced-motion
+ *   - 白い幕（ripple → markReady）が上に居る間。/trip/* の握手はそのまま
+ *   - タブ ↔ タブ。Tabs 側の cross-fade が受け持つ（バーを瞬かせない）
+ */
+function FadeThrough({
+  covered,
+  children,
+}: {
+  covered: React.MutableRefObject<boolean>;
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+  const { palette } = useTheme();
+  const reduced = usePrefersReducedMotion();
+  const opacity = useRef(new Animated.Value(1)).current;
+  const scale = useRef(new Animated.Value(1)).current;
+  const prev = useRef<string | null>(null);
+  // transform は掛けっぱなしにしない。scale(1) でも position:fixed の
+  // 基準が狂う（LPなどが使っている）ので、動いている間だけ持つ
+  const [animating, setAnimating] = useState(false);
+
+  useIsoLayoutEffect(() => {
+    const from = prev.current;
+    prev.current = pathname;
+    if (!WEB) return;
+    if (from === null || from === pathname) return;
+    if (reduced) return;
+    if (covered.current) return;
+    if (TAB_ROUTES.test(from) && TAB_ROUTES.test(pathname)) return;
+    opacity.setValue(0);
+    scale.setValue(0.98);
+    setAnimating(true);
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(scale, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+    ]).start(({ finished }) => {
+      if (finished) setAnimating(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  // ネイティブはスタック自体が遷移を持つので素通し
+  if (!WEB) return <>{children}</>;
+
+  return (
+    // 透けている間に見える地。ここが紙色でないと暗所で白が光る
+    <View style={{ flex: 1, backgroundColor: palette.washi }}>
+      <Animated.View
+        {...({ dataSet: { fadethrough: '1' } } as any)}
+        style={{ flex: 1, opacity, ...(animating ? { transform: [{ scale }] } : null) }}
+      >
+        {children}
+      </Animated.View>
+    </View>
+  );
+}
+
 export function TransitionProvider({ children }: { children: React.ReactNode }) {
   const { width, height } = useWindowDimensions();
   const [active, setActive] = useState(false);
@@ -45,6 +146,8 @@ export function TransitionProvider({ children }: { children: React.ReactNode }) 
   const scale = useRef(new Animated.Value(0)).current;
   const fade = useRef(new Animated.Value(1)).current;
   const waiting = useRef(false);
+  /** 白い幕が画面を覆っている間 true。FadeThrough が二重に演出しないための旗 */
+  const covered = useRef(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const clearTimers = () => {
@@ -57,7 +160,10 @@ export function TransitionProvider({ children }: { children: React.ReactNode }) 
     clearTimers();
     setSpinner(false);
     Animated.timing(fade, { toValue: 0, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(
-      () => setActive(false)
+      () => {
+        covered.current = false;
+        setActive(false);
+      }
     );
   };
 
@@ -76,6 +182,7 @@ export function TransitionProvider({ children }: { children: React.ReactNode }) 
     setOrigin({ x, y });
     scale.setValue(0);
     fade.setValue(1);
+    covered.current = true;
     setActive(true);
     setSpinner(false);
 
@@ -102,7 +209,7 @@ export function TransitionProvider({ children }: { children: React.ReactNode }) 
 
   return (
     <TransitionCtx.Provider value={{ navigate, markReady }}>
-      {children}
+      <FadeThrough covered={covered}>{children}</FadeThrough>
       {active && (
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: fade, zIndex: 999 }]}>
           <Animated.View
