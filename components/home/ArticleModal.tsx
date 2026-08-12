@@ -122,6 +122,28 @@ export function ArticleModal({ article, onClose }: { article: MatchaArticle | nu
               );
             })}
 
+            {/* 段落より写真の方が多いときは、余った写真を下に並べる。
+                概要に差し替えた記事は本文が2〜3段落しかないことがあり、
+                そのままだとMATCHAの写真が1枚しか出なかった
+                （英語の「Aizuwakamatsu Castle」で1段落＝1枚だけ）*/}
+            {article.images.length > paragraphs.length && (
+              <Row style={styles.extraShots}>
+                {article.images.slice(paragraphs.length).map((img) => (
+                  <Pressable
+                    key={img}
+                    onPress={() => setZoom(img)}
+                    style={({ pressed }) => [pressed && { opacity: 0.8 }]}
+                  >
+                    <Image
+                      source={{ uri: img }}
+                      style={[styles.thumb, { backgroundColor: palette.fill }]}
+                      resizeMode="cover"
+                    />
+                  </Pressable>
+                ))}
+              </Row>
+            )}
+
             {/* 本文の出所。一覧・季節ものの記事は、その場所の概要に
                 差し替えている（写真はMATCHAのまま）。差し替えていない
                 記事では null なので、この行自体が出ない */}
@@ -170,6 +192,8 @@ const styles = StyleSheet.create({
   paraRow: { alignItems: 'flex-start', gap: space.md, marginBottom: space.md },
   // 写真は小さめ（幅の38%）。文章が主役
   thumb: { width: 132, aspectRatio: 4 / 3, borderRadius: 8, borderWidth: hairline, borderColor: 'rgba(0,0,0,0.08)' },
+  // 余った写真。折り返して並べる（横スクロールは作らない）
+  extraShots: { flexWrap: 'wrap', gap: space.sm, marginTop: space.xs },
   cta: { height: 48, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   zoomVeil: { backgroundColor: 'rgba(12,10,8,0.55)', alignItems: 'center', justifyContent: 'center' },
 });
