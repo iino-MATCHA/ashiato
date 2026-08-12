@@ -54,15 +54,47 @@ export const PALETTE = {
   matcha: '#8CC63F',
   /** 写真の丸を地から切り離す縁。少し黄みを残した紙の白 */
   pinRing: '#E8DFC9',
+  /** 左上に散らす大判写真の縁。抹茶の明るい側 */
+  photoFrame: '#A5D65C',
 } as const;
 
-/** 文字の大きさ（カード幅に対する比率）。小さく、端に寄せる。 */
+/** 文字の大きさ（カード幅に対する比率）。題と数字は大きく、脇の字は小さく端へ。 */
 export const TYPE = {
   eyebrow: 0.026,
   meta: 0.028,
-  title: 0.055,
-  stat: 0.030,
+  title: 0.082,
+  stat: 0.056,
+  /** 数字に添える単位（pref / days / km）は数字に対する倍率 */
+  statLabel: 0.46,
 } as const;
+
+/**
+ * 左上に重ねる大判写真（ポラロイド風）。
+ * cx はカード幅、cy はカード高さに対する比率。傾きは度。
+ * 地図の左上は海（日本海）なので、ここまでは重ねても陸もピンも隠れない。
+ */
+export const PHOTO = {
+  w: 0.36,
+  h: 0.28,
+  /** 角丸。プレビュー幅(約340px)でおよそ16px */
+  radius: 0.047,
+  border: 0.007,
+  slots: [
+    { cx: 0.245, cy: 0.252, rot: -6 },
+    { cx: 0.410, cy: 0.326, rot: 5 },
+    { cx: 0.225, cy: 0.400, rot: -4 },
+  ],
+} as const;
+
+/**
+ * 明朝の数字幅の見積もり（カンマ・ピリオドは細い）。
+ * SVGプレビューは実測できないので、canvas の実測とほぼ揃うこの値で流す。
+ */
+export function approxTextWidth(text: string, size: number): number {
+  let w = 0;
+  for (const ch of text) w += ch === ',' || ch === '.' ? 0.30 : 0.60;
+  return w * size;
+}
 
 /** ピン半径は枚数が増えるほど小さく。 */
 export function pinRadius(cardW: number, count: number): number {

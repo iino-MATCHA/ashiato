@@ -10,9 +10,18 @@
 import Svg, {
   Circle, ClipPath, Defs, G, Image as SvgImage, Path, Rect, Text as SvgText,
 } from 'react-native-svg';
-import { PALETTE } from '@/lib/ugc/layout';
+import { PALETTE, approxTextWidth } from '@/lib/ugc/layout';
 import { buildScene, type SceneStop } from '@/lib/ugc/scene';
 import { fonts } from '@/lib/theme';
+
+/** 題が版面からはみ出すときだけ字を小さくする（canvas 側の fitText と同じ考え方）。 */
+function fitTitleSize(title: string, size: number, maxW: number): number {
+  // CJKは全角、それ以外はおよそ0.55em で見積もる
+  let em = 0;
+  for (const ch of title) em += /[⺀-鿿豈-﫿＀-￯　-ヿ]/.test(ch) ? 1 : 0.55;
+  const w = em * size;
+  return w <= maxW ? size : Math.max(size * 0.6, (size * maxW) / w);
+}
 
 export interface JourneyCardProps {
   width: number;
@@ -63,7 +72,32 @@ export function JourneyCard(props: JourneyCardProps) {
             <Circle cx={p.x} cy={p.y} r={p.r} />
           </ClipPath>
         ))}
+        {s.photos.map((p, i) => (
+          <ClipPath key={`pcp${i}`} id={`photo${i}`}>
+            <Rect x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} rx={p.radius} />
+          </ClipPath>
+        ))}
       </Defs>
+
+      {/* 左上の大判写真。地図の上・ピンの下に重ねる（左上は海なので陸は隠れない） */}
+      {s.photos.map((p, i) => (
+        <G key={`photo${i}`} transform={`translate(${p.cx} ${p.cy}) rotate(${p.rot})`}>
+          <Rect
+            x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} rx={p.radius}
+            fill={PALETTE.paperEdge}
+          />
+          <SvgImage
+            x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h}
+            href={{ uri: p.uri } as any}
+            preserveAspectRatio="xMidYMid slice"
+            clipPath={`url(#photo${i})`}
+          />
+          <Rect
+            x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} rx={p.radius}
+            fill="none" stroke={PALETTE.photoFrame} strokeWidth={p.border}
+          />
+        </G>
+      ))}
 
       {/* 地点の丸写真。縁を敷いて、県の塗りから切り離す */}
       {s.pins.map((p, i) => (
@@ -95,33 +129,33 @@ export function JourneyCard(props: JourneyCardProps) {
 
       <SvgText
         x={text.title.x} y={text.title.y}
-        fontFamily={fonts.minchoBold} fontSize={text.title.size} fill={PALETTE.ink}
+        fontFamily={fonts.minchoBold}
+        fontSize={fitTitleSize(props.title, text.title.size, text.title.maxW)}
+        fill={PALETTE.ink}
       >
         {props.title}
       </SvgText>
-      <SvgText
-        x={text.subtitle.x} y={text.subtitle.y}
-        fontFamily={fonts.handRegular} fontSize={text.subtitle.size} fill={PALETTE.matcha}
-      >
-        A journey of memories
-      </SvgText>
 
-      {stats.map(([value, label], i) => {
-        const x = text.stats.x + i * text.stats.gap * 2.1;
-        return (
-          <G key={label}>
-            <SvgText x={x} y={text.stats.y} fontFamily={fonts.minchoBold} fontSize={text.stats.size} fill={PALETTE.ink}>
-              {value}
-            </SvgText>
-            <SvgText
-              x={x + text.stats.size * (value.length * 0.62 + 0.35)} y={text.stats.y}
-              fontFamily={fonts.gothicRegular} fontSize={text.stats.size * 0.72} fill={PALETTE.inkFaint}
-            >
-              {label}
-            </SvgText>
-          </G>
-        );
-      })}
+      {/* 数字は大きく、単位は小さく添える。幅は見積もりで流す */}
+      {(() => {
+        const { size, labelSize } = text.stats;
+        let x = text.stats.x;
+        return stats.map(([value, label]) => {
+          const vx = x;
+          const lx = vx + approxTextWidth(value, size) + size * 0.14;
+          x = lx + label.length * labelSize * 0.62 + size * 0.5;
+          return (
+            <G key={label}>
+              <SvgText x={vx} y={text.stats.y} fontFamily={fonts.minchoBold} fontSize={size} fill={PALETTE.ink}>
+                {value}
+              </SvgText>
+              <SvgText x={lx} y={text.stats.y} fontFamily={fonts.gothicRegular} fontSize={labelSize} fill={PALETTE.inkFaint}>
+                {label}
+              </SvgText>
+            </G>
+          );
+        });
+      })()}
     </Svg>
   );
 }

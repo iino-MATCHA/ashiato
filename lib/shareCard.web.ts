@@ -20,7 +20,6 @@ const W = 1080;
 
 const SERIF = `'ShipporiMincho_700Bold', 'Shippori Mincho', serif`;
 const SANS = `'ZenKakuGothicNew_500Medium', 'Zen Kaku Gothic New', system-ui, sans-serif`;
-const HAND = `'Caveat_400Regular', 'Caveat', cursive`;
 
 export async function exportShareCard(meta: ShareCardMeta): Promise<string | null> {
   if (typeof document === 'undefined') return null;
@@ -38,7 +37,10 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
     if (!ctx) return null;
 
     // 先に画像をすべて読み込む（1枚失敗しても他は描く）
-    const pinImgs = await Promise.all(s.pins.map((p) => loadImage(p.uri)));
+    const [pinImgs, photoImgs] = await Promise.all([
+      Promise.all(s.pins.map((p) => loadImage(p.uri))),
+      Promise.all(s.photos.map((p) => loadImage(p.uri))),
+    ]);
 
     // 地
     ctx.fillStyle = PALETTE.paper;
@@ -61,6 +63,34 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
       ctx.restore();
     });
     ctx.restore();
+
+    // 左上の大判写真。地図の上・ピンの下に重ねる（左上は海なので陸は隠れない）
+    s.photos.forEach((p, i) => {
+      ctx.save();
+      ctx.translate(p.cx, p.cy);
+      ctx.rotate((p.rot * Math.PI) / 180);
+      const rr = () => roundedRect(ctx, -p.w / 2, -p.h / 2, p.w, p.h, p.radius);
+      const img = photoImgs[i];
+      ctx.save();
+      rr();
+      ctx.clip();
+      if (img) {
+        // 中央を切って角丸の枠いっぱいに敷く
+        const scale = Math.max(p.w / img.width, p.h / img.height);
+        const sw = p.w / scale;
+        const sh = p.h / scale;
+        ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, -p.w / 2, -p.h / 2, p.w, p.h);
+      } else {
+        ctx.fillStyle = PALETTE.paperEdge;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      }
+      ctx.restore();
+      rr();
+      ctx.strokeStyle = PALETTE.photoFrame;
+      ctx.lineWidth = p.border;
+      ctx.stroke();
+      ctx.restore();
+    });
 
     // 地点の丸写真。縁を敷いて、県の塗りから切り離す
     s.pins.forEach((p, i) => {
@@ -97,30 +127,44 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
     ctx.font = `700 ${t.title.size}px ${SERIF}`;
     fitText(ctx, meta.title, t.title.x, t.title.y, t.title.maxW);
 
-    ctx.fillStyle = PALETTE.matcha;
-    ctx.font = `400 ${t.subtitle.size}px ${HAND}`;
-    ctx.fillText('A journey of memories', t.subtitle.x, t.subtitle.y);
-
+    // 数字は大きく、単位は小さく添える。実測幅で流す
     const stats: [string, string][] = [
       [String(meta.prefectures), 'pref'],
       [String(meta.days), 'days'],
       [meta.km.toLocaleString(), 'km'],
     ];
-    stats.forEach(([value, label], i) => {
-      const x = t.stats.x + i * t.stats.gap * 2.1;
+    let sx = t.stats.x;
+    stats.forEach(([value, label]) => {
       ctx.fillStyle = PALETTE.ink;
       ctx.font = `700 ${t.stats.size}px ${SERIF}`;
-      ctx.fillText(value, x, t.stats.y);
+      ctx.fillText(value, sx, t.stats.y);
       const vw = ctx.measureText(value).width;
       ctx.fillStyle = PALETTE.inkFaint;
-      ctx.font = `400 ${t.stats.size * 0.72}px ${SANS}`;
-      ctx.fillText(label, x + vw + t.stats.size * 0.3, t.stats.y);
+      ctx.font = `400 ${t.stats.labelSize}px ${SANS}`;
+      const lx = sx + vw + t.stats.size * 0.14;
+      ctx.fillText(label, lx, t.stats.y);
+      sx = lx + ctx.measureText(label).width + t.stats.size * 0.5;
     });
 
     return canvas.toDataURL('image/png');
   } catch {
     return null;
   }
+}
+
+/** 角丸の矩形パス。ctx.roundRect の無い環境でも動くように自前で引く。 */
+function roundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number
+) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
 }
 
 /** 正方形にトリミングして円に収める。 */

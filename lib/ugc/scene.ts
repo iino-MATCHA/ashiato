@@ -11,10 +11,15 @@ import { PREFECTURE_PATHS } from '@/lib/mappath';
 import { PREFECTURE_SLUG_BY_ID } from '@/lib/prefectures';
 import { VB_W, contentHeight, okinawaOffset, pathBox, project, spread } from './geo';
 import { isJapanCoord } from '@/lib/coords';
-import { C, TYPE, pinRadius } from './layout';
+import { C, PHOTO, TYPE, pinRadius } from './layout';
 
 export interface ScenePin { x: number; y: number; r: number; uri: string }
 export interface ScenePath { d: string; visited: boolean; okinawa: boolean }
+/** 左上に重ねる大判写真。cx/cy は中心、rot は度。 */
+export interface ScenePhoto {
+  cx: number; cy: number; w: number; h: number;
+  rot: number; radius: number; border: number; uri: string;
+}
 
 export interface Scene {
   w: number;
@@ -24,12 +29,12 @@ export interface Scene {
   paths: ScenePath[];
   okinawa: { dx: number; dy: number };
   pins: ScenePin[];
+  photos: ScenePhoto[];
   text: {
     eyebrow: { x: number; y: number; size: number };
     dates: { x: number; y: number; size: number };
     title: { x: number; y: number; size: number; maxW: number };
-    subtitle: { x: number; y: number; size: number };
-    stats: { x: number; y: number; size: number; gap: number };
+    stats: { x: number; y: number; size: number; labelSize: number };
   };
 }
 
@@ -104,18 +109,36 @@ export function buildScene({ width: w, stops: allStops, visitedPrefectureCodes }
     uri: stops[i].image,
   }));
 
+  // --- 左上に重ねる大判写真: 写真を持つ最初の stop から順に（同じ写真は数えない）。
+  // 座標の無い stop の写真も使ってよいので、ピンとは別に allStops から拾う
+  const photoUris: string[] = [];
+  for (const s of allStops) {
+    if (s.image && !photoUris.includes(s.image)) photoUris.push(s.image);
+    if (photoUris.length >= PHOTO.slots.length) break;
+  }
+  const photos: ScenePhoto[] = photoUris.map((uri, i) => ({
+    cx: w * PHOTO.slots[i].cx,
+    cy: h * PHOTO.slots[i].cy,
+    w: w * PHOTO.w,
+    h: w * PHOTO.h,
+    rot: PHOTO.slots[i].rot,
+    radius: w * PHOTO.radius,
+    border: w * PHOTO.border,
+    uri,
+  }));
+
   return {
     w, h,
     map: { scale, tx, ty },
     paths,
     okinawa: okinawaOffset(),
     pins,
+    photos,
     text: {
       eyebrow: { x: m, y: m * 0.95, size: w * TYPE.eyebrow },
       dates: { x: w - m, y: m * 0.95, size: w * TYPE.meta },
-      title: { x: m, y: h * 0.105, size: w * TYPE.title, maxW: w - m * 2 },
-      subtitle: { x: m, y: h * 0.138, size: w * 0.046 },
-      stats: { x: m, y: h * 0.177, size: w * TYPE.stat, gap: w * 0.055 },
+      title: { x: m, y: h * 0.118, size: w * TYPE.title, maxW: w - m * 2 },
+      stats: { x: m, y: h * 0.172, size: w * TYPE.stat, labelSize: w * TYPE.stat * TYPE.statLabel },
     },
   };
 }
