@@ -61,7 +61,7 @@ const APPLE_ENABLED = false;
  * 白いベール（.qBg::after）が受け持つ。
  */
 const QUESTION_BG: number[] = [
-  19, // 興味        … 新倉山の五重塔と富士
+  0,  // 興味        … 背景なし。bento 自身が写真＋ガラスを持つので、下にも敷くと騒がしい
   21, // 目覚めの景色 … 白川郷
   26, // 予約派か    … 伏見稲荷
   20, // 歩く旅か    … 上高地
@@ -72,42 +72,85 @@ const QUESTION_BG: number[] = [
   10, // 予算        … 草津の湯畑
   2,  // 季節        … 弘前城の桜
   45, // 来日歴      … 高千穂峡
-  31, // 訪問済み    … 鳥取砂丘
+  0,  // 訪問済み    … 背景なし。地図は紙の上にそのまま置く（写真の上だと県境が読めない）
 ];
 
 /**
- * 興味の問い（bento）。**写真の面とガラスの面をごちゃまぜに敷く。**
- * 景色で選ばせたいもの（神社・城・温泉…）は写真、
- * 写真にすると嘘くさくなるもの（ラーメン・買い物・アニメ…）は
- * 磨りガラス（背景の観光地がぼけて透ける）。
+ * 興味の問い（bento）。**全部のコマが「写真の上に磨りガラス」。**
+ * 写真は半透明のガラス（ぼかし＋緑の被膜）で洗い、字はその上に載せる。
+ * ガラスの緑は g0〜g5 でコマごとに少しずつ変える（同じ色で塗り潰さない）。
  *
- * - photo: 写真の面（横長2コマ。big は2×2の見せ場）
- * - shape: 'l' / 'lr' … **角の直角な六角形（L字）**のガラス。2×2を占め、
- *          欠けた角から背景の観光地が覗く。'lr' は左右反転
- * - tint:  ガラスの色。緑系でそろえつつ、抹茶・若葉・青磁・若菜・
- *          千歳緑・柳鼠と少しずつ変える（同じ色で塗り潰さない）
- * - 並び順もここで決める。種類が固まらないよう写真とガラスを互い違いに
+ * - photo: 下に敷く写真（PREFECTURE_PHOTO のコード）。全コマ必須
+ * - wide:  横長2コマ / big: 2×2の見せ場
+ * - shape: 'l' / 'lr' … **角丸のL字**。2×2を占め、欠けた角には notch の
+ *          小さなコマが入る（bento に空き地を作らない）。'lr' は左右反転
+ * - tint:  ガラスの色。抹茶・若葉・青磁・若菜・千歳緑・柳鼠
+ * - 並び順もここで決める。合計36マス（4列×9段）で欠けを作らない
  */
-const BENTO: { id: string; photo?: number; shape?: 'l' | 'lr'; big?: boolean; tint?: number }[] = [
-  { id: 'shrines', photo: 26 },        // 伏見稲荷
-  { id: 'ramen', tint: 0 },
-  { id: 'sake', shape: 'l', tint: 1 }, // L字
-  { id: 'sweets', tint: 2 },
-  { id: 'onsen', photo: 10, big: true }, // 草津の湯畑（見せ場）
-  { id: 'cityShopping', tint: 3 },
-  { id: 'castles', photo: 28 },        // 姫路城
-  { id: 'nightlife', tint: 5 },
-  { id: 'crafts', shape: 'lr', tint: 4 }, // 反転のL字
-  { id: 'snow', photo: 5 },            // 冬の田沢湖
-  { id: 'artMuseums', tint: 2 },
-  { id: 'gardens', photo: 17 },        // 兼六園
-  { id: 'beaches', photo: 47, big: true }, // 川平湾（見せ場）
-  { id: 'wildlife', tint: 0 },
-  { id: 'festivals', photo: 13 },      // 浅草
-  { id: 'mountainHikes', photo: 20 },  // 上高地
-  { id: 'popCulture', tint: 1 },
-  { id: 'island', photo: 46 },         // 桜島
+const BENTO: {
+  id: string;
+  photo: number;
+  wide?: boolean;
+  big?: boolean;
+  shape?: 'l' | 'lr';
+  tint: number;
+  /** L字の欠けた角に入る小さなコマ（これも普通の選択肢） */
+  notch?: { id: string; photo: number; tint: number };
+}[] = [
+  { id: 'shrines', photo: 26, wide: true, tint: 5 },   // 伏見稲荷
+  { id: 'ramen', photo: 40, tint: 0 },                 // 太宰府（福岡＝ラーメンの土地）
+  { id: 'sake', photo: 15, shape: 'l', tint: 1,        // 萬代橋（新潟＝酒どころ）のL字
+    notch: { id: 'sweets', photo: 11, tint: 2 } },     // 欠けに川越（菓子屋横丁）
+  { id: 'onsen', photo: 10, big: true, tint: 4 },      // 草津の湯畑（見せ場）
+  { id: 'cityShopping', photo: 27, tint: 3 },          // 道頓堀
+  { id: 'castles', photo: 28, wide: true, tint: 2 },   // 姫路城
+  { id: 'nightlife', photo: 14, tint: 5 },             // 横浜中華街の灯り
+  { id: 'crafts', photo: 33, shape: 'lr', tint: 4,     // 倉敷（美観地区）の反転L字
+    notch: { id: 'artMuseums', photo: 34, tint: 2 } }, // 欠けに広島（平和記念公園）
+  { id: 'snow', photo: 5, wide: true, tint: 0 },       // 冬の田沢湖
+  { id: 'gardens', photo: 17, wide: true, tint: 1 },   // 兼六園
+  { id: 'beaches', photo: 47, big: true, tint: 2 },    // 川平湾（見せ場）
+  { id: 'wildlife', photo: 36, wide: true, tint: 0 },  // 祖谷渓
+  { id: 'festivals', photo: 13, wide: true, tint: 3 }, // 浅草
+  { id: 'mountainHikes', photo: 20, wide: true, tint: 5 }, // 上高地
+  { id: 'popCulture', photo: 23, tint: 1 },            // 名古屋
+  { id: 'island', photo: 46, wide: true, tint: 3 },    // 桜島
 ];
+
+/**
+ * 角丸のL字の輪郭。clip-path の polygon() は角が必ず尖るので、
+ * 丸めるには path() を使う ―― ただし path() は **px でしか書けない** ため、
+ * コマの実寸（列幅×2＋隙間、段高×2＋隙間）から毎回組み立てる。
+ * 凸の角は外へ、欠けの内角は逆向きの弧で丸める。mirrored で左右反転（'lr'）。
+ */
+function lShapePath(w: number, h: number, mirrored: boolean, r = 18): string {
+  const xm = Math.round(w * (mirrored ? 0.54 : 0.46)); // 縦の切れ目
+  const ym = Math.round(h * 0.44);                     // 横の切れ目
+  if (!mirrored) {
+    // 欠けは右上
+    return [
+      `M ${r} 0`,
+      `L ${xm - r} 0`, `A ${r} ${r} 0 0 1 ${xm} ${r}`,
+      `L ${xm} ${ym - r}`, `A ${r} ${r} 0 0 0 ${xm + r} ${ym}`, // 内角（凹）は逆回り
+      `L ${w - r} ${ym}`, `A ${r} ${r} 0 0 1 ${w} ${ym + r}`,
+      `L ${w} ${h - r}`, `A ${r} ${r} 0 0 1 ${w - r} ${h}`,
+      `L ${r} ${h}`, `A ${r} ${r} 0 0 1 0 ${h - r}`,
+      `L 0 ${r}`, `A ${r} ${r} 0 0 1 ${r} 0`,
+      'Z',
+    ].join(' ');
+  }
+  // 欠けは左上
+  return [
+    `M ${xm + r} 0`,
+    `L ${w - r} 0`, `A ${r} ${r} 0 0 1 ${w} ${r}`,
+    `L ${w} ${h - r}`, `A ${r} ${r} 0 0 1 ${w - r} ${h}`,
+    `L ${r} ${h}`, `A ${r} ${r} 0 0 1 0 ${h - r}`,
+    `L 0 ${ym + r}`, `A ${r} ${r} 0 0 1 ${r} ${ym}`,
+    `L ${xm - r} ${ym}`, `A ${r} ${r} 0 0 0 ${xm} ${ym - r}`, // 内角（凹）
+    `L ${xm} ${r}`, `A ${r} ${r} 0 0 1 ${xm + r} 0`,
+    'Z',
+  ].join(' ');
+}
 
 const CSS = `
 .mjq { --ink:#14120F; --paper:#FBFAF7; --matcha:#69AF00; --shu:#C4432B; --line:#E6E3DA;
@@ -139,7 +182,12 @@ const CSS = `
   background:radial-gradient(115% 85% at 50% 46%, rgba(251,250,247,.94) 0%, rgba(251,250,247,.82) 46%, rgba(251,250,247,.38) 100%); }
 .mjq .heroInner { position:relative; text-align:center; max-width:720px; }
 .mjq .heroBrand { color:#69AF00; font-size:11px; letter-spacing:7px; }
-.mjq .heroTitle { color:var(--ink); font-size:clamp(36px,8vw,68px); line-height:1.18; margin-top:16px; white-space:pre-line; }
+/* 見出しはふわっと入る（下から少し浮き上がりながら現れる）。
+   スクロール連動ではなく表示時に1回だけの動きなので、opacity を触っても
+   「止まった瞬間に消える」問題は起きない（both で 1 に落ち着く） */
+.mjq .heroTitle { color:var(--ink); font-size:clamp(36px,8vw,68px); line-height:1.18; margin-top:16px; white-space:pre-line;
+  animation:mjqHeroIn .8s cubic-bezier(.16,.84,.28,1) .12s both; }
+@keyframes mjqHeroIn { from { opacity:0; transform:translateY(22px); } to { opacity:1; transform:none; } }
 .mjq .heroBy { text-align:right; margin:2px 4% 0 0; color:#8F887A; font-size:11px; letter-spacing:2.5px; }
 .mjq .heroLead { color:#4A453C; font-size:clamp(14px,3.4vw,17px); line-height:1.8;
   margin:20px auto 0; max-width:32em; }
@@ -170,9 +218,6 @@ const CSS = `
   animation:mjqBgIn .9s ease-out both; }
 .mjq .qBg::after { content:''; position:absolute; inset:0;
   background:linear-gradient(180deg, rgba(251,250,247,.82) 0%, rgba(251,250,247,.90) 45%, rgba(251,250,247,.97) 100%); }
-/* bento の設問はベールを薄くする。磨りガラスは背後に絵が無いと効かない */
-.mjq .qBg.rich::after {
-  background:linear-gradient(180deg, rgba(251,250,247,.80) 0%, rgba(251,250,247,.62) 40%, rgba(251,250,247,.72) 100%); }
 @keyframes mjqBgIn { from { opacity:0; } to { opacity:1; } }
 .mjq .qStage .wrap { position:relative; }
 .mjq .bar { position:fixed; top:0; left:0; right:0; height:3px; background:rgba(0,0,0,.06); z-index:5; }
@@ -226,58 +271,61 @@ const CSS = `
 .mjq .opt.on .optIcon { color:var(--ink); opacity:1; }
 
 /* --- 興味の問いの bento ---
-   写真の面と磨りガラスの面をごちゃまぜに敷く。ガラスは背景の観光地が
-   ぼけて透ける（グラスモーフィズム）。選択の合図は**枠線の色と、
-   透明度がわずかに変わること** ―― ✓印は置かない。
+   全部のコマが「写真の上に磨りガラス」。写真はコマ自身の背景に敷き、
+   その上のガラス（::after）が ぼかし＋緑の被膜 で写真を洗って字を立たせる。
+   緑は g0〜g5 でコマごとに変える。選択の合図は**枠線の色と、
+   ガラスの透明度がわずかに変わること** ―― ✓印は置かない。
    dense で穴を埋めるので、順番どおりでなくても隙間ができない */
 .mjq .bento { display:grid; gap:10px; margin-top:28px;
   grid-template-columns:repeat(4,1fr); grid-auto-rows:96px; grid-auto-flow:dense; }
 .mjq .btile { position:relative; border:0; border-radius:18px; overflow:hidden; cursor:pointer;
   padding:0; font-family:inherit; text-align:left;
-  transition:transform .18s, box-shadow .22s, background-color .25s; }
+  background-size:cover; background-position:center;
+  transition:transform .18s, box-shadow .22s; }
 @media (hover:hover) { .mjq .btile:hover { transform:translateY(-2px); } }
-/* 写真の面。下辺に墨のグラデーションを敷いて白文字を立たせる */
-.mjq .btile.photo { grid-column:span 2; background-size:cover; background-position:center;
-  box-shadow: inset 0 0 0 1.2px rgba(255,255,255,.35); }
-.mjq .btile.photo.big { grid-row:span 2; }
-.mjq .btile.photo::after { content:''; position:absolute; inset:0; transition:opacity .25s;
-  background:linear-gradient(180deg, rgba(10,12,8,0) 40%, rgba(10,12,8,.62) 100%); }
-.mjq .btile.photo .btLabel { color:#fff; text-shadow:0 1px 8px rgba(0,0,0,.35); }
-/* ガラスの面。背景の観光地がぼけて透ける。色は緑系で少しずつ変える */
-.mjq .btile.plain { display:flex; flex-direction:column; align-items:flex-start;
-  justify-content:flex-end; padding:12px;
-  backdrop-filter:blur(12px) saturate(1.2); -webkit-backdrop-filter:blur(12px) saturate(1.2);
-  background:var(--bt); box-shadow: inset 0 0 0 1.2px rgba(255,255,255,.65), 0 4px 16px rgba(60,80,30,.07); }
+/* ガラス。下の写真がぼけて透ける（グラスモーフィズム） */
+.mjq .btile::after { content:''; position:absolute; inset:0;
+  backdrop-filter:blur(7px) saturate(1.15); -webkit-backdrop-filter:blur(7px) saturate(1.15);
+  background:var(--bt); box-shadow: inset 0 0 0 1.2px rgba(255,255,255,.5);
+  transition:background-color .25s, box-shadow .22s; }
+.mjq .btile.wide { grid-column:span 2; }
+.mjq .btile.big { grid-column:span 2; grid-row:span 2; }
 /* 緑の家族。抹茶・若葉・青磁・若菜・千歳緑・柳鼠 */
-.mjq .btile.g0 { --bt:hsla(78,55%,86%,.42); --btOn:hsla(78,60%,84%,.66); }
-.mjq .btile.g1 { --bt:hsla(105,42%,86%,.42); --btOn:hsla(105,48%,83%,.66); }
-.mjq .btile.g2 { --bt:hsla(140,36%,86%,.42); --btOn:hsla(140,42%,82%,.66); }
-.mjq .btile.g3 { --bt:hsla(62,50%,87%,.42); --btOn:hsla(62,55%,83%,.66); }
-.mjq .btile.g4 { --bt:hsla(160,30%,85%,.42); --btOn:hsla(160,36%,81%,.66); }
-.mjq .btile.g5 { --bt:hsla(90,22%,88%,.42); --btOn:hsla(90,28%,84%,.66); }
-/* 角の直角な六角形（L字）。2×2を占め、欠けた角から背景が覗く。
-   ガラス本体は中の .shape が持つ ―― ボタン自身を clip すると選択の枠線まで
-   切れてしまうので、枠線は drop-shadow で L の輪郭に沿わせる */
-.mjq .btile.lshape { grid-column:span 2; grid-row:span 2;
-  background:transparent; box-shadow:none; border-radius:0; overflow:visible; padding:0; }
+.mjq .btile.g0 { --bt:hsla(78,55%,86%,.5); --btOn:hsla(78,60%,84%,.72); }
+.mjq .btile.g1 { --bt:hsla(105,42%,86%,.5); --btOn:hsla(105,48%,83%,.72); }
+.mjq .btile.g2 { --bt:hsla(140,36%,86%,.5); --btOn:hsla(140,42%,82%,.72); }
+.mjq .btile.g3 { --bt:hsla(62,50%,87%,.5); --btOn:hsla(62,55%,83%,.72); }
+.mjq .btile.g4 { --bt:hsla(160,30%,85%,.5); --btOn:hsla(160,36%,81%,.72); }
+.mjq .btile.g5 { --bt:hsla(90,22%,88%,.5); --btOn:hsla(90,28%,84%,.72); }
+.mjq .btLabel { position:absolute; z-index:1; left:14px; right:12px; bottom:12px;
+  font-size:13.5px; line-height:1.3; color:var(--ink);
+  text-shadow:0 1px 6px rgba(255,255,255,.45); }
+/* 選択。枠線が抹茶になり、ガラスの透明度が少し下がる（✓は出さない） */
+.mjq .btile.on { box-shadow:0 6px 18px rgba(105,175,0,.16); }
+.mjq .btile.on::after { background:var(--btOn);
+  box-shadow: inset 0 0 0 2px var(--matcha); }
+/* 角丸のL字。2×2の枠（.lwrap）の中に、L字の面と、欠けを埋める小さな
+   コマ（.notch）を並べる ―― 空き地を作らない。
+   L字の輪郭は clip-path:path()（px指定なので実寸からJSで組む。polygonだと
+   角が尖る）。clip は中の .shape に掛ける ―― ボタン自身を clip すると
+   選択の枠線まで切れてしまうので、枠線は drop-shadow で輪郭に沿わせる */
+.mjq .lwrap { grid-column:span 2; grid-row:span 2; position:relative; }
+.mjq .btile.lshape { position:absolute; inset:0; width:100%; height:100%;
+  background:transparent; border-radius:0; overflow:visible; }
+.mjq .btile.lshape::after { content:none; }
 .mjq .btile.lshape .shape { position:absolute; inset:0;
-  clip-path:polygon(0 0, 46% 0, 46% 44%, 100% 44%, 100% 100%, 0 100%);
-  backdrop-filter:blur(12px) saturate(1.2); -webkit-backdrop-filter:blur(12px) saturate(1.2);
-  background:var(--bt); box-shadow: inset 0 0 0 1.2px rgba(255,255,255,.65);
-  transition:background-color .25s; }
-.mjq .btile.lshape.lr .shape { clip-path:polygon(54% 0, 100% 0, 100% 100%, 0 100%, 0 44%, 54% 44%); }
-.mjq .btile.lshape .btLabel { position:absolute; left:14px; bottom:12px; }
+  background-size:cover; background-position:center; }
+.mjq .btile.lshape .shape::after { content:''; position:absolute; inset:0;
+  backdrop-filter:blur(7px) saturate(1.15); -webkit-backdrop-filter:blur(7px) saturate(1.15);
+  background:var(--bt); transition:background-color .25s; }
 .mjq .btile.lshape.on { filter:
   drop-shadow(1.6px 0 0 var(--matcha)) drop-shadow(-1.6px 0 0 var(--matcha))
   drop-shadow(0 1.6px 0 var(--matcha)) drop-shadow(0 -1.6px 0 var(--matcha)); }
-.mjq .btile.lshape.on .shape { background:var(--btOn); }
-.mjq .btLabel { position:relative; z-index:1; font-size:13.5px; line-height:1.3; color:var(--ink); }
-.mjq .btile.photo .btLabel { position:absolute; left:12px; right:12px; bottom:10px; }
-/* 選択。枠線が抹茶になり、ガラスの透明度が少し下がる（✓は出さない） */
-.mjq .btile.plain.on { background:var(--btOn);
-  box-shadow: inset 0 0 0 2px var(--matcha), 0 6px 18px rgba(105,175,0,.16); }
-.mjq .btile.photo.on { box-shadow: inset 0 0 0 2.5px var(--matcha), 0 6px 18px rgba(105,175,0,.2); }
-.mjq .btile.photo.on::after { opacity:.72; }
+.mjq .btile.lshape.on .shape::after { background:var(--btOn); }
+/* 欠けを埋める小さなコマ。L字との間の隙間は grid の gap と同じ 10px */
+.mjq .btile.notch { position:absolute; top:0; height:calc(44% - 10px); }
+.mjq .btile.notchR { left:calc(46% + 10px); right:0; }
+.mjq .btile.notchL { left:0; right:calc(46% + 10px); }
 @media (max-width:560px) {
   .mjq .bento { grid-template-columns:repeat(2,1fr); grid-auto-rows:88px; }
 }
@@ -450,7 +498,7 @@ const CSS = `
   .mjq .heroGrid img { animation:none; }
   .mjq .opt:hover, .mjq .likert button:hover { transform:none; }
   .mjq .flowCard { transition:none; }
-  .mjq .detail, .mjq .qIn, .mjq .keepVeil, .mjq .keepCard { animation:none; }
+  .mjq .detail, .mjq .qIn, .mjq .keepVeil, .mjq .keepCard, .mjq .heroTitle { animation:none; }
   .mjq .splash { display:none; }
 }
 `;
@@ -868,6 +916,16 @@ export function QuizLanding() {
   // カバーフローのカード。脇のカードの端が見える幅にする
   const cardW = Math.max(200, Math.min(320, Math.round(vw * 0.62)));
   const flowH = Math.round((cardW * 10) / 16) + 78;
+  /**
+   * bento のL字コマの実寸。clip-path:path() は px でしか書けないので、
+   * CSS（.wrap の max-width:900・左右22px・gap 10px・段高 96/88px）と
+   * 同じ計算をここでもして、角丸のL字の輪郭を組む。
+   */
+  const bentoCols = vw <= 560 ? 2 : 4;
+  const bentoRowH = vw <= 560 ? 88 : 96;
+  const bentoW = Math.min(900, vw - 44);
+  const lTileW = ((bentoW - 10 * (bentoCols - 1)) / bentoCols) * 2 + 10;
+  const lTileH = bentoRowH * 2 + 10;
 
   return (
     <div className="mjq" ref={rootRef}>
@@ -909,10 +967,11 @@ export function QuizLanding() {
             <div className="barFill" style={{ width: `${((step + 1) / total) * 100}%` }} />
           </div>
           <section className="qStage">
-            {/* 設問ごとの背景（日本の観光地）。key で問いごとに焚き直す */}
+            {/* 設問ごとの背景（日本の観光地）。key で問いごとに焚き直す。
+                QUESTION_BG が 0 の設問（bento と訪問済みの地図）は紙のまま */}
             {!!QUESTION_BG[step] && PREFECTURE_PHOTO[QUESTION_BG[step]] && (
               <div
-                className={`qBg${q.id === 'interest' ? ' rich' : ''}`}
+                className="qBg"
                 key={`bg${step}`}
                 style={{ backgroundImage: `url(${PREFECTURE_PHOTO[QUESTION_BG[step]].url})` }}
               />
@@ -986,20 +1045,55 @@ export function QuizLanding() {
                 </>
               ) : (
                 q.id === 'interest' ? (
-                  /* 興味の問いは bento。並び・形・色は BENTO が決める */
+                  /* 興味の問いは bento。並び・形・写真・色は BENTO が決める */
                   <div className="bento">
                     {BENTO.map((cfg) => {
                       const o = (q.options ?? []).find((x) => x.id === cfg.id);
                       if (!o) return null;
                       const on = picked.includes(o.id);
-                      const photo = cfg.photo ? PREFECTURE_PHOTO[cfg.photo] : null;
-                      const lshape = !photo && !!cfg.shape;
+                      const photo = PREFECTURE_PHOTO[cfg.photo];
+                      if (cfg.shape) {
+                        // 角丸のL字＋欠けを埋める小さなコマ。2つで1つの2×2枠に入る
+                        const n = cfg.notch;
+                        const no = n ? (q.options ?? []).find((x) => x.id === n.id) : null;
+                        const nOn = !!no && picked.includes(no.id);
+                        const nPhoto = n ? PREFECTURE_PHOTO[n.photo] : null;
+                        return (
+                          <div className="lwrap" key={o.id}>
+                            <button
+                              type="button"
+                              className={`btile lshape g${cfg.tint}${on ? ' on' : ''}`}
+                              onClick={(e) => choose(o.id, e)}
+                              aria-pressed={on}
+                            >
+                              <span
+                                className="shape"
+                                aria-hidden
+                                style={{
+                                  clipPath: `path('${lShapePath(lTileW, lTileH, cfg.shape === 'lr')}')`,
+                                  backgroundImage: photo ? `url(${photo.url})` : undefined,
+                                }}
+                              />
+                              <span className="btLabel">{t(o.labelKey)}</span>
+                            </button>
+                            {!!no && !!n && (
+                              <button
+                                type="button"
+                                className={`btile notch ${cfg.shape === 'lr' ? 'notchL' : 'notchR'} g${n.tint}${nOn ? ' on' : ''}`}
+                                style={nPhoto ? { backgroundImage: `url(${nPhoto.url})` } : undefined}
+                                onClick={(e) => choose(no.id, e)}
+                                aria-pressed={nOn}
+                              >
+                                <span className="btLabel">{t(no.labelKey)}</span>
+                              </button>
+                            )}
+                          </div>
+                        );
+                      }
                       const cls = [
                         'btile',
-                        photo ? 'photo' : lshape ? 'lshape' : 'plain',
-                        cfg.big ? 'big' : '',
-                        cfg.shape === 'lr' ? 'lr' : '',
-                        !photo ? `g${cfg.tint ?? 0}` : '',
+                        cfg.big ? 'big' : cfg.wide ? 'wide' : '',
+                        `g${cfg.tint}`,
                         on ? 'on' : '',
                       ].filter(Boolean).join(' ');
                       return (
@@ -1011,7 +1105,6 @@ export function QuizLanding() {
                           onClick={(e) => choose(o.id, e)}
                           aria-pressed={on}
                         >
-                          {lshape && <span className="shape" aria-hidden />}
                           <span className="btLabel">{t(o.labelKey)}</span>
                         </button>
                       );

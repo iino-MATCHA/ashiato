@@ -30,7 +30,8 @@ export const PREFECTURE_PHOTO: Record<number, QuizPhoto> = {
   11: { title: 'Kawagoe', url: `${C}/thumb/7/74/Kurazukuri_Street_in_Little_Edo.jpg/960px-Kurazukuri_Street_in_Little_Edo.jpg` },
   12: { title: 'Inubosaki', url: `${C}/thumb/7/73/Inubosaki_Lighthouse_01.JPG/960px-Inubosaki_Lighthouse_01.JPG` },
   13: { title: 'Senso-ji', url: `${C}/thumb/4/43/Sensoji_2023.jpg/960px-Sensoji_2023.jpg` },
-  14: { title: 'Lake Ashi', url: `${C}/thumb/f/f9/Lake_Ashi_Aerial_photograph.1976.jpg/960px-Lake_Ashi_Aerial_photograph.1976.jpg` },
+  // 芦ノ湖の航空写真から差し替え。昼の善隣門と提灯の通り（明るい方を選んだ）
+  14: { title: 'Yokohama Chinatown', url: `${C}/thumb/f/f9/%E5%96%84%E9%9A%A3%E9%96%80_2026%E5%B9%B41%E6%9C%8810%E6%97%A5%E3%81%AE%E6%A8%AA%E6%B5%9C_202601101536_IMG_2224.jpg/960px-%E5%96%84%E9%9A%A3%E9%96%80_2026%E5%B9%B41%E6%9C%8810%E6%97%A5%E3%81%AE%E6%A8%AA%E6%B5%9C_202601101536_IMG_2224.jpg` },
   15: { title: 'Bandai Bridge', url: `${C}/thumb/e/ec/Bandai_burdge.JPG/960px-Bandai_burdge.JPG` },
   16: { title: 'Amaharashi Coast', url: `${C}/thumb/e/e1/Amaharashi_Coast_20150122.JPG/960px-Amaharashi_Coast_20150122.JPG` },
   17: { title: 'Kenroku-en', url: `${C}/thumb/f/fc/Kenrokuen10-r.jpg/960px-Kenrokuen10-r.jpg` },
