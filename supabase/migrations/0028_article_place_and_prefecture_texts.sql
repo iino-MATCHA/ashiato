@@ -34,6 +34,8 @@ alter table prefecture_texts enable row level security;
 
 -- 読みは誰でも（ゲストにも県のカードを見せる）。
 -- 書き込みポリシーは作らない ―― 更新は service role か SQL から
+-- 手で貼り直しても壊れないように、張り替えの形にしておく
+drop policy if exists "prefecture_texts_read_all" on prefecture_texts;
 create policy "prefecture_texts_read_all"
   on prefecture_texts for select
   using (true);

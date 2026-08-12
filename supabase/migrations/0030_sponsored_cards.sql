@@ -9,7 +9,7 @@
 -- 書き込みと非表示カードの閲覧は superadmin だけ。
 -- =====================================================================
 
-create table sponsored_cards (
+create table if not exists sponsored_cards (
   id           uuid primary key default gen_random_uuid(),
   company      text not null,               -- 社内向けの会社名。画面には出さない
   display_name text not null,               -- 題の下に出すサービス名/ブランド名
@@ -42,7 +42,10 @@ $$;
 -- 非表示のカードを読めるのと、insert/update/delete は superadmin のみ。
 alter table sponsored_cards enable row level security;
 
+-- 手で貼り直しても壊れないように、張り替えの形にしておく
+drop policy if exists sponsored_cards_select on sponsored_cards;
 create policy sponsored_cards_select on sponsored_cards for select
   using (active or is_superadmin());
+drop policy if exists sponsored_cards_write on sponsored_cards;
 create policy sponsored_cards_write on sponsored_cards for all
   using (is_superadmin()) with check (is_superadmin());
