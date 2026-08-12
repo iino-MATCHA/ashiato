@@ -1088,7 +1088,13 @@ export interface MatchaArticle {
   prefectureCode: number;
   publishedAt: string | null;
   /**
-   * その記事が扱っている行き先の名前（「会津若松」「三春町」）。
+   * 本文の出典。MATCHAの本文をそのまま使っているときは null。
+   * 一覧・季節ものの記事は、その場所の概要（Wikipedia）に差し替えている
+   */
+  textAttribution: string | null;
+  textAttributionUrl: string | null;
+  /**
+   * その記事が扱っている行き先の名前（「若松城」「三春滝桜」）。
    * 県のカードの「◯◯県で行くなら」の段はこれを見出しにする ―― 題を出すと
    * 「福島市の気温は？年間平均と…」のような行き先でないものが並ぶため。
    * 取り込みのときに決まらなかった記事は null
@@ -1107,7 +1113,7 @@ export async function fetchMatchaArticles(prefectureCode: number, lang: string):
   const pull = async (l: string) => {
     const { data } = await supabase
       .from('matcha_articles')
-      .select('id, url, title, body, images, prefecture_code, published_at, place')
+      .select('id, url, title, body, images, prefecture_code, published_at, place, text_attribution, text_attribution_url')
       .eq('prefecture_code', prefectureCode)
       .eq('lang', l)
       .order('published_at', { ascending: false })
@@ -1128,6 +1134,8 @@ export async function fetchMatchaArticles(prefectureCode: number, lang: string):
       prefectureCode: a.prefecture_code,
       publishedAt: a.published_at ?? null,
       place: a.place ?? null,
+      textAttribution: a.text_attribution ?? null,
+      textAttributionUrl: a.text_attribution_url ?? null,
     })) as MatchaArticle[];
   };
   for (const l of Array.from(new Set([lang, 'ja', 'en']))) {

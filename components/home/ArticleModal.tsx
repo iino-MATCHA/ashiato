@@ -122,6 +122,18 @@ export function ArticleModal({ article, onClose }: { article: MatchaArticle | nu
               );
             })}
 
+            {/* 本文の出所。一覧・季節ものの記事は、その場所の概要に
+                差し替えている（写真はMATCHAのまま）。差し替えていない
+                記事では null なので、この行自体が出ない */}
+            {!!article.textAttribution && (
+              <>
+                <Gap h={space.sm} />
+                <AppText variant="small" tone="inkFaint" style={{ fontSize: 11, lineHeight: 16 }}>
+                  {t('article.textFrom', { source: article.textAttribution })}
+                </AppText>
+              </>
+            )}
+
             {/* いちばん下: MATCHAへの導線 */}
             <Gap h={space.md} />
             <Pressable
