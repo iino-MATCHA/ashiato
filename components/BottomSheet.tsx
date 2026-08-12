@@ -416,9 +416,24 @@ export function BottomSheet({
         WEB ? { transform: [{ translateY: webY }] } : { transform: [{ translateY: anim }] },
       ]}
     >
-      {/* つまみ。ここは中身に関係なく必ず掴める。
-          **帯は半透明**（指定を受けた）―― シートの紙をここまで敷かず、
-          下の地図がうっすら透ける。Webはぼかしも足して文字の帯に見せない */}
+      <View style={{ flex: 1, backgroundColor: palette.washiPaper }}>
+        <WashiBackground base={palette.washiPaper} />
+        <SheetOpenContext.Provider value={open}>
+          <SheetScrollContext.Provider value={reportScroll}>{children}</SheetScrollContext.Provider>
+        </SheetOpenContext.Provider>
+
+        {/*
+          たたんでいる間も中身は普通に押せる。
+          以前はここに「触れたら全面に伸ばす膜」を敷いていたが、
+          その膜がボタンへのタップを全部飲み込んでいた。
+          伸ばしたいときはつまみを掴んでもらう。
+        */}
+      </View>
+
+      {/* つまみ。**中身の上に半透明で浮かせる**（指定を受けた）――
+          帯は列の場所を取らず、中身を下へスクロールすると
+          この帯の下を中身がくぐって透けて見える。
+          描画順で最後に置き、必ず中身より上に乗せる */}
       <View
         ref={gripRef}
         style={[
@@ -436,24 +451,16 @@ export function BottomSheet({
           <View style={[styles.bar, { backgroundColor: palette.ruleStrong }]} />
         </Pressable>
       </View>
-
-      <View style={{ flex: 1, backgroundColor: palette.washiPaper }}>
-        {/* 和紙はつまみの帯より下にだけ敷く（帯の透けを保つ） */}
-        <WashiBackground base={palette.washiPaper} />
-        <SheetOpenContext.Provider value={open}>
-          <SheetScrollContext.Provider value={reportScroll}>{children}</SheetScrollContext.Provider>
-        </SheetOpenContext.Provider>
-
-        {/*
-          たたんでいる間も中身は普通に押せる。
-          以前はここに「触れたら全面に伸ばす膜」を敷いていたが、
-          その膜がボタンへのタップを全部飲み込んでいた。
-          伸ばしたいときはつまみを掴んでもらう。
-        */}
-      </View>
     </Wrapper>
   );
 }
+
+/**
+ * つまみの帯の高さ。帯は中身の上に浮いているので、シートの中身は
+ * 先頭にこのぶんの余白を置く（置かないと最初の見出しが帯に隠れる）。
+ * スクロールすると中身はこの帯の下をくぐる。
+ */
+export const SHEET_GRIP_HEIGHT = 44;
 
 const styles = StyleSheet.create({
   sheet: {
@@ -473,8 +480,19 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   // 掴める帯は広めに取る（細いと指が乗らない）
-  // つまみは掴む的なので大きく取る。34pxだと指では狙えなかった
-  grip: { height: 44, alignItems: 'center', justifyContent: 'center', cursor: 'grab' } as any,
+  // つまみは掴む的なので大きく取る。34pxだと指では狙えなかった。
+  // 中身の上に浮かせる（SHEET_GRIP_HEIGHT と揃えること）
+  grip: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'grab',
+    zIndex: 2,
+  } as any,
   gripHit: { paddingHorizontal: 60, paddingVertical: 14 },
   bar: { width: 48, height: 5, borderRadius: 3 },
 });

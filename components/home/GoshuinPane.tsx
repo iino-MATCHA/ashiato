@@ -15,7 +15,7 @@ import { goshuinList } from '@/lib/mock';
 import { SignInPrompt } from '@/components/SignInPrompt';
 import { useSession } from '@/lib/useSession';
 import { useI18n } from '@/lib/i18n';
-import { useSheetOpen, useSheetScroll } from '@/components/BottomSheet';
+import { useSheetOpen, useSheetScroll, SHEET_GRIP_HEIGHT } from '@/components/BottomSheet';
 
 export function GoshuinPane({ visited }: { visited: number[] }) {
   const { palette } = useTheme();
@@ -43,8 +43,9 @@ export function GoshuinPane({ visited }: { visited: number[] }) {
       scrollEnabled={sheetOpen}
       // 一番上にいるときに面を下へ払ったら、シートが閉じられるようにする
       {...sheetScroll}
-      // 浮いたタブバーに最後の行が隠れないよう、下を厚めに空ける
-      contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl * 2 }}
+      // 浮いたタブバーに最後の行が隠れないよう、下を厚めに空ける。
+      // 上はつまみの帯のぶん（帯は半透明で中身の上に浮いている）
+      contentContainerStyle={{ paddingTop: SHEET_GRIP_HEIGHT, paddingHorizontal: space.lg, paddingBottom: space.xxl * 2 }}
       showsVerticalScrollIndicator={false}
     >
       {/* このアプリの御朱印は、寺社でいただく本物とは別のもの。

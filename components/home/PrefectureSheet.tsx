@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText, Row, Rule, Gap, Eyebrow } from '@/components/ui';
-import { BottomSheet, useSheetScroll } from '@/components/BottomSheet';
+import { BottomSheet, useSheetScroll, SHEET_GRIP_HEIGHT } from '@/components/BottomSheet';
 import { SignInPrompt } from '@/components/SignInPrompt';
 import { space, fonts, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
@@ -270,6 +270,8 @@ function SheetBody({ code, onClose }: { code: number; onClose: () => void }) {
          */
         scrollEnabled
         contentContainerStyle={{
+          // つまみの帯（半透明で浮いている）のぶん、先頭を空ける
+          paddingTop: SHEET_GRIP_HEIGHT,
           paddingHorizontal: space.lg,
           paddingBottom: space.xxl * 2,
           // PCの幅では読み物の幅に留める（写真が壁一面になるのを防ぐ）

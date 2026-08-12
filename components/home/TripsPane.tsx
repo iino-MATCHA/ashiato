@@ -21,7 +21,7 @@ import { SignInPrompt } from '@/components/SignInPrompt';
 import { useSession } from '@/lib/useSession';
 import { useRippleNav } from '@/lib/transition';
 import { useI18n, t } from '@/lib/i18n';
-import { useSheetOpen, useSheetScroll } from '@/components/BottomSheet';
+import { useSheetOpen, useSheetScroll, SHEET_GRIP_HEIGHT } from '@/components/BottomSheet';
 
 export function TripsPane({ visited, onOpenGoshuin }: { visited: number[]; onOpenGoshuin: () => void }) {
   const { palette } = useTheme();
@@ -67,8 +67,9 @@ export function TripsPane({ visited, onOpenGoshuin }: { visited: number[]; onOpe
         // 一番上にいるときに面を下へ払ったら、シートが閉じられるようにする
         {...sheetScroll}
         showsVerticalScrollIndicator={false}
-        // 浮いたタブバーに最後の行が隠れないよう、下を厚めに空ける
-        contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl * 2 }}
+        // 浮いたタブバーに最後の行が隠れないよう、下を厚めに空ける。
+        // 上はつまみの帯（半透明で浮いている）のぶん。スクロールすると帯の下を中身がくぐる
+        contentContainerStyle={{ paddingTop: SHEET_GRIP_HEIGHT, paddingHorizontal: space.lg, paddingBottom: space.xxl * 2 }}
       >
         {/* プロフィールへの入口 */}
         <Pressable
