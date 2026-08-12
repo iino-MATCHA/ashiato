@@ -42,6 +42,7 @@ export type AutoTripFailure =
   | 'no-photos'      // 1枚も渡されていない
   | 'no-location'    // 位置情報が1枚も入っていない
   | 'not-japan'      // 位置はあるが日本の外
+  | 'lookup-failed'  // 市区町村引き(RPC)が失敗した。「日本の外」とは別物
   | 'save-failed';   // DBに書けなかった
 
 export interface AutoTripResult {
@@ -215,7 +216,13 @@ async function planFromPhotos(
   const kept: Cluster[] = [];
   for (let i = 0; i < clusters.length; i++) {
     const c = clusters[i];
-    c.place = await nearestMunicipality(c.lat, c.lng);
+    try {
+      c.place = await nearestMunicipality(c.lat, c.lng);
+    } catch {
+      // 引けなかった（通信・権限）のを「日本の外」と言わない。
+      // 嘘の理由を出すと、利用者は正しい写真を疑ってしまう
+      return { ...empty, failure: 'lookup-failed', skipped: shots.length + overflow };
+    }
     onProgress?.({ phase: 'placing', done: i + 1, total: clusters.length });
     if (!c.place) continue; // 日本の外
     const prev = kept[kept.length - 1];

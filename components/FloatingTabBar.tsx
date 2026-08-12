@@ -44,6 +44,22 @@ const BAR_H = 62;
 const DOT_W = 54;
 const DOT_H = 38;
 
+/**
+ * バーの地の透け具合。
+ * Webは backdrop-filter のぼかしが効くので大きく透かせる（後ろの地図や
+ * 写真が磨りガラス越しに見える）。ネイティブはぼかしが無いので、
+ * 透かしすぎると文字や写真がアイコンと直接ぶつかる。控えめに留める
+ */
+const BAR_ALPHA = WEB ? 0.6 : 0.88;
+
+/** '#RRGGBB' → 'rgba(...)'。テーマの紙色をそのまま透かすため */
+function withAlpha(hex: string, alpha: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
@@ -68,9 +84,15 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         styles.bar,
         {
           bottom: Math.max(insets.bottom, 10),
-          backgroundColor: palette.washi,
+          backgroundColor: withAlpha(palette.washi, BAR_ALPHA),
           borderColor: palette.rule,
         },
+        // 透かした地の後ろをぼかして、アイコンの可読性を保つ（Webのみ）
+        WEB &&
+          ({
+            backdropFilter: 'blur(14px)',
+            WebkitBackdropFilter: 'blur(14px)',
+          } as any),
       ]}
     >
       {/* 水玉。区画ぶんの枠を左へずらし、その中で中央に丸を置く */}

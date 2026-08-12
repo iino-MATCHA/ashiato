@@ -237,7 +237,11 @@ export function AutoTripModal({
               <Gap h={space.lg} />
               <AppText variant="h3" tone="ink" center>{t(`auto.fail.${result?.failure ?? 'save-failed'}`)}</AppText>
               <Gap h={space.md} />
-              <AppText variant="small" tone="ink" center style={{ lineHeight: 21, opacity: 0.86 }}>{t('auto.failHint')}</AppText>
+              {/* 「チャットアプリの写真は位置が消える」の注意は、位置が原因のときだけ。
+                  引けなかった(lookup-failed)や保存失敗に出すと、写真のせいに読める */}
+              {(result?.failure === 'no-location' || result?.failure === 'not-japan') && (
+                <AppText variant="small" tone="ink" center style={{ lineHeight: 21, opacity: 0.86 }}>{t('auto.failHint')}</AppText>
+              )}
               <Gap h={space.xl} />
               <View style={{ alignSelf: 'stretch' }}>
                 <PhotoPicker onPick={run} multiple style={styles.pickWrap}>

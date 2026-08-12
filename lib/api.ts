@@ -14,6 +14,7 @@ import { bump } from './refresh';
 import type { Trip, Step, TransportMode } from './mock';
 import { mockMatchaArticles } from './mock';
 import { getLocale } from './i18n';
+import { isJapanCoord } from './coords';
 
 const PHOTO_BUCKET = 'photos';
 
@@ -1002,8 +1003,20 @@ export async function respondFriendRequest(requestId: string, accept: boolean): 
 export async function fetchFriends(): Promise<UserSummary[]> {
   const uid = await currentUserId();
   if (!uid) return [];
-  const { data } = await supabase.from('friendships').select('user_a, user_b');
-  const otherIds = (data ?? []).map((f: any) => (f.user_a === uid ? f.user_b : f.user_a));
+  // 自分が当事者の行だけを明示的に引く。RLS任せの無条件selectだと、
+  // ポリシーが自分以外の行も返す環境で「相手」の計算が壊れ、
+  // 実際の友だちが一覧に出なくなる（user_a を誤って相手扱いする）
+  const { data } = await supabase
+    .from('friendships')
+    .select('user_a, user_b')
+    .or(`user_a.eq.${uid},user_b.eq.${uid}`);
+  const otherIds = Array.from(
+    new Set(
+      (data ?? [])
+        .map((f: any) => (f.user_a === uid ? f.user_b : f.user_a))
+        .filter((x: string) => x && x !== uid)
+    )
+  );
   if (!otherIds.length) return [];
   const { data: profiles } = await supabase
     .from('profiles')
@@ -1489,9 +1502,23 @@ export interface NearestPlace {
  * 座標から一番近い市区町村。日本国外の座標は null。
  * 外部のジオコーダは使わず、手元の municipalities_master(1,741件) から引く。
  */
+/** 市区町村引きが「国外」ではなく**引けなかった**とき（RPC失敗・マスタが読めない）。 */
+export class PlaceLookupError extends Error {}
+
 export async function nearestMunicipality(lat: number, lng: number): Promise<NearestPlace | null> {
   const { data, error } = await supabase.rpc('nearest_municipality', { p_lat: lat, p_lng: lng });
-  if (error || !data || !data.length) return null;
+  // RPCの失敗を「日本の外」と混ぜない。混ぜると、通信やRLSの不調のたびに
+  // 「日本国内の場所として読み取れませんでした」と嘘の理由を出してしまう
+  if (error) throw new PlaceLookupError(error.message);
+  if (!data || !data.length) {
+    // 日本の外接矩形の中の座標なら、必ずどこかの市区町村が2度以内に居る。
+    // それでも0行なのは国外ではなくデータが引けていない
+    // （municipalities_master が読めない等）。実際にRLSでこれが起きた
+    if (isJapanCoord(lat, lng)) {
+      throw new PlaceLookupError('nearest_municipality returned no rows for a coordinate inside Japan');
+    }
+    return null;
+  }
   const r = data[0];
   // 日本の外の座標でも矩形にかすれば行が返る。遠すぎるものは「日本ではない」と扱う
   if (Number(r.distance_km) > 60) return null;

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { loadMapboxGL } from '@/lib/mapbox';
 import type { Step } from '@/lib/mock';
+import { isJapanCoord } from '@/lib/coords';
 
 /**
  * シェアカード用の地図。
@@ -73,7 +74,10 @@ const SHARP_SATELLITE: any = {
  * 共有カード用の地図を作って、タイル描画が落ち着くまで待つ。
  * プレビューと書き出しの両方から使う。
  */
-export async function buildShareMap(mapboxgl: any, container: HTMLElement, steps: Step[]): Promise<any> {
+export async function buildShareMap(mapboxgl: any, container: HTMLElement, allSteps: Step[]): Promise<any> {
+  // 座標の無いstop（(0,0)や日本の外）はカードに置かない。
+  // 1点でも混ざると枠がアフリカ沖まで広がり、光の点が海に落ちる
+  const steps = allSteps.filter((s) => isJapanCoord(s.lat, s.lng));
   const w = container.clientWidth || 360;
   const h = container.clientHeight || 640;
 

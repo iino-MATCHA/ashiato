@@ -10,6 +10,7 @@
 import { PREFECTURE_PATHS } from '@/lib/mappath';
 import { PREFECTURE_SLUG_BY_ID } from '@/lib/prefectures';
 import { VB_W, contentHeight, okinawaOffset, pathBox, project, spread } from './geo';
+import { isJapanCoord } from '@/lib/coords';
 import { C, TYPE, pinRadius } from './layout';
 
 export interface ScenePin { x: number; y: number; r: number; uri: string }
@@ -44,7 +45,11 @@ export interface SceneInput {
   visitedPrefectureCodes: number[];
 }
 
-export function buildScene({ width: w, stops, visitedPrefectureCodes }: SceneInput): Scene {
+export function buildScene({ width: w, stops: allStops, visitedPrefectureCodes }: SceneInput): Scene {
+  // 座標の無いstop（lat/lngがnull→0に潰れたもの・日本の外）は貼らない。
+  // project() は日本の外の座標も素直に外挿するので、(0,0) を渡すと
+  // ピンが版面のはるか外（実地図ではアフリカ沖）へ飛ぶ
+  const stops = allStops.filter((s) => isJapanCoord(s.lat, s.lng));
   const h = w * (16 / 9);
   const m = w * C.margin;
 

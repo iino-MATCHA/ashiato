@@ -6,6 +6,7 @@ import {
   fetchRoute,
 } from '@/lib/mapbox';
 import type { Step, TransportMode } from '@/lib/mock';
+import { isJapanCoord } from '@/lib/coords';
 
 interface Props {
   steps: Step[];
@@ -39,7 +40,9 @@ export function TripMap({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const veilRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
-  const markersRef = useRef<{ el: HTMLDivElement; inner: HTMLDivElement; root: HTMLDivElement }[]>([]);
+  // 座標の無いstop（(0,0)や日本の外）はマーカーを作らず null を置く。
+  // 配列の添字は steps と揃えたままにする（activeIndex で引くため）
+  const markersRef = useRef<({ el: HTMLDivElement; inner: HTMLDivElement; root: HTMLDivElement } | null)[]>([]);
   const readyRef = useRef(false);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
@@ -64,10 +67,12 @@ export function TripMap({
       .then((mapboxgl) => {
         if (cancelled || !containerRef.current) return;
 
+        // 座標が壊れているstop（(0,0)＝アフリカ沖）は中心の計算に使わない
+        const firstValid = steps.find((s) => isJapanCoord(s.lat, s.lng));
         const map = new mapboxgl.Map({
           container: containerRef.current,
           style: 'mapbox://styles/mapbox/satellite-v9', // pure aerial imagery, no drawn roads
-          center: [steps[0]?.lng ?? 138, steps[0]?.lat ?? 36],
+          center: [firstValid?.lng ?? 138, firstValid?.lat ?? 36],
           zoom: 5,
           attributionControl: false,
           fadeDuration: 0, // no cross-fade flicker while tiles arrive
@@ -88,6 +93,11 @@ export function TripMap({
         // Photo pins. mapbox writes transform onto the marker root each frame, so the
         // root carries NO transition; a separate inner element does the scale.
         steps.forEach((s, i) => {
+          // 座標が無い・日本の外のstopはピンを描かない（(0,0)に置かない）
+          if (!isJapanCoord(s.lat, s.lng)) {
+            markersRef.current.push(null);
+            return;
+          }
           const root = document.createElement('div');
           root.style.cssText = 'width:52px;height:52px;cursor:pointer;';
           const inner = document.createElement('div');
@@ -160,9 +170,12 @@ export function TripMap({
 
   function frameAll() {
     const map = mapRef.current;
-    if (!map || steps.length === 0) return;
+    if (!map) return;
+    // 壊れた座標を混ぜると枠がアフリカ沖まで広がる。妥当なものだけで枠を組む
+    const valid = steps.filter((st) => isJapanCoord(st.lat, st.lng));
+    if (valid.length === 0) return; // 全部無効なら初期の日本ビューのまま
     let w = 180, e = -180, s = 90, n = -90;
-    steps.forEach((st) => {
+    valid.forEach((st) => {
       w = Math.min(w, st.lng); e = Math.max(e, st.lng);
       s = Math.min(s, st.lat); n = Math.max(n, st.lat);
     });
@@ -174,6 +187,7 @@ export function TripMap({
       map.fitBounds([[w, s], [e, n]], { padding: { top: 90, bottom: bottomInset, left: 60, right: 60 }, duration: 1800, maxZoom: 8.5, essential: true });
     }
     markersRef.current.forEach((m) => {
+      if (!m) return;
       m.inner.style.transform = 'scale(1)';
       m.el.style.borderColor = '#fff';
       m.root.style.zIndex = '1';
@@ -184,6 +198,17 @@ export function TripMap({
     const map = mapRef.current;
     const step = steps[i];
     if (!map || !step) return;
+    // 座標の無いstopへは飛ばない（(0,0)へカメラが飛ぶのを防ぐ）。
+    // ピンの強調だけは通常どおり更新する
+    if (!isJapanCoord(step.lat, step.lng)) {
+      markersRef.current.forEach((m, idx) => {
+        if (!m) return;
+        m.inner.style.transform = idx === i ? 'scale(1.28)' : 'scale(1)';
+        m.el.style.borderColor = idx === i ? '#69AF00' : '#fff';
+        m.root.style.zIndex = idx === i ? '10' : '1';
+      });
+      return;
+    }
     // slower + wider so the movement reads clearly and context stays visible.
     // オフセットは控えめに: 大きく上へ寄せると左上のタイトルチップの裏に
     // ピンが隠れてしまう（特にスマホ）。カードの少し上あたりに置く
@@ -196,6 +221,7 @@ export function TripMap({
       essential: true,
     });
     markersRef.current.forEach((m, idx) => {
+      if (!m) return;
       const active = idx === i;
       m.inner.style.transform = active ? 'scale(1.28)' : 'scale(1)';
       m.el.style.borderColor = active ? '#69AF00' : '#fff';
@@ -225,10 +251,17 @@ export function TripMap({
 /** Build one GeoJSON line per leg; land legs via Directions, air/ferry as arcs. */
 async function buildRoutes(map: any, steps: Step[], modes: TransportMode[]) {
   const features: any[] = [];
-  for (let i = 1; i < steps.length; i++) {
-    const from: [number, number] = [steps[i - 1].lng, steps[i - 1].lat];
-    const to: [number, number] = [steps[i].lng, steps[i].lat];
-    const mode = modes[i] ?? steps[i].transport;
+  // 座標の無いstopは区間の両端にしない。前後の妥当なstop同士を結ぶ
+  // （(0,0)へ伸びる線がアフリカ沖まで描かれるのを防ぐ）
+  const valid = steps
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) => isJapanCoord(s.lat, s.lng));
+  for (let k = 1; k < valid.length; k++) {
+    const prev = valid[k - 1].s;
+    const { s: cur, i } = valid[k];
+    const from: [number, number] = [prev.lng, prev.lat];
+    const to: [number, number] = [cur.lng, cur.lat];
+    const mode = modes[i] ?? cur.transport;
     const profile = directionsProfile(mode);
     let coords: [number, number][] | null = null;
     let road = false;

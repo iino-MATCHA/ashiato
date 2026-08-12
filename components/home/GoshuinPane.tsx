@@ -3,12 +3,13 @@
  * 集めた印の一覧と、シェアの導線だけ。地図とゲージとランクは
  * シートの外（画面上部）に出ているので、ここでは繰り返さない。
  */
-import { useState } from 'react';
-import { View, Modal, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { AppText, Row, Rule, Gap, Button } from '@/components/ui';
+import { AppText, Row, Rule, Gap } from '@/components/ui';
 import { Stamp } from '@/components/Stamp';
-import { space, fonts, hairline } from '@/lib/theme';
+import { AboutModal, markAboutSeen, shouldAutoOpenAbout } from '@/components/goshuin/AboutModal';
+import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { goshuinList } from '@/lib/mock';
 import { SignInPrompt } from '@/components/SignInPrompt';
@@ -24,9 +25,18 @@ export function GoshuinPane({ visited }: { visited: number[] }) {
   const sheetOpen = useSheetOpen();
   const sheetScroll = useSheetScroll();
   const [askSignIn, setAskSignIn] = useState(false);
-  // 「これは本物の御朱印なのか」に、押したときだけ答える
+  // 「これは本物の御朱印なのか」に答えるモーダル。リンクからいつでも
   const [about, setAbout] = useState(false);
   const visitedSet = new Set(visited);
+
+  // 初めてこの帳面を開いた端末には、一度だけ自動で説明を出す。
+  // 本物の御朱印との混同は最初に断っておきたい。二度目からは出さない
+  useEffect(() => {
+    if (shouldAutoOpenAbout()) {
+      markAboutSeen();
+      setAbout(true);
+    }
+  }, []);
 
   return (
     <ScrollView
@@ -68,39 +78,7 @@ export function GoshuinPane({ visited }: { visited: number[] }) {
 
       <SignInPrompt visible={askSignIn} onClose={() => setAskSignIn(false)} reason="collect" />
 
-      {/* visible={false} でも中身がDOMに残るので、開いている間だけ組み立てる */}
-      {about && (
-        <Modal visible transparent animationType="fade" onRequestClose={() => setAbout(false)}>
-          <Pressable style={styles.backdrop} onPress={() => setAbout(false)}>
-            <Pressable
-              style={[styles.sheet, { backgroundColor: palette.paper, borderColor: palette.rule }]}
-              onPress={() => {}}
-            >
-              <View style={{ alignItems: 'center' }}>
-                <Ionicons name="bookmark-outline" size={30} color={palette.shu} />
-                <Gap h={space.md} />
-                <AppText style={[styles.aboutTitle, { color: palette.ink }]} center>
-                  {t('goshuin.aboutTitle')}
-                </AppText>
-              </View>
-              <Gap h={space.lg} />
-              <AppText variant="small" tone="ink" style={{ lineHeight: 22, opacity: 0.88 }}>
-                {t('goshuin.aboutWhat')}
-              </AppText>
-              <Gap h={space.md} />
-              <AppText variant="small" tone="ink" style={{ lineHeight: 22, opacity: 0.88 }}>
-                {t('goshuin.aboutOurs')}
-              </AppText>
-              <Gap h={space.md} />
-              <AppText variant="small" tone="inkFaint" style={{ lineHeight: 20 }}>
-                {t('goshuin.aboutReal')}
-              </AppText>
-              <Gap h={space.xl} />
-              <Button label={t('common.close')} tone="matcha" onPress={() => setAbout(false)} />
-            </Pressable>
-          </Pressable>
-        </Modal>
-      )}
+      <AboutModal visible={about} onClose={() => setAbout(false)} />
 
       <View style={styles.grid}>
         {goshuinList.map((g, i) => {
@@ -121,12 +99,6 @@ export function GoshuinPane({ visited }: { visited: number[] }) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: space.lg },
-  sheet: {
-    width: '100%', maxWidth: 360, borderRadius: 18, padding: space.lg, borderWidth: hairline,
-    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 12,
-  },
-  aboutTitle: { fontFamily: fonts.minchoBold, fontSize: 22, lineHeight: 31 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: space.xl },
   cell: { width: '30%', alignItems: 'center' },
 });

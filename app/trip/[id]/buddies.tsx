@@ -3,12 +3,14 @@
  *
  * 友だちの中から検索して足す。ここに来る前に友だちでない人は出さない
  * （知らない人をいきなり旅に入れられるようにはしない）。
- * 選んだ時点で保存するので、「保存」ボタンは置かない。
+ * 選択は画面の中だけで持ち、右上の「保存」で一度に書き込む。
+ * 以前は押した瞬間に書き込んでいたが、保存の手応えが無く
+ * 「保存ボタンが無い」と迷わせていた。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Image, Pressable, StyleSheet, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { AppText, Row, Rule, Gap, Eyebrow } from '@/components/ui';
@@ -25,8 +27,11 @@ export default function TripBuddies() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [friends, setFriends] = useState<UserSummary[]>([]);
   const [chosen, setChosen] = useState<string[]>([]);
+  /** 開いた時点のバディー。保存が要るかの比較に使う */
+  const [saved, setSaved] = useState<string[]>([]);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const alive = useRef(true);
   /**
    * 招待リンクは先に取っておく。共有シートは押した流れの中でしか開けず、
@@ -43,23 +48,32 @@ export default function TripBuddies() {
         if (!alive.current) return;
         setFriends(f);
         setChosen(b.map((x) => x.id));
+        setSaved(b.map((x) => x.id));
       })
       .catch(() => {})
       .finally(() => alive.current && setLoading(false));
     return () => { alive.current = false; };
   }, [id]);
 
-  /** 押した時点で保存する。戻ってきたときに反映漏れが起きない */
-  const toggle = useCallback(
-    (uid: string) => {
-      setChosen((cur) => {
-        const next = cur.includes(uid) ? cur.filter((x) => x !== uid) : [...cur, uid];
-        if (id) setTripBuddies(id, next).catch(() => {});
-        return next;
-      });
-    },
-    [id]
-  );
+  /** 押した時点では画面の中だけ。書き込みは「保存」で行う */
+  const toggle = useCallback((uid: string) => {
+    setChosen((cur) => (cur.includes(uid) ? cur.filter((x) => x !== uid) : [...cur, uid]));
+  }, []);
+
+  const dirty =
+    chosen.length !== saved.length || chosen.some((x) => !saved.includes(x));
+
+  const save = useCallback(async () => {
+    if (!id || saving) return;
+    setSaving(true);
+    const ok = await setTripBuddies(id, chosen).catch(() => false);
+    if (!alive.current) return;
+    setSaving(false);
+    if (ok) {
+      setSaved(chosen);
+      router.back();
+    }
+  }, [id, chosen, saving]);
 
   const term = q.trim().toLowerCase();
   const list = term
@@ -68,7 +82,19 @@ export default function TripBuddies() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-      <Header title={t('buddy.editTitle')} />
+      <Header
+        title={t('buddy.editTitle')}
+        right={
+          <Pressable onPress={save} disabled={!dirty || saving} hitSlop={10}>
+            <AppText
+              variant="bodyStrong"
+              tone={dirty && !saving ? 'matcha' : 'inkFaint'}
+            >
+              {saving ? t('common.saving') : t('common.save')}
+            </AppText>
+          </Pressable>
+        }
+      />
       <Rule />
       <ScrollView contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.xxl }} keyboardShouldPersistTaps="handled">
         <Gap h={space.lg} />
