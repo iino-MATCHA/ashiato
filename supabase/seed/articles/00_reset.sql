@@ -1,0 +1,1 @@
+truncate matcha_articles;
