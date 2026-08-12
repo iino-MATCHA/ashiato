@@ -76,22 +76,37 @@ const QUESTION_BG: number[] = [
 ];
 
 /**
- * 興味の問い（bento）。**写真の面と、抹茶色の面を半々に混ぜる。**
+ * 興味の問い（bento）。**写真の面とガラスの面をごちゃまぜに敷く。**
  * 景色で選ばせたいもの（神社・城・温泉…）は写真、
  * 写真にすると嘘くさくなるもの（ラーメン・買い物・アニメ…）は
- * 色の面＋既存の線画アイコンのまま。
+ * 磨りガラス（背景の観光地がぼけて透ける）。
+ *
+ * - photo: 写真の面（横長2コマ。big は2×2の見せ場）
+ * - hex:   六角形のガラス（1コマ）
+ * - tint:  ガラスの色。緑系でそろえつつ、抹茶・若葉・青磁・若菜・
+ *          千歳緑・柳鼠と少しずつ変える（同じ色で塗り潰さない）
+ * - 並び順もここで決める。種類が固まらないよう写真とガラスを互い違いに
  */
-const BENTO_PHOTO: Record<string, number> = {
-  shrines: 26,        // 伏見稲荷
-  castles: 28,        // 姫路城
-  onsen: 10,          // 草津の湯畑
-  mountainHikes: 20,  // 上高地
-  snow: 5,            // 冬の田沢湖
-  beaches: 47,        // 川平湾
-  island: 46,         // 桜島
-  gardens: 17,        // 兼六園
-  festivals: 13,      // 浅草
-};
+const BENTO: { id: string; photo?: number; hex?: boolean; big?: boolean; tint?: number }[] = [
+  { id: 'shrines', photo: 26 },        // 伏見稲荷
+  { id: 'ramen', tint: 0 },
+  { id: 'sake', hex: true, tint: 1 },
+  { id: 'onsen', photo: 10, big: true }, // 草津の湯畑（見せ場）
+  { id: 'sweets', tint: 2 },
+  { id: 'castles', photo: 28 },        // 姫路城
+  { id: 'cityShopping', tint: 3 },
+  { id: 'crafts', hex: true, tint: 4 },
+  { id: 'snow', photo: 5 },            // 冬の田沢湖
+  { id: 'nightlife', tint: 5 },
+  { id: 'gardens', photo: 17 },        // 兼六園
+  { id: 'artMuseums', hex: true, tint: 2 },
+  { id: 'beaches', photo: 47, big: true }, // 川平湾（見せ場）
+  { id: 'festivals', photo: 13 },      // 浅草
+  { id: 'wildlife', hex: true, tint: 0 },
+  { id: 'mountainHikes', photo: 20 },  // 上高地
+  { id: 'island', photo: 46 },         // 桜島
+  { id: 'popCulture', tint: 1 },
+];
 
 const CSS = `
 .mjq { --ink:#14120F; --paper:#FBFAF7; --matcha:#69AF00; --shu:#C4432B; --line:#E6E3DA;
@@ -153,6 +168,9 @@ const CSS = `
   animation:mjqBgIn .9s ease-out both; }
 .mjq .qBg::after { content:''; position:absolute; inset:0;
   background:linear-gradient(180deg, rgba(251,250,247,.82) 0%, rgba(251,250,247,.90) 45%, rgba(251,250,247,.97) 100%); }
+/* bento の設問はベールを薄くする。磨りガラスは背後に絵が無いと効かない */
+.mjq .qBg.rich::after {
+  background:linear-gradient(180deg, rgba(251,250,247,.80) 0%, rgba(251,250,247,.62) 40%, rgba(251,250,247,.72) 100%); }
 @keyframes mjqBgIn { from { opacity:0; } to { opacity:1; } }
 .mjq .qStage .wrap { position:relative; }
 .mjq .bar { position:fixed; top:0; left:0; right:0; height:3px; background:rgba(0,0,0,.06); z-index:5; }
@@ -206,34 +224,46 @@ const CSS = `
 .mjq .opt.on .optIcon { color:var(--ink); opacity:1; }
 
 /* --- 興味の問いの bento ---
-   写真の面（神社・城・温泉…）と抹茶色の面（ラーメン・買い物…）を
-   半々に敷き詰める。写真の面は横長2コマ、色の面は1コマ。
+   写真の面と磨りガラスの面をごちゃまぜに敷く。ガラスは背景の観光地が
+   ぼけて透ける（グラスモーフィズム）。選択の合図は**枠線の色と、
+   透明度がわずかに変わること** ―― ✓印は置かない。
    dense で穴を埋めるので、順番どおりでなくても隙間ができない */
 .mjq .bento { display:grid; gap:10px; margin-top:28px;
   grid-template-columns:repeat(4,1fr); grid-auto-rows:96px; grid-auto-flow:dense; }
-.mjq .btile { position:relative; border:0; border-radius:16px; overflow:hidden; cursor:pointer;
-  padding:0; font-family:inherit; text-align:left; transition:transform .18s, box-shadow .18s; }
+.mjq .btile { position:relative; border:0; border-radius:18px; overflow:hidden; cursor:pointer;
+  padding:0; font-family:inherit; text-align:left;
+  transition:transform .18s, box-shadow .22s, background-color .25s; }
 @media (hover:hover) { .mjq .btile:hover { transform:translateY(-2px); } }
 /* 写真の面。下辺に墨のグラデーションを敷いて白文字を立たせる */
-.mjq .btile.photo { grid-column:span 2; background-size:cover; background-position:center; }
-.mjq .btile.photo::after { content:''; position:absolute; inset:0;
+.mjq .btile.photo { grid-column:span 2; background-size:cover; background-position:center;
+  box-shadow: inset 0 0 0 1.2px rgba(255,255,255,.35); }
+.mjq .btile.photo.big { grid-row:span 2; }
+.mjq .btile.photo::after { content:''; position:absolute; inset:0; transition:opacity .25s;
   background:linear-gradient(180deg, rgba(10,12,8,0) 40%, rgba(10,12,8,.62) 100%); }
 .mjq .btile.photo .btLabel { color:#fff; text-shadow:0 1px 8px rgba(0,0,0,.35); }
-/* 色の面。抹茶のごく薄い面に線画アイコン */
-.mjq .btile.plain { background:linear-gradient(160deg,#F4FAEA 0%,#E8F3D4 100%);
-  border:1px solid #DFE9C9; display:flex; flex-direction:column; align-items:flex-start;
-  /* ラベルは写真の面と同じ左下。上に置くと右上の◯と重なる */
-  justify-content:flex-end; padding:12px; }
-.mjq .btile.plain .optIcon { color:#5E7A2C; }
+/* ガラスの面。背景の観光地がぼけて透ける。色は緑系で少しずつ変える */
+.mjq .btile.plain { display:flex; flex-direction:column; align-items:flex-start;
+  justify-content:flex-end; padding:12px;
+  backdrop-filter:blur(12px) saturate(1.2); -webkit-backdrop-filter:blur(12px) saturate(1.2);
+  background:var(--bt); box-shadow: inset 0 0 0 1.2px rgba(255,255,255,.65), 0 4px 16px rgba(60,80,30,.07); }
+/* 緑の家族。抹茶・若葉・青磁・若菜・千歳緑・柳鼠 */
+.mjq .btile.g0 { --bt:hsla(78,55%,86%,.42); --btOn:hsla(78,60%,84%,.66); }
+.mjq .btile.g1 { --bt:hsla(105,42%,86%,.42); --btOn:hsla(105,48%,83%,.66); }
+.mjq .btile.g2 { --bt:hsla(140,36%,86%,.42); --btOn:hsla(140,42%,82%,.66); }
+.mjq .btile.g3 { --bt:hsla(62,50%,87%,.42); --btOn:hsla(62,55%,83%,.66); }
+.mjq .btile.g4 { --bt:hsla(160,30%,85%,.42); --btOn:hsla(160,36%,81%,.66); }
+.mjq .btile.g5 { --bt:hsla(90,22%,88%,.42); --btOn:hsla(90,28%,84%,.66); }
+/* 六角形のガラス。枠は clip されるので inset の影で描く。字は中央 */
+.mjq .btile.hex { clip-path:polygon(50% 2%, 96% 26%, 96% 74%, 50% 98%, 4% 74%, 4% 26%);
+  border-radius:0; align-items:center; justify-content:center; padding:10px 14px; }
+.mjq .btile.hex .btLabel { text-align:center; }
 .mjq .btLabel { position:relative; z-index:1; font-size:13.5px; line-height:1.3; color:var(--ink); }
 .mjq .btile.photo .btLabel { position:absolute; left:12px; right:12px; bottom:10px; }
-/* 選択。緑の輪と ✓。写真でも色の面でも同じ作法 */
-.mjq .btile .btMark { position:absolute; top:8px; right:8px; z-index:1; width:22px; height:22px;
-  border-radius:50%; border:1.5px solid rgba(255,255,255,.85); background:rgba(10,12,8,.25);
-  color:#fff; font-size:13px; display:flex; align-items:center; justify-content:center; }
-.mjq .btile.plain .btMark { border-color:#C9D8A6; background:#fff; color:transparent; }
-.mjq .btile.on { box-shadow:0 0 0 2.5px var(--matcha) inset, 0 6px 18px rgba(105,175,0,.18); }
-.mjq .btile.on .btMark { background:var(--matcha); border-color:var(--matcha); color:#fff; }
+/* 選択。枠線が抹茶になり、ガラスの透明度が少し下がる（✓は出さない） */
+.mjq .btile.plain.on { background:var(--btOn);
+  box-shadow: inset 0 0 0 2px var(--matcha), 0 6px 18px rgba(105,175,0,.16); }
+.mjq .btile.photo.on { box-shadow: inset 0 0 0 2.5px var(--matcha), 0 6px 18px rgba(105,175,0,.2); }
+.mjq .btile.photo.on::after { opacity:.72; }
 @media (max-width:560px) {
   .mjq .bento { grid-template-columns:repeat(2,1fr); grid-auto-rows:88px; }
 }
@@ -857,7 +887,7 @@ export function QuizLanding() {
             {/* 設問ごとの背景（日本の観光地）。key で問いごとに焚き直す */}
             {!!QUESTION_BG[step] && PREFECTURE_PHOTO[QUESTION_BG[step]] && (
               <div
-                className="qBg"
+                className={`qBg${q.id === 'interest' ? ' rich' : ''}`}
                 key={`bg${step}`}
                 style={{ backgroundImage: `url(${PREFECTURE_PHOTO[QUESTION_BG[step]].url})` }}
               />
@@ -931,26 +961,30 @@ export function QuizLanding() {
                 </>
               ) : (
                 q.id === 'interest' ? (
-                  /* 興味の問いは bento。景色もの＝写真、食・街・文化＝抹茶の面 */
+                  /* 興味の問いは bento。並び・形・色は BENTO が決める */
                   <div className="bento">
-                    {(q.options ?? []).map((o) => {
+                    {BENTO.map((cfg) => {
+                      const o = (q.options ?? []).find((x) => x.id === cfg.id);
+                      if (!o) return null;
                       const on = picked.includes(o.id);
-                      const photo = BENTO_PHOTO[o.id] ? PREFECTURE_PHOTO[BENTO_PHOTO[o.id]] : null;
+                      const photo = cfg.photo ? PREFECTURE_PHOTO[cfg.photo] : null;
+                      const cls = [
+                        'btile',
+                        photo ? 'photo' : 'plain',
+                        cfg.big ? 'big' : '',
+                        cfg.hex ? 'hex' : '',
+                        !photo ? `g${cfg.tint ?? 0}` : '',
+                        on ? 'on' : '',
+                      ].filter(Boolean).join(' ');
                       return (
                         <button
                           key={o.id}
                           type="button"
-                          className={`btile ${photo ? 'photo' : 'plain'}${on ? ' on' : ''}`}
+                          className={cls}
                           style={photo ? { backgroundImage: `url(${photo.url})` } : undefined}
                           onClick={(e) => choose(o.id, e)}
                           aria-pressed={on}
                         >
-                          <span className="btMark">{on ? '✓' : ''}</span>
-                          {!photo && hasQuizIcon(o.id) && (
-                            <span className="optIcon">
-                              <QuizIcon id={o.id} />
-                            </span>
-                          )}
                           <span className="btLabel">{t(o.labelKey)}</span>
                         </button>
                       );
