@@ -10,17 +10,23 @@
 import Svg, {
   Circle, ClipPath, Defs, G, Image as SvgImage, Path, Rect, Text as SvgText,
 } from 'react-native-svg';
-import { PALETTE, approxTextWidth } from '@/lib/ugc/layout';
+import { PALETTE, PHOTO, approxTextWidth } from '@/lib/ugc/layout';
 import { buildScene, type SceneStop } from '@/lib/ugc/scene';
 import { fonts } from '@/lib/theme';
 
 /** 題が版面からはみ出すときだけ字を小さくする（canvas 側の fitText と同じ考え方）。 */
+/**
+ * 入りきらない題を縮める。下限は元の 0.45 倍。
+ * 0.6 で止めていたときは「Two weeks in Kyoto only」のような長い題が
+ * 書き出し側で切れた。旅の題は札の主役なので、小さくなっても
+ * 最後まで出す方を採る（canvas 側と同じ式・同じ下限）。
+ */
 function fitTitleSize(title: string, size: number, maxW: number): number {
   // CJKは全角、それ以外はおよそ0.55em で見積もる
   let em = 0;
   for (const ch of title) em += /[⺀-鿿豈-﫿＀-￯　-ヿ]/.test(ch) ? 1 : 0.55;
   const w = em * size;
-  return w <= maxW ? size : Math.max(size * 0.6, (size * maxW) / w);
+  return w <= maxW ? size : Math.max(size * 0.45, (size * maxW) / w);
 }
 
 export interface JourneyCardProps {
@@ -51,6 +57,37 @@ export function JourneyCard(props: JourneyCardProps) {
     <Svg width={s.w} height={s.h} viewBox={`0 0 ${s.w} ${s.h}`}>
       <Rect x={0} y={0} width={s.w} height={s.h} fill={PALETTE.paper} />
 
+      <Defs>
+        {s.pins.map((p, i) => (
+          <ClipPath key={`cp${i}`} id={`pin${i}`}>
+            <Circle cx={p.x} cy={p.y} r={p.r} />
+          </ClipPath>
+        ))}
+        {s.photos.map((p, i) => (
+          <ClipPath key={`pcp${i}`} id={`photo${i}`}>
+            <Rect x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} rx={p.radius} />
+          </ClipPath>
+        ))}
+      </Defs>
+
+      {/* 地の模様になる大判写真。**地図より下**に敷き、薄く沈めて
+          題と数字を邪魔しない（以前は地図の上に明るいまま置いていた） */}
+      {s.photos.map((p, i) => (
+        <G key={`photo${i}`} transform={`translate(${p.cx} ${p.cy}) rotate(${p.rot})`} opacity={PHOTO.opacity}>
+          <SvgImage
+            x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h}
+            href={{ uri: p.uri } as any}
+            preserveAspectRatio="xMidYMid slice"
+            clipPath={`url(#photo${i})`}
+          />
+          <Rect
+            x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} rx={p.radius}
+            fill="none" stroke={PALETTE.photoFrame} strokeWidth={p.border}
+            opacity={PHOTO.edgeOpacity}
+          />
+        </G>
+      ))}
+
       {/* 日本地図 */}
       <G transform={`translate(${s.map.tx} ${s.map.ty}) scale(${s.map.scale})`}>
         {s.paths.map((p, i) => (
@@ -65,39 +102,6 @@ export function JourneyCard(props: JourneyCardProps) {
           </G>
         ))}
       </G>
-
-      <Defs>
-        {s.pins.map((p, i) => (
-          <ClipPath key={`cp${i}`} id={`pin${i}`}>
-            <Circle cx={p.x} cy={p.y} r={p.r} />
-          </ClipPath>
-        ))}
-        {s.photos.map((p, i) => (
-          <ClipPath key={`pcp${i}`} id={`photo${i}`}>
-            <Rect x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} rx={p.radius} />
-          </ClipPath>
-        ))}
-      </Defs>
-
-      {/* 左上の大判写真。地図の上・ピンの下に重ねる（左上は海なので陸は隠れない） */}
-      {s.photos.map((p, i) => (
-        <G key={`photo${i}`} transform={`translate(${p.cx} ${p.cy}) rotate(${p.rot})`}>
-          <Rect
-            x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} rx={p.radius}
-            fill={PALETTE.paperEdge}
-          />
-          <SvgImage
-            x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h}
-            href={{ uri: p.uri } as any}
-            preserveAspectRatio="xMidYMid slice"
-            clipPath={`url(#photo${i})`}
-          />
-          <Rect
-            x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} rx={p.radius}
-            fill="none" stroke={PALETTE.photoFrame} strokeWidth={p.border}
-          />
-        </G>
-      ))}
 
       {/* 地点の丸写真。縁を敷いて、県の塗りから切り離す */}
       {s.pins.map((p, i) => (

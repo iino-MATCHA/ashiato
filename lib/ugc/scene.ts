@@ -109,7 +109,7 @@ export function buildScene({ width: w, stops: allStops, visitedPrefectureCodes }
     uri: stops[i].image,
   }));
 
-  // --- 左上に重ねる大判写真: 写真を持つ最初の stop から順に（同じ写真は数えない）。
+  // --- 地に散らす大判写真: 写真を持つ最初の stop から順に（同じ写真は数えない）。
   // 座標の無い stop の写真も使ってよいので、ピンとは別に allStops から拾う
   const photoUris: string[] = [];
   for (const s of allStops) {

@@ -4,7 +4,7 @@
  * 以前は mapbox の canvas をそのまま保存していたので地図しか残らなかった。
  */
 import { buildScene, type SceneStop } from './ugc/scene';
-import { PALETTE } from './ugc/layout';
+import { PALETTE, PHOTO } from './ugc/layout';
 
 export interface ShareCardMeta {
   title: string;
@@ -46,6 +46,33 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
     ctx.fillStyle = PALETTE.paper;
     ctx.fillRect(0, 0, s.w, s.h);
 
+    // 地の模様になる大判写真。**地図より先に**敷き、薄く沈める
+    // （プレビュー側 JourneyCard と同じ順・同じ濃さ）
+    s.photos.forEach((p, i) => {
+      const img = photoImgs[i];
+      if (!img) return;
+      ctx.save();
+      ctx.globalAlpha = PHOTO.opacity;
+      ctx.translate(p.cx, p.cy);
+      ctx.rotate((p.rot * Math.PI) / 180);
+      const rr = () => roundedRect(ctx, -p.w / 2, -p.h / 2, p.w, p.h, p.radius);
+      ctx.save();
+      rr();
+      ctx.clip();
+      // 中央を切って角丸の枠いっぱいに敷く
+      const scale = Math.max(p.w / img.width, p.h / img.height);
+      const sw = p.w / scale;
+      const sh = p.h / scale;
+      ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, -p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+      rr();
+      ctx.strokeStyle = PALETTE.photoFrame;
+      ctx.globalAlpha = PHOTO.opacity * PHOTO.edgeOpacity;
+      ctx.lineWidth = p.border;
+      ctx.stroke();
+      ctx.restore();
+    });
+
     // 日本地図
     ctx.save();
     ctx.translate(s.map.tx, s.map.ty);
@@ -63,34 +90,6 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
       ctx.restore();
     });
     ctx.restore();
-
-    // 左上の大判写真。地図の上・ピンの下に重ねる（左上は海なので陸は隠れない）
-    s.photos.forEach((p, i) => {
-      ctx.save();
-      ctx.translate(p.cx, p.cy);
-      ctx.rotate((p.rot * Math.PI) / 180);
-      const rr = () => roundedRect(ctx, -p.w / 2, -p.h / 2, p.w, p.h, p.radius);
-      const img = photoImgs[i];
-      ctx.save();
-      rr();
-      ctx.clip();
-      if (img) {
-        // 中央を切って角丸の枠いっぱいに敷く
-        const scale = Math.max(p.w / img.width, p.h / img.height);
-        const sw = p.w / scale;
-        const sh = p.h / scale;
-        ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, -p.w / 2, -p.h / 2, p.w, p.h);
-      } else {
-        ctx.fillStyle = PALETTE.paperEdge;
-        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-      }
-      ctx.restore();
-      rr();
-      ctx.strokeStyle = PALETTE.photoFrame;
-      ctx.lineWidth = p.border;
-      ctx.stroke();
-      ctx.restore();
-    });
 
     // 地点の丸写真。縁を敷いて、県の塗りから切り離す
     s.pins.forEach((p, i) => {
@@ -193,14 +192,29 @@ function loadImage(url: string): Promise<HTMLImageElement | null> {
 }
 
 /** 収まらなければ字を詰め、それでも無理なら省略する（題は1行で通す）。 */
+/**
+ * 入りきらない題を縮めて描く。縮めても駄目なら末尾を落とす。
+ *
+ * **文字の大きさは font 文字列から px を取り出して読む。**
+ * parseFloat(ctx.font) だと "700 88px ..." の先頭の太さ 700 を拾い、
+ * 700px から縮めるつもりで探すのでいつまでも収まらず、
+ * 縮まずにいきなり「Two weeks in Kyo…」と切れていた（プレビューは
+ * 収まっているのに書き出しだけ切れる、という食い違いの正体）。
+ * 縮め方も JourneyCard 側の fitTitleSize と同じ式に揃える。
+ */
 function fitText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number) {
-  if (ctx.measureText(text).width <= maxW) { ctx.fillText(text, x, y); return; }
   const base = ctx.font;
-  const size = parseFloat(base);
-  for (let s = size; s > size * 0.6; s -= 2) {
-    ctx.font = base.replace(/[\d.]+px/, `${s}px`);
-    if (ctx.measureText(text).width <= maxW) { ctx.fillText(text, x, y); return; }
-  }
+  const w0 = ctx.measureText(text).width;
+  if (w0 <= maxW) { ctx.fillText(text, x, y); return; }
+  const size = parseFloat(/([\d.]+)px/.exec(base)?.[1] ?? '16');
+  /**
+   * ぴったり maxW になる大きさを出すと、丸めで 896.400001 > 896.4 と
+   * 判定されて縮小が空振りし、そのまま末尾が落ちていた（実測）。
+   * 1%だけ余らせる。
+   */
+  const shrunk = Math.max(size * 0.45, (size * maxW) / w0 * 0.99);
+  ctx.font = base.replace(/[\d.]+px/, `${shrunk}px`);
+  if (ctx.measureText(text).width <= maxW) { ctx.fillText(text, x, y); return; }
   let cut = text;
   while (cut.length > 1 && ctx.measureText(`${cut}…`).width > maxW) cut = cut.slice(0, -1);
   ctx.fillText(`${cut}…`, x, y);
