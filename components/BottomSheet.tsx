@@ -401,9 +401,11 @@ export function BottomSheet({
           /**
            * 色は開閉で変えない。以前は全開で地の色(washi)に切り替えていたが、
            * 開ききった瞬間に紙の色が飛んで見えた（指摘を受けた）。
-           * シートは常に「地の上に置かれた紙」のまま
+           * シートは常に「地の上に置かれた紙」のまま。
+           * 紙はつまみの帯の下（中身の入れ物）に敷く ―― 器そのものを
+           * 塗ると、半透明にしたつまみの帯まで不透明になってしまう
            */
-          backgroundColor: palette.washiPaper,
+          backgroundColor: 'transparent',
           borderColor: palette.ruleStrong,
           // 全面まで伸びたら角を落として、地の和紙とそのまま一枚になる
           borderTopLeftRadius: open ? 0 : 18,
@@ -414,11 +416,17 @@ export function BottomSheet({
         WEB ? { transform: [{ translateY: webY }] } : { transform: [{ translateY: anim }] },
       ]}
     >
-      {/* 和紙。明るいテーマでも暗いテーマでも紙に見えるようにする */}
-      <WashiBackground base={palette.washiPaper} />
-
-      {/* つまみ。ここは中身に関係なく必ず掴める */}
-      <View ref={gripRef} style={styles.grip}>
+      {/* つまみ。ここは中身に関係なく必ず掴める。
+          **帯は半透明**（指定を受けた）―― シートの紙をここまで敷かず、
+          下の地図がうっすら透ける。Webはぼかしも足して文字の帯に見せない */}
+      <View
+        ref={gripRef}
+        style={[
+          styles.grip,
+          { backgroundColor: `${palette.washiPaper}99` },
+          WEB ? ({ backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' } as any) : null,
+        ]}
+      >
         {/* ネイティブは指を置いただけでも開閉できるようにする */}
         <Pressable
           onPress={() => (WEB ? undefined : snapTo(at.current === 0 ? travel : 0))}
@@ -429,7 +437,9 @@ export function BottomSheet({
         </Pressable>
       </View>
 
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: palette.washiPaper }}>
+        {/* 和紙はつまみの帯より下にだけ敷く（帯の透けを保つ） */}
+        <WashiBackground base={palette.washiPaper} />
         <SheetOpenContext.Provider value={open}>
           <SheetScrollContext.Provider value={reportScroll}>{children}</SheetScrollContext.Provider>
         </SheetOpenContext.Provider>
