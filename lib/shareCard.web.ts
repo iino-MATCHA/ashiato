@@ -65,11 +65,6 @@ export async function exportShareCard(meta: ShareCardMeta): Promise<string | nul
       const sh = p.h / scale;
       ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, -p.w / 2, -p.h / 2, p.w, p.h);
       ctx.restore();
-      rr();
-      ctx.strokeStyle = PALETTE.photoFrame;
-      ctx.globalAlpha = PHOTO.opacity * PHOTO.edgeOpacity;
-      ctx.lineWidth = p.border;
-      ctx.stroke();
       ctx.restore();
     });
 

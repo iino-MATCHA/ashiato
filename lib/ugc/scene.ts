@@ -18,7 +18,7 @@ export interface ScenePath { d: string; visited: boolean; okinawa: boolean }
 /** 左上に重ねる大判写真。cx/cy は中心、rot は度。 */
 export interface ScenePhoto {
   cx: number; cy: number; w: number; h: number;
-  rot: number; radius: number; border: number; uri: string;
+  rot: number; radius: number; uri: string;
 }
 
 export interface Scene {
@@ -123,7 +123,6 @@ export function buildScene({ width: w, stops: allStops, visitedPrefectureCodes }
     h: w * PHOTO.h,
     rot: PHOTO.slots[i].rot,
     radius: w * PHOTO.radius,
-    border: w * PHOTO.border,
     uri,
   }));
 

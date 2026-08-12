@@ -80,11 +80,6 @@ export function JourneyCard(props: JourneyCardProps) {
             preserveAspectRatio="xMidYMid slice"
             clipPath={`url(#photo${i})`}
           />
-          <Rect
-            x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} rx={p.radius}
-            fill="none" stroke={PALETTE.photoFrame} strokeWidth={p.border}
-            opacity={PHOTO.edgeOpacity}
-          />
         </G>
       ))}
 

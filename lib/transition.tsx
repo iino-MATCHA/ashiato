@@ -142,6 +142,14 @@ export function TransitionProvider({ children }: { children: React.ReactNode }) 
   const { width, height } = useWindowDimensions();
   const [active, setActive] = useState(false);
   const [spinner, setSpinner] = useState(false);
+  /**
+   * 波紋が広がりきったか。
+   * **広がった円だけに覆いを任せない。** モバイルSafariでは
+   * useWindowDimensions の高さがURLバーのぶん実際より小さく出ることがあり、
+   * 円が四隅まで届かず、白い塊の端が弧を描いて見えていた（指摘の画面）。
+   * 封をしたあとは画面いっぱいの面を敷いて、確実に覆う。
+   */
+  const [sealed, setSealed] = useState(false);
   const [origin, setOrigin] = useState({ x: width / 2, y: height / 2 });
   const scale = useRef(new Animated.Value(0)).current;
   const fade = useRef(new Animated.Value(1)).current;
@@ -159,6 +167,7 @@ export function TransitionProvider({ children }: { children: React.ReactNode }) 
     waiting.current = false;
     clearTimers();
     setSpinner(false);
+    setSealed(false);
     Animated.timing(fade, { toValue: 0, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(
       () => {
         covered.current = false;
@@ -185,12 +194,21 @@ export function TransitionProvider({ children }: { children: React.ReactNode }) 
     covered.current = true;
     setActive(true);
     setSpinner(false);
+    setSealed(false);
 
     // circle must reach the farthest corner from the tap point
-    const maxDist = Math.hypot(Math.max(x, width - x), Math.max(y, height - y));
-    const target = ((maxDist + 40) * 2) / D;
+    /**
+     * 円は四隅の一番遠いところまで届かせる。
+     * 高さは実際の描画領域の方が大きいことがある（モバイルSafariのURLバー）ので、
+     * window.innerHeight も見て大きい方で測る。
+     */
+    const vh = typeof window !== 'undefined' ? Math.max(height, window.innerHeight ?? 0) : height;
+    const vw = typeof window !== 'undefined' ? Math.max(width, window.innerWidth ?? 0) : width;
+    const maxDist = Math.hypot(Math.max(x, vw - x), Math.max(y, vh - y));
+    const target = ((maxDist + 80) * 2) / D;
 
     Animated.timing(scale, { toValue: target, duration: 380, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
+      setSealed(true);
       router.push(href as any);
       clearTimers();
       if (WAITS_FOR_READY.test(href)) {
@@ -211,7 +229,21 @@ export function TransitionProvider({ children }: { children: React.ReactNode }) 
     <TransitionCtx.Provider value={{ navigate, markReady }}>
       <FadeThrough covered={covered}>{children}</FadeThrough>
       {active && (
-        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: fade, zIndex: 999 }]}>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            /**
+             * **Webは画面そのものを基準にする(fixed)。**
+             * absoluteFill は「いちばん近い位置指定の親」を基準にするので、
+             * 覆いが版面の一部にしか掛からず、くるくるも画面の中心から
+             * ずれた場所に出ることがある（指摘の画面がこれ）。
+             * fixed なら親に関係なく、いつでも画面いっぱい・中央に出る。
+             */
+            WEB ? ({ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0 } as any) : null,
+            { opacity: fade, zIndex: 999 },
+          ]}
+        >
           <Animated.View
             style={{
               position: 'absolute',
@@ -224,10 +256,12 @@ export function TransitionProvider({ children }: { children: React.ReactNode }) 
               transform: [{ scale }],
             }}
           />
+          {/* 封。円の届かない隅を残さないための、画面いっぱいの面 */}
+          {sealed && <View style={[StyleSheet.absoluteFill, { backgroundColor: '#fff' }]} />}
           {spinner && (
-            <Animated.View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+            <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
               <ActivityIndicator size="large" color="#69AF00" />
-            </Animated.View>
+            </View>
           )}
         </Animated.View>
       )}
