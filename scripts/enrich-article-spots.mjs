@@ -114,6 +114,43 @@ function candidatesCjk(title) {
   return rank([...new Set(out)]);
 }
 
+
+/**
+ * 韓国語の候補語。
+ *
+ * 日本語向けの切り方（candidatesCjk）をそのまま使うと、ハングルの語の
+ * **途中**にある「로」「에서」で切ってしまい、「가자(行こう)」→ ガザ、
+ * 「레저」→ アルバニアのレジャ…と世界中の別の場所を引いていた
+ * （koだけスポットが1割しか決まらなかった）。
+ * 韓国語は分かち書きなので、空白で切って助詞を**語尾からだけ**外す。
+ * 「닛코 동조궁」のような2語の名前も、隣同士をつないで候補にする。
+ */
+const STOP_KO = /^(관광|명소|여행|추천|맛집|음식|먹거리|가이드|완전|정리|소개|인기|필수|방문|온라인|예약|가능|레스토랑|호텔|쇼핑|일정|기간|장소|정보|코스|당일치기|근교|지역|성지|순례|말차|벚꽃|단풍|불꽃놀이|여름|겨울|봄|가을|현재|추천의|즐기|만끽|매력|역사|절경|일본|도호쿠|간토|간사이|규슈|시코쿠|호쿠리쿠|오키나와와?)$/;
+
+function candidatesKo(title) {
+  const t = title
+    .replace(/【[^】]*】|\[[^\]]*\]|（[^）]*）|\([^)]*\)/g, ' ')
+    .replace(/\d{4}(?:년)?/g, ' ');
+  const raw = t.split(/[\s・,，.。!！?？~〜:：;；'"'"·|｜\/&＆+＋=＝-]+/).filter(Boolean)
+    .map((w) => w.replace(/[^가-힣A-Za-z0-9]/g, ''))
+    .filter((w) => w.length >= 2 && !/^\d+$/.test(w));
+  /** 語尾の助詞を外した形も足す（「후쿠시마를」→「후쿠시마」）。
+      「삿포로」の「로」のように名前の一部のこともあるので、元の形も残す */
+  const strip = (w) => w.replace(/(에서|으로|까지|부터|와|과|의|에|를|을|이|가|은|는|도|로|만)$/, '');
+  const out = [];
+  const keep = (w) => { if (w.length >= 2 && !STOP_KO.test(w)) out.push(w); };
+  for (let i = 0; i < raw.length; i++) {
+    keep(raw[i]);
+    const a = strip(raw[i]);
+    if (a !== raw[i] && a.length >= 2) keep(a);
+    if (i + 1 < raw.length) {
+      const b = strip(raw[i + 1]);
+      if (a.length >= 2 && b.length >= 2 && !STOP_KO.test(a) && !STOP_KO.test(b)) out.push(`${a} ${b}`);
+    }
+  }
+  return rank([...new Set(out)]);
+}
+
 function candidatesEn(title) {
   const stops = new Set(['The','A','An','Best','Top','Guide','Japan','Japanese','Complete','Ultimate','How','What','Where','New','Great','Station','Hotel','Hotels','Access','Near','Nearby','Trip','Trips','Travel','Tips','Things','Do','To','And','Of','In','At','From','For','With','Your','This','These','Autumn','Spring','Summer','Winter']);
   const runs = title.match(/[A-Z][\w'’&.-]*(?:\s+(?:of|the|no|de|la)?\s*[A-Z][\w'’&.-]*)*/g) ?? [];
@@ -142,6 +179,7 @@ const BODY_SPOT =
 function candidatesFromBody(body, locale) {
   const head = body.slice(0, 600);
   if (locale === 'en') return candidatesEn(head).slice(0, 4);
+  if (locale === 'ko') return candidatesKo(head.slice(0, 300)).filter((c) => SPOT_TAIL.test(c)).slice(0, 4);
   const counts = new Map();
   for (const m of head.matchAll(BODY_SPOT)) {
     const v = m[0];
@@ -171,7 +209,7 @@ function rank(cands) {
  * 引いた結果の控え。**版を鍵に混ぜる** ―― 選び方を変えたのに古い判定が
  * 残ると、直したはずの記事がそのまま出てしまう
  */
-const CACHE_V = 'v7';
+const CACHE_V = 'v8';
 const CACHE_PATH = '.masters/wiki-cache.json';
 const cache = existsSync(CACHE_PATH) ? JSON.parse(readFileSync(CACHE_PATH, 'utf8')) : {};
 let cacheDirty = 0;
@@ -320,11 +358,18 @@ async function wiki(lang, variant, cand) {
     for (const page of os?.[1] ?? []) {
       // 自治体・都道府県の名前そのものは引くまでもない
       if (adminNames.has(page)) continue;
+      /**
+       * 中国語は簡体・繁体の変換を variant で頼む。
+       * Accept-Language は REST には効いたが action API には効かず、
+       * 概要が混ざった字で返って県名の照合が通らなかった
+       * （cn のスポットが2割しか決まらなかった一因）
+       */
+      const vq = variant.startsWith('zh-') ? `&variant=${variant}` : '';
       const j = await getJson(
         `https://${lang}.wikipedia.org/w/api.php?action=query&prop=extracts%7Ccoordinates%7Cdescription%7Clanglinks` +
-          `&exintro=1&explaintext=1&redirects=1&lllang=ja&lllimit=1` +
+          `&exintro=1&explaintext=1&redirects=1&lllang=ja&lllimit=1${vq}` +
           `&format=json&formatversion=2&titles=${encodeURIComponent(page)}`,
-        { 'User-Agent': UA, 'Accept-Language': variant }
+        { 'User-Agent': UA }
       );
       const p = j?.query?.pages?.[0];
       /**
@@ -387,6 +432,18 @@ async function jaExtract(title) {
   await new Promise((r) => setTimeout(r, 200));
   return out;
 }
+
+
+/**
+ * 引けたけれど行き先にならないページ。
+ * 「Fukushima Prefecture salient」（県境が"へその緒"のように飛び出している
+ * という地理の豆知識のページ）が英語で出てしまった。名前に Prefecture や
+ * 県境が入るものは行政・地理の説明であって、旅の行き先ではない。
+ *
+ * **控えの中身ではなく使うときに弾く。** ここを wiki() の中に足すと
+ * 控えの鍵を変えることになり、全言語を引き直す羽目になる。
+ */
+const BAD_SPOT = /\bsalient\b|Prefecture\b|Subprefecture|県境|飛地|境界$|사고$|참사|방송|放送|テレビ局|電視台|电视台|추락|站$|赛道|賽道|サーキット|BACK BEAT|ライブハウス/i;
 
 // ---------------------------------------------------------------- 差し替えの判断
 
@@ -454,7 +511,13 @@ function keywordsFor(code, muniCol) {
   const ja = PREF_JA[code] ?? '';
   const en = PREF_EN[code] ?? '';
   const ms = rows.flatMap((m) => [m[muniCol], m.municipality_ja]).filter(Boolean);
-  return [...new Set([ja, ja.replace(/[都道府県]$/u, ''), en, ...ms])].filter((k) => k && k.length >= 2);
+  /**
+   * ハングルの語は3文字から。埼玉のある町の韓国語名「다시」が
+   * 「もう一度」という日常語と同じ字で、ベルリンの博物館島の概要にまで
+   * 「その県の話だ」と判定していた（実測）。市/정/촌が付く正式名は3文字以上ある
+   */
+  return [...new Set([ja, ja.replace(/[都道府県]$/u, ''), en, ...ms])]
+    .filter((k) => k && k.length >= (/[가-힣]/.test(k) ? 3 : 2));
 }
 
 /** 日本語で確かめるための語（ko/zh の記事を裏取りするのに使う） */
@@ -496,7 +559,8 @@ for (const [L, locale, wikiLang, prefCol, muniCol] of LANGS) {
     const keywordsJa = keywordsJaFor(row.code);
     // 県名そのものは候補から外す（県の紹介文はカードの上に既にある）
     const prefNames = new Set([PREF_JA[row.code], PREF_JA[row.code]?.replace(/[都道府県]$/u, ''), PREF_EN[row.code]].filter(Boolean));
-    const cands = (locale === 'en' ? candidatesEn(row.title) : candidatesCjk(row.title))
+    const candidatesOf = locale === 'en' ? candidatesEn : locale === 'ko' ? candidatesKo : candidatesCjk;
+    const cands = candidatesOf(row.title)
       // 県名そのものは引かない（県の紹介文はカードの上に既にある）
       .filter((c) => !prefNames.has(c))
       .slice(0, 10);
@@ -514,6 +578,7 @@ for (const [L, locale, wikiLang, prefCol, muniCol] of LANGS) {
       for (const c of list) {
         const w = await wiki(wikiLang, variant, c);
         if (!w) continue;
+        if (BAD_SPOT.test(w.spot)) continue;
         // 日本語版の見出しが自治体なら、その言語で通っていても採らない
         if (w.jaTitle && adminNames.has(w.jaTitle)) continue;
         let ok = keywords.some((k) => w.extract.includes(k));
