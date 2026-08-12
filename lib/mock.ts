@@ -254,6 +254,7 @@ export const mockMatchaArticles = [
     ],
     prefectureCode: 5,
     publishedAt: '2026-04-01',
+    place: '角館',
   },
   {
     id: 'ma-akita-2',
@@ -268,6 +269,7 @@ export const mockMatchaArticles = [
     ],
     prefectureCode: 5,
     publishedAt: '2026-02-10',
+    place: '乳頭温泉郷',
   },
   {
     id: 'ma-tokyo-1',
@@ -283,5 +285,6 @@ export const mockMatchaArticles = [
     ],
     prefectureCode: 13,
     publishedAt: '2026-05-20',
+    place: '浅草',
   },
 ];

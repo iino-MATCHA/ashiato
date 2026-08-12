@@ -28,3 +28,4 @@ expo-env.d.ts
 
 # EXIF検査用の生成物（npm run check:exif が作る）
 .exif-bundle.mjs
+.masters/

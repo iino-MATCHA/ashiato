@@ -1067,6 +1067,13 @@ export interface MatchaArticle {
   images: string[];
   prefectureCode: number;
   publishedAt: string | null;
+  /**
+   * その記事が扱っている行き先の名前（「会津若松」「三春町」）。
+   * 県のカードの「◯◯県で行くなら」の段はこれを見出しにする ―― 題を出すと
+   * 「福島市の気温は？年間平均と…」のような行き先でないものが並ぶため。
+   * 取り込みのときに決まらなかった記事は null
+   */
+  place: string | null;
 }
 
 /**
@@ -1080,7 +1087,7 @@ export async function fetchMatchaArticles(prefectureCode: number, lang: string):
   const pull = async (l: string) => {
     const { data } = await supabase
       .from('matcha_articles')
-      .select('id, url, title, body, images, prefecture_code, published_at')
+      .select('id, url, title, body, images, prefecture_code, published_at, place')
       .eq('prefecture_code', prefectureCode)
       .eq('lang', l)
       .order('published_at', { ascending: false })
@@ -1100,6 +1107,7 @@ export async function fetchMatchaArticles(prefectureCode: number, lang: string):
       images: Array.isArray(a.images) ? a.images.filter((u: unknown) => typeof u === 'string') : [],
       prefectureCode: a.prefecture_code,
       publishedAt: a.published_at ?? null,
+      place: a.place ?? null,
     })) as MatchaArticle[];
   };
   for (const l of Array.from(new Set([lang, 'ja', 'en']))) {
@@ -1107,6 +1115,43 @@ export async function fetchMatchaArticles(prefectureCode: number, lang: string):
     if (rows.length) return rows;
   }
   return [];
+}
+
+/**
+ * 県の紹介文。
+ *
+ * **DBを先に見て、行が無いときだけ手元の文にさがる。**
+ * 文は消したり書き足したりできるように prefecture_texts へ移したが、
+ * 取り込み前や通信が細いときに県のカードが空になると困るので、
+ * lib/quiz/descriptions.ts の文を控えとして残してある。
+ *
+ * 一度引いたら覚えておく（県のカードは開くたびに同じ文を引く）。
+ */
+const prefTextCache = new Map<string, string>();
+
+export async function fetchPrefectureText(
+  prefectureCode: number,
+  lang: string
+): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  const key = `${prefectureCode}:${lang}`;
+  const hit = prefTextCache.get(key);
+  if (hit !== undefined) return hit;
+  const { data } = await supabase
+    .from('prefecture_texts')
+    .select('lang, body')
+    .eq('prefecture_code', prefectureCode)
+    .in('lang', Array.from(new Set([lang, 'ja', 'en'])));
+  const rows = data ?? [];
+  // 表示言語 → 日本語 → 英語 の順で拾う（取り込みが言語ごとに進むため）
+  for (const l of Array.from(new Set([lang, 'ja', 'en']))) {
+    const row = rows.find((r: any) => r.lang === l);
+    if (row?.body) {
+      prefTextCache.set(key, row.body);
+      return row.body;
+    }
+  }
+  return null;
 }
 
 /** 観光エリアも表示言語で見せる。無ければ英語、それも無ければ日本語 */

@@ -37,7 +37,7 @@ import { recommend, weightsFor, type Answers, type Recommendation } from '@/lib/
 import type { Axis } from '@/lib/quiz/data';
 import { photoFor } from '@/lib/quiz/photos';
 import { QuizIcon, hasQuizIcon } from '@/components/quiz/QuizIcon';
-import { prefectureDescription } from '@/lib/quiz/descriptions';
+import { usePrefectureText } from '@/lib/usePrefectureText';
 import { affiliatesFor, type AffiliateCard } from '@/lib/quiz/affiliates';
 import { funnel } from '@/lib/quiz/funnel';
 import { saveHandoff, clearHandoff } from '@/lib/quiz/handoff';
@@ -611,6 +611,8 @@ export function QuizLanding() {
 
   /** いま前に出ているカードの県。見出し・紹介文・「行くなら」はこの県で組む */
   const current = results[active] ?? results[0] ?? null;
+  // 紹介文はDB（prefecture_texts）から。無ければ手元の文にさがる
+  const currentText = usePrefectureText(current?.code ?? 1, locale as Locale);
 
   /**
    * 「行くなら」の一覧に混ぜる GetYourGuide の枠（1〜2件）。
@@ -948,7 +950,7 @@ export function QuizLanding() {
               {/* 前に出ている県の紹介と「行くなら」。カードを送ると差し替わる */}
               {current && (
                 <div className="detail" key={current.code}>
-                  <p className="why">{prefectureDescription(current.code, locale as Locale)}</p>
+                  <p className="why">{currentText}</p>
 
                   <div className="spots">
                     <div className="spotsTitle">

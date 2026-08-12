@@ -33,7 +33,7 @@ import { router } from 'expo-router';
 import {
   PREFECTURE_EN_BY_ID, PREFECTURE_SLUG_BY_ID, prefectureName, prefectureMatchaUrl, slugForName,
 } from '@/lib/prefectures';
-import { prefectureDescription } from '@/lib/quiz/descriptions';
+import { usePrefectureText } from '@/lib/usePrefectureText';
 import { photoFor } from '@/lib/quiz/photos';
 import { searchTourismAreas, fetchMatchaArticles, type TourismArea, type MatchaArticle } from '@/lib/api';
 import { ArticleModal } from '@/components/home/ArticleModal';
@@ -135,6 +135,7 @@ function SheetBody({ code, onClose }: { code: number; onClose: () => void }) {
   }, [code, locale]);
 
   const name = prefectureName(code, locale);
+  const prefText = usePrefectureText(code, locale as Locale);
   const photo = photoFor(code);
   const matchaUrl = localizeMatchaUrl(prefectureMatchaUrl(code));
 
@@ -190,10 +191,29 @@ function SheetBody({ code, onClose }: { code: number; onClose: () => void }) {
     | { kind: 'link'; key: string; title: string; sub: string; url: string | null };
 
   const matchaCards = useMemo<MatchaItem[]>(() => {
-    const cards: MatchaItem[] = articles.map((a) => ({ kind: 'article', key: a.id, article: a }));
-    areas.forEach((a) =>
-      cards.push({ kind: 'link', key: a.id, title: a.name, sub: a.municipality, url: localizeMatchaUrl(a.matchaUrl) })
-    );
+    /**
+     * **この段は行き先の一覧。** 見出しが「◯◯県で行くなら」なので、
+     * 記事の題をそのまま出すと「福島市の気温は？年間平均と…」のような
+     * 行き先でないものが並ぶ（指摘を受けた）。地名が付いている記事だけを
+     * 出し、地名の分かっていない記事はこの段に置かない
+     * （ポップアップ自体はほかの入口から開ける）。
+     *
+     * 同じ地名が二度並ばないようにもする ―― 会津若松の記事が2本あっても
+     * 「会津若松」のカードは1枚でよい。
+     */
+    const seen = new Set<string>();
+    const cards: MatchaItem[] = [];
+    articles.forEach((a) => {
+      if (!a.place || seen.has(a.place)) return;
+      seen.add(a.place);
+      cards.push({ kind: 'article', key: a.id, article: a });
+    });
+    areas.forEach((a) => {
+      // 記事で同じ地名を出したなら、観光エリアのカードは重ねない
+      if (seen.has(a.name)) return;
+      seen.add(a.name);
+      cards.push({ kind: 'link', key: a.id, title: a.name, sub: a.municipality, url: localizeMatchaUrl(a.matchaUrl) });
+    });
     if (matchaUrl) {
       cards.push({ kind: 'link', key: 'pref', title: t('quiz.aff.matchaTitle', { name }), sub: name, url: matchaUrl });
     }
@@ -212,7 +232,8 @@ function SheetBody({ code, onClose }: { code: number; onClose: () => void }) {
               )}
             </View>
             <View style={{ padding: space.sm, flex: 1 }}>
-              <AppText variant="bodyStrong" tone="ink" numberOfLines={2} style={{ flex: 1 }}>{a.title}</AppText>
+              {/* 出すのは行き先の名前。記事の題はポップアップの中で読ませる */}
+              <AppText variant="bodyStrong" tone="ink" numberOfLines={2} style={{ flex: 1 }}>{a.place}</AppText>
               <AppText variant="small" tone="matcha">{t('article.read')}</AppText>
             </View>
           </View>
@@ -347,7 +368,7 @@ function SheetBody({ code, onClose }: { code: number; onClose: () => void }) {
         )}
         <Gap h={space.md} />
         <AppText variant="body" tone="inkSoft" style={{ lineHeight: 24 }}>
-          {prefectureDescription(code, locale as Locale)}
+          {prefText}
         </AppText>
 
         {/* 行くなら（MATCHAへ）。こちらも横並びのカード */}
