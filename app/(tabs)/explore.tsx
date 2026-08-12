@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, View, Image, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, View, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
@@ -7,7 +7,7 @@ import { AppText, Screen, Row, Rule, Gap, Eyebrow } from '@/components/ui';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { usePublicTrips } from '@/lib/useData';
-import { searchTourismAreas, fetchTrendingAreas, type TourismArea, fetchFriends } from '@/lib/api';
+import { searchTourismAreas, fetchTrendingAreas, type TourismArea, fetchFriends, fetchSponsoredCards, type SponsoredCard } from '@/lib/api';
 import { useRippleNav } from '@/lib/transition';
 import { type Trip } from '@/lib/mock';
 import { prefectureName } from '@/lib/prefectures';
@@ -30,6 +30,25 @@ import { useI18n, localizeMatchaUrl, getLocale } from '@/lib/i18n';
 function featurable(trip: Trip): boolean {
   if (!trip.authorId || trip.authorId === 'me') return false;
   return trip.steps.length >= 2;
+}
+
+/** 注目の旅のカルーセルの1枚。旅か、スポンサーカードか。 */
+type FeaturedSlide = { kind: 'trip'; trip: Trip } | { kind: 'sponsor'; card: SponsoredCard };
+
+/**
+ * スポンサーカードを旅の並びに混ぜる。
+ * 旅3件ごとに1枚（position順）。広告が並びを支配しないよう、
+ * 旅が足りなければ残りのカードは出さない。カードが無ければ旅だけの
+ * 並びのまま ―― 何も変わらない。
+ */
+function interleaveSponsored(trips: Trip[], cards: SponsoredCard[]): FeaturedSlide[] {
+  const slides: FeaturedSlide[] = [];
+  let c = 0;
+  trips.forEach((trip, i) => {
+    slides.push({ kind: 'trip', trip });
+    if ((i + 1) % 3 === 0 && c < cards.length) slides.push({ kind: 'sponsor', card: cards[c++] });
+  });
+  return slides;
 }
 
 function weeklyFeatured(trips: Trip[]): Trip[] {
@@ -56,6 +75,16 @@ export default function Explore() {
     let alive = true;
     fetchFriends()
       .then((f) => alive && setFriendIds(new Set(f.map((x) => x.id))))
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  // スポンサーカード（注目の旅に混ぜる）。未ログインでも読める
+  const [sponsored, setSponsored] = useState<SponsoredCard[]>([]);
+  useEffect(() => {
+    let alive = true;
+    fetchSponsoredCards()
+      .then((r) => { if (alive) setSponsored(r); })
       .catch(() => {});
     return () => { alive = false; };
   }, []);
@@ -94,6 +123,7 @@ export default function Explore() {
   };
 
   const featured = useMemo(() => weeklyFeatured(trips.filter(featurable)), [trips]);
+  const featuredSlides = useMemo(() => interleaveSponsored(featured, sponsored), [featured, sponsored]);
   /**
    * 「友だちの旅」は地点の数で絞らない。
    * まだ何も足していなくても、友だちの旅は友だちの旅なので出す。
@@ -168,7 +198,7 @@ export default function Explore() {
           <Gap h={space.xl} />
           <Eyebrow>{t('explore.featured')}</Eyebrow>
           <Gap h={space.md} />
-          <FeaturedCarousel trips={featured} palette={palette} screenW={width} />
+          <FeaturedCarousel slides={featuredSlides} palette={palette} screenW={width} />
         </>
       )}
 
@@ -217,7 +247,7 @@ export default function Explore() {
   );
 }
 
-function FeaturedCarousel({ trips, palette, screenW }: { trips: Trip[]; palette: any; screenW: number }) {
+function FeaturedCarousel({ slides, palette, screenW }: { slides: FeaturedSlide[]; palette: any; screenW: number }) {
   // この中では t を「旅」に使っているので、訳語は tr で受ける
   const { t: tr } = useI18n();
   const { navigate } = useRippleNav();
@@ -235,17 +265,17 @@ function FeaturedCarousel({ trips, palette, screenW }: { trips: Trip[]; palette:
   const rest = () => { holdUntil.current = Date.now() + 6000; };
 
   useEffect(() => {
-    if (trips.length < 2) return;
+    if (slides.length < 2) return;
     const t = setInterval(() => {
       if (touching.current || Date.now() < holdUntil.current) return;
       setIdx((cur) => {
-        const next = (cur + 1) % trips.length;
+        const next = (cur + 1) % slides.length;
         ref.current?.scrollTo({ x: next * SNAP, animated: true });
         return next;
       });
     }, 3500);
     return () => clearInterval(t);
-  }, [trips.length, SNAP]);
+  }, [slides.length, SNAP]);
 
   return (
     <View>
@@ -265,7 +295,31 @@ function FeaturedCarousel({ trips, palette, screenW }: { trips: Trip[]; palette:
         }}
         contentContainerStyle={{ gap: space.md }}
       >
-        {trips.map((t) => {
+        {slides.map((s) => {
+          if (s.kind === 'sponsor') {
+            const c = s.card;
+            /**
+             * スポンサーカード。旅カードと同じ紙面（背景写真＋題）で、
+             * 旅カードが所有者を出す位置に display_name を置く ―― これが
+             * 出所の表示を兼ねる（「PR」の文字は置かない。オーナー判断）。
+             */
+            return (
+              <Pressable key={`sponsor-${c.id}`} onPress={() => Linking.openURL(c.url)} style={{ width: cardW }}>
+                <View style={[styles.featureCover, { width: cardW }]}>
+                  <Image source={{ uri: c.imageUrl }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
+                  <View style={styles.shade} />
+                  <View style={styles.featureText}>
+                    <AppText variant="h1" style={{ color: '#fff' }} numberOfLines={2}>{c.title}</AppText>
+                    <Gap h={space.xs} />
+                    <Row style={{ gap: space.md }}>
+                      <Meta icon="open-outline" text={c.displayName} />
+                    </Row>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          }
+          const t = s.trip;
           const cover = t.steps[0]?.images[0];
           return (
             <Pressable key={t.id} onPress={(e) => navigate(`/trip/${t.id}?readonly=1`, e)} style={{ width: cardW }}>
@@ -289,7 +343,7 @@ function FeaturedCarousel({ trips, palette, screenW }: { trips: Trip[]; palette:
         })}
       </ScrollView>
       <Row style={{ justifyContent: 'center', gap: 6, marginTop: space.sm }}>
-        {trips.map((_, i) => (
+        {slides.map((_, i) => (
           <View key={i} style={{ width: i === idx ? 18 : 6, height: 6, borderRadius: 3, backgroundColor: i === idx ? palette.matcha : palette.rule }} />
         ))}
       </Row>

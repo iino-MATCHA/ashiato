@@ -17,7 +17,7 @@ import { getLocale } from './i18n';
 
 const PHOTO_BUCKET = 'photos';
 
-function publicUrl(path: string): string {
+export function publicUrl(path: string): string {
   if (/^https?:\/\//.test(path)) return path;
   return supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl;
 }
@@ -1251,6 +1251,98 @@ export async function fetchTourismAreas(limit = 40): Promise<TourismArea[]> {
   if (!isSupabaseConfigured) return [];
   const { data } = await supabase.from('tourism_area_master').select(AREA_COLS).limit(limit);
   return (data ?? []).map(toArea);
+}
+
+// ------------------------------------------------- sponsored cards (0030)
+/**
+ * Exploreの「注目の旅」に混ぜるスポンサーカード。
+ * 旅カードと同じ見た目で出し、題の下に displayName を置いて出所を示す。
+ * 管理は /admin/sponsors。書き込みは superadmin のみ（RLSで縛っている）。
+ */
+export interface SponsoredCard {
+  id: string;
+  /** 社内向けの会社名。画面には出さない */
+  company: string;
+  /** 題の下に出すサービス名/ブランド名 */
+  displayName: string;
+  title: string;
+  url: string;
+  imageUrl: string;
+  active: boolean;
+  position: number;
+}
+
+const SPONSORED_COLS = 'id, company, display_name, title, url, image_url, active, position';
+
+function toSponsoredCard(r: any): SponsoredCard {
+  return {
+    id: r.id,
+    company: r.company,
+    displayName: r.display_name,
+    title: r.title,
+    url: r.url,
+    imageUrl: r.image_url,
+    active: !!r.active,
+    position: r.position ?? 0,
+  };
+}
+
+/** 表示中のカードを position 順で。未ログインでも読める（RLS: active のみ）。 */
+export async function fetchSponsoredCards(): Promise<SponsoredCard[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from('sponsored_cards')
+    .select(SPONSORED_COLS)
+    .eq('active', true)
+    .order('position', { ascending: true });
+  if (error || !data) return [];
+  return data.map(toSponsoredCard);
+}
+
+/** 管理用: 非表示も含めた全件。superadmin 以外には active な行しか返らない。 */
+export async function fetchAllSponsoredCards(): Promise<SponsoredCard[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data } = await supabase
+    .from('sponsored_cards')
+    .select(SPONSORED_COLS)
+    .order('position', { ascending: true })
+    .order('created_at', { ascending: true });
+  return (data ?? []).map(toSponsoredCard);
+}
+
+/** 管理用: 追加（idなし）または更新（idあり）。superadmin 以外はRLSで弾かれる。 */
+export async function saveSponsoredCard(input: {
+  id?: string;
+  company: string;
+  displayName: string;
+  title: string;
+  url: string;
+  imageUrl: string;
+  active: boolean;
+  position: number;
+}): Promise<boolean> {
+  const row = {
+    company: input.company,
+    display_name: input.displayName,
+    title: input.title,
+    url: input.url,
+    image_url: input.imageUrl,
+    active: input.active,
+    position: input.position,
+  };
+  const { error, count } = input.id
+    ? await supabase.from('sponsored_cards').update(row, { count: 'exact' }).eq('id', input.id)
+    : await supabase.from('sponsored_cards').insert(row, { count: 'exact' });
+  // RLSに弾かれた update はエラーにならず0件更新になるので、件数まで見る
+  return !error && (count ?? 0) > 0;
+}
+
+export async function deleteSponsoredCard(id: string): Promise<boolean> {
+  const { error, count } = await supabase
+    .from('sponsored_cards')
+    .delete({ count: 'exact' })
+    .eq('id', id);
+  return !error && (count ?? 0) > 0;
 }
 
 // ---------------------------------------------------------------- admin
