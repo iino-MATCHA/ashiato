@@ -19,7 +19,7 @@
  * スクロールを始めてしまい、以後 preventDefault は効かない
  * （＝つまみ以外では閉じられなかった原因）。マウスは pointer のまま。
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/lib/useTheme';
 import { WashiBackground } from '@/components/WashiBackground';
@@ -61,7 +61,11 @@ export function useSheetScroll() {
  * 指で動かしている間（data-dragging="1"）は追従を優先して切る。
  */
 const SHEET_CSS = `
-[data-mjsheet="1"] { transition: transform .28s cubic-bezier(.2,.7,.2,1); }
+[data-mjsheet="1"] {
+  transition: transform var(--mjsheet-ms, 320ms) cubic-bezier(.05,.7,.1,1);
+  will-change: transform;
+  backface-visibility: hidden;
+}
 [data-mjsheet="1"][data-dragging="1"] { transition: none; }
 `;
 let cssInjected = false;
@@ -118,13 +122,11 @@ export function BottomSheet({
   const anim = useRef(new Animated.Value(travel)).current; // ネイティブ用
 
   /**
-   * Web の位置は React の状態で持つ。
-   * DOM へ直接 transform を書く手も試したが、react-native-web が
-   * インラインの style を管理し直すため打ち消されて動かなかった（実測）。
-   * 状態にしておけば RNW が責任を持って書くので、確実に反映される。
+   * いまの位置(px)と、離した瞬間の勢い(px/ms)。
+   * どちらも描き直しを挟まずに読み書きしたいので ref で持つ。
    */
-  const [webY, setWebY] = useState(travel);
-  const [dragging, setDragging] = useState(false);
+  const yRef = useRef(travel);
+  const flingRef = useRef(0);
 
   /**
    * シートの位置を書く。animate=false は指に追従させるとき。
@@ -133,30 +135,66 @@ export function BottomSheet({
    * requestAnimationFrame は画面を描いていない状態で一度も呼ばれず、
    * setTimeout も同じ状況では大きく間引かれる。どちらで補間しても
    * 「シートが途中で止まったまま」になり得る（実測で確認）。
-   * 行き先を状態に即座に入れて確定させ、その間を滑らかに見せるのは
-   * CSS の transition（下の SHEET_CSS）に任せる。
-   * 演出が動かなくても、シートは必ず開いた／閉じたのどちらかに収まる。
+   * 行き先を即座に確定させ、その間を滑らかに見せるのは CSS の
+   * transition に任せる。演出が動かなくても、シートは必ず
+   * 開いた／閉じたのどちらかに収まる。
+   *
+   * **
+   * DOM へ直に書く。**指で動かしている間は React を描き直さない。**
+   * 以前は動くたびに状態を更新していたので、シートの中身（旅の一覧や
+   * 御朱印の盤）まで毎フレーム作り直され、指に追いつかなかった。
    */
+  const paint = useCallback((px: number, ms: number | null | undefined) => {
+    const node = sheetRef.current as unknown as HTMLElement | null;
+    if (!node) return;
+    // ms を渡さない＝「いまの位置を書き直すだけ」。寄せている最中に
+    // 時間を書き換えると、CSS が補間をやり直して動きが飛ぶ
+    if (ms !== undefined) {
+      node.dataset.dragging = ms === null ? '1' : '0';
+      if (ms !== null) node.style.setProperty('--mjsheet-ms', `${ms}ms`);
+    }
+    node.style.transform = `translate3d(0, ${px}px, 0)`;
+  }, []);
+
   const place = useCallback(
-    (px: number, animate: boolean) => {
+    (px: number, animate: boolean, ms?: number) => {
       at.current = px;
+      yRef.current = px;
       if (WEB) {
-        setDragging(!animate);
-        setWebY(px);
+        paint(px, animate ? ms ?? 320 : null);
         return;
       }
       if (animate) {
-        Animated.spring(anim, { toValue: px, useNativeDriver: true, bounciness: 2, speed: 14 }).start();
+        Animated.spring(anim, {
+          toValue: px,
+          useNativeDriver: true,
+          bounciness: 2,
+          speed: 14,
+          // 離した勢いをそのまま引き継ぐ（px/ms → px/s）
+          velocity: (flingRef.current ?? 0) * 1000,
+        }).start();
       } else {
         anim.setValue(px);
       }
     },
-    [anim]
+    [anim, paint]
   );
 
+  /**
+   * 描き直しが起きても、いまの位置を書き戻す（親の更新で戻らないように）。
+   * 最初の1回だけは動かさずに置く ―― でないと開いた瞬間に
+   * シートが上から降りてくる芝居が入る。
+   */
+  const painted = useRef(false);
+  useLayoutEffect(() => {
+    if (!WEB) return;
+    paint(yRef.current, painted.current ? undefined : null);
+    painted.current = true;
+  });
+
   const snapTo = useCallback(
-    (px: number) => {
-      place(px, true);
+    (px: number, ms?: number) => {
+      place(px, true, ms);
       openRef.current = px === 0;
       setOpen(px === 0);
       onOpenChange?.(px === 0);
@@ -194,9 +232,23 @@ export function BottomSheet({
         onDismiss();
         return;
       }
-      if (speed < -0.22) return snapTo(0);
-      if (speed > 0.22) return snapTo(travel);
-      snapTo(from + moved < travel / 2 ? 0 : travel);
+      flingRef.current = speed;
+      /**
+       * **寄せ時間は距離と勢いから決める。**
+       * 固定の 280ms だと、勢いよく払っても同じ速さで動くので
+       * 指から切り離されたように見え、わずかな距離でも間延びした。
+       * 残りの距離を離した速さで割り、160〜420ms に収める。
+       */
+      const ms = (to: number) => {
+        const dist = Math.abs(to - (from + moved));
+        const v = Math.abs(speed);
+        const raw = v > 0.05 ? dist / v : dist * 0.75;
+        return Math.round(Math.min(420, Math.max(160, raw)));
+      };
+      if (speed < -0.22) return snapTo(0, ms(0));
+      if (speed > 0.22) return snapTo(travel, ms(travel));
+      const to = from + moved < travel / 2 ? 0 : travel;
+      snapTo(to, ms(to));
     },
     [snapTo, travel, onDismiss]
   );
@@ -392,7 +444,7 @@ export function BottomSheet({
   return (
     <Wrapper
       ref={sheetRef}
-      dataSet={WEB ? { mjsheet: '1', dragging: dragging ? '1' : '0' } : undefined}
+      dataSet={WEB ? { mjsheet: '1', dragging: '0' } : undefined}
       {...pan.panHandlers}
       style={[
         styles.sheet,
@@ -413,7 +465,8 @@ export function BottomSheet({
           // 色差を控えめにしたので、境目はこの罫が受け持つ
           borderTopWidth: open ? 0 : StyleSheet.hairlineWidth * 2,
         },
-        WEB ? { transform: [{ translateY: webY }] } : { transform: [{ translateY: anim }] },
+        // Web の位置は paint() が DOM に直接書く（毎フレームの描き直しを避ける）
+        WEB ? null : { transform: [{ translateY: anim }] },
       ]}
     >
       <View style={{ flex: 1, backgroundColor: palette.washiPaper }}>

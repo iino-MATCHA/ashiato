@@ -268,22 +268,28 @@ const CSS = `
    その分写真を四方へ 14px はみ出させ（inset:-14px）、ぼけて薄くなる端を
    コマの overflow:hidden の外へ追い出す。切り抜きはコマの角丸そのもの
    なので、写真と被膜がずれようがない */
-.mjq .btile .ph { position:absolute; inset:-14px;
+.mjq .btile .ph { position:absolute; inset:-10px;
   background-size:cover; background-position:center;
-  filter:blur(7px) saturate(1.15); }
+  filter:blur(3px) saturate(1.06); }
+/* 被膜は薄く。**濃すぎて写真が見えない**と指摘を受けたので、
+   ぼかしを 7px→3px、被膜の濃さを半分ほどに落とした。
+   色コマ(.flat)は同じ --bt を濃いまま使うので、ここは色そのものを
+   薄めず opacity で下げる ―― そうしないと色コマまで紙が透ける。
+   枠線は被膜と分けてコマ自身に持たせる（opacity で薄まらないように） */
+.mjq .btile.hasPhoto { box-shadow: inset 0 0 0 1.2px rgba(255,255,255,.4); }
 .mjq .btile.hasPhoto::after { content:''; position:absolute; inset:0; border-radius:inherit;
-  background:var(--bt); box-shadow: inset 0 0 0 1.2px rgba(255,255,255,.5);
-  transition:background-color .25s, box-shadow .22s; }
+  background:var(--bt); opacity:.5; transition:opacity .25s; }
 /* 色コマ。写真なし・**ぼかしなし**。同じ緑の家族の淡いグラデーションだけ */
 .mjq .btile.flat { background:linear-gradient(160deg, var(--btOn), var(--bt));
   box-shadow: inset 0 0 0 1.2px rgba(255,255,255,.55); }
+/* 写真が見えるぶん字の下が賑やかになるので、白い滲みを一段強くする */
 .mjq .btLabel { position:absolute; z-index:1; left:14px; right:12px; bottom:12px;
   font-size:13.5px; line-height:1.3; color:var(--ink);
-  text-shadow:0 1px 6px rgba(255,255,255,.45); }
+  text-shadow:0 1px 3px rgba(255,255,255,.8), 0 1px 10px rgba(255,255,255,.6); }
 /* 選択。枠線が抹茶になり、被膜の透明度が少し下がる（✓は出さない） */
 .mjq .btile.on { box-shadow:0 6px 18px rgba(105,175,0,.16); }
-.mjq .btile.hasPhoto.on::after { background:var(--btOn);
-  box-shadow: inset 0 0 0 2px var(--matcha); }
+.mjq .btile.hasPhoto.on { box-shadow: inset 0 0 0 2px var(--matcha), 0 6px 18px rgba(105,175,0,.16); }
+.mjq .btile.hasPhoto.on::after { opacity:.68; }
 .mjq .btile.flat.on { background:linear-gradient(160deg, var(--btOn), var(--btOn));
   box-shadow: inset 0 0 0 2px var(--matcha), 0 6px 18px rgba(105,175,0,.16); }
 @media (max-width:560px) {
