@@ -310,6 +310,67 @@ function publishedOf(html, ld) {
   return raw ? String(raw).slice(0, 10) : null;
 }
 
+// ---------------------------------------------------------------- 記事の種類
+
+/**
+ * ポップアップに入れるのは**観光地の概要の記事**。
+ *
+ * 県の一覧の新着はアクセス・ホテル・気温の記事に偏っていて、先頭から
+ * 取ると「元町・中華街の概要を知りたいのに、行き方と電車の写真しか無い」
+ * ということが起きた（実際に指摘された）。題で種類を見分けて、
+ * 概要の記事から先に取る。
+ *
+ *   0 = 概要らしい（観光ガイド・スポットまとめ・見どころ）
+ *   1 = どちらとも言えない
+ *   2 = 概要でない（アクセス・ホテル・気温・入場料）
+ *
+ * 2 はその県に他の記事が無いときだけ使う（空にするよりはまし）。
+ */
+const NOT_OVERVIEW = new RegExp(
+  [
+    // 交通・行き方
+    'アクセス', '行き方', '乗り方', '乗り換え', '運賃', '切符', 'きっぷ', '終電', '直通',
+    'access', 'how to get', 'getting to', 'transfer', 'train routes',
+    '가는 법', '가는법', '교통', '환승',
+    '交通', '前往', '怎么去', '如何前往', '怎麼去',
+    // 泊まる
+    'ホテル', '宿泊', 'hotels?', '호텔', '숙소', '酒店', '飯店', '住宿',
+    // 天気・服装
+    '気温', '天気', '服装', 'weather', 'temperature', 'what to wear', '날씨', '기온', '옷차림',
+    '天气', '气温', '天氣', '氣溫',
+    // 料金・予約もの
+    '入場料', 'チケット', '割引', 'admission', 'ticket', '입장료', '요금', '예매', '门票', '門票', '票价', '票價',
+    // 空港そのもの
+    '空港', 'airport', '공항', '机场', '機場',
+  ].join('|'),
+  'i'
+);
+
+const OVERVIEW = new RegExp(
+  [
+    '観光', 'ガイド', 'スポット', '名所', '見どころ', 'まとめ', 'モデルコース', '楽しみ', '魅力', '選！?',
+    'guide', 'things to do', 'attractions', 'spots', 'itinerary', 'highlights',
+    '관광', '명소', '가이드', '볼거리', '추천', '코스',
+    '攻略', '景点', '景點', '指南', '玩法', '必去', '推荐', '推薦',
+  ].join('|'),
+  'i'
+);
+
+/** 本文が乗り物の話に寄っているか。題では分からないものを拾う */
+const TRANSPORT = /駅|乗り換え|改札|路線|運賃|ホーム|切符|きっぷ|バス停|下車|station|transfer|platform|역에서|환승|노선|车站|换乘|站台|車站|換乘|月台/gi;
+
+function articleClass(title, body = '') {
+  /**
+   * 「観光ガイド…アクセスも丸わかり」のように両方の顔を持つ題は中立。
+   * 除外するのは、行き方や気温**だけ**の記事
+   * （「東京から北海道までの行き方を時間や料金で徹底比較」）。
+   * ただし本文が乗り物の話に寄っていたら、題がどうであれ概要でない
+   */
+  if (body && (body.match(TRANSPORT) ?? []).length >= 8) return 2;
+  if (NOT_OVERVIEW.test(title)) return OVERVIEW.test(title) ? 1 : 2;
+  return OVERVIEW.test(title) ? 0 : 1;
+}
+
 // ---------------------------------------------------------------- 収集
 
 /** `<loc>` の中身。CDATAで包まれているので剥がす */
@@ -329,40 +390,55 @@ const locsIn = (xml) =>
  * どの県の記事かは、結局それぞれの記事のパンくずで決める（prefectureOf）ので、
  * 取りこぼしても他県の記事が混ざっても正しい県に入る。
  */
+/**
+ * 一覧の1ページから (URL, 題) を拾う。
+ * 題はサムネイルの alt に入っている。同じ枠に書き手の似顔絵の alt も
+ * あるので、同じURLに複数の alt が付いたら**長い方を題として採る**
+ * （書き手の名前は短い）。
+ */
+function listItems(html, host) {
+  const head = html.slice(0, html.indexOf('id="sidebar"') + 1 || html.length);
+  const titles = new Map();
+  const re = new RegExp(`href="https://${host}/${LANG}/(\\d+)"[\\s\\S]{0,600}?alt="([^"]*)"`, 'g');
+  for (const m of head.matchAll(re)) {
+    const u = `${ORIGIN}/${LANG}/${m[1]}`;
+    const t = text(m[2]);
+    if (!t || t === 'MATCHA') continue;
+    if (!titles.has(u) || t.length > titles.get(u).length) titles.set(u, t);
+  }
+  return [...titles.entries()].map(([url, title]) => ({ url, title }));
+}
+
+/**
+ * 県ごとに、概要らしい順に並べた記事URLの候補を返す（Map: 県コード → 候補）。
+ * 実際に何本使うかは取り出す側が決める ―― パンくずで隣県に振られる記事が
+ * あるので、取ってみるまで本数が確定しない。
+ */
 async function collectByPrefecture() {
   const host = new URL(ORIGIN).host;
-  const out = [];
-  const seen = new Set();
+  const byPref = new Map();
   for (let code = 1; code <= 47; code++) {
-    const urls = [];
+    const items = [];
     for (let page = 1; page <= PAGES; page++) {
       const listUrl = `${ORIGIN}/${LANG}/list?region=${code + 100}${page > 1 ? `&page=${page}` : ''}`;
       try {
         const r = await get(listUrl);
         if (!r.ok) break;
-        const html = await r.text();
-        const head = html.slice(0, html.indexOf('id="sidebar"') + 1 || html.length);
-        for (const m of head.matchAll(new RegExp(`href="https://${host}/${LANG}/(\\d+)"`, 'g'))) {
-          const u = `${ORIGIN}/${LANG}/${m[1]}`;
-          if (!seen.has(u) && !urls.includes(u)) urls.push(u);
+        for (const it of listItems(await r.text(), host)) {
+          if (!items.some((x) => x.url === it.url)) items.push(it);
         }
       } catch {}
-      if (urls.length >= PER_PREF) break;
     }
-    /**
-     * **既出の印は「実際に取ったURL」にだけ付ける。**
-     * 見つけたURL全部に付けていたら、隣県の一覧に相手の記事が並んでいる
-     * ぶんまで消費され、その県の番になったときに何も残っていなかった
-     * （佐賀がこれで0件になった。一覧には7件あるのに1件も取れていない）
-     */
-    const take = urls.slice(0, PER_PREF);
-    take.forEach((u) => seen.add(u));
-    out.push(...take);
-    process.stdout.write(`  ${String(code).padStart(2, '0')}:${take.length}${code % 12 === 0 ? '\n' : ' '}`);
+    // 概要らしい順。同じ種類なら一覧の並び（新しい順）のまま
+    items.forEach((it, i) => { it.cls = articleClass(it.title); it.pos = i; });
+    items.sort((a, b) => a.cls - b.cls || a.pos - b.pos);
+    byPref.set(code, items);
+    const c = items.reduce((n, x) => n + (x.cls < 2 ? 1 : 0), 0);
+    process.stdout.write(`  ${String(code).padStart(2, '0')}:${c}/${items.length}${code % 12 === 0 ? '\n' : ' '}`);
     await new Promise((s) => setTimeout(s, 250));
   }
   console.log('');
-  return out;
+  return byPref;
 }
 
 async function collectUrls() {
@@ -443,9 +519,6 @@ async function main() {
     return;
   }
 
-  const urls = await collectUrls();
-  console.log(`記事の候補: ${urls.length} 件 → 先頭 ${LIMIT} 件を見ます\n`);
-
   const rows = [];
   let skipped = 0;
 
@@ -467,25 +540,79 @@ async function main() {
     if (!code || !title || body.length < 60) {
       return { why: !code ? '県が特定できない' : !title ? '題が無い' : '本文が短い' };
     }
-    return { row: { url, title, body, images, code, published } };
+    // 題だけでなく本文でも見る。「◯◯の魅力」という題で中身が乗り換え案内のことがある
+    return { row: { url, title, body, images, code, published, cls: articleClass(title, body) } };
   }
 
   const note = (r) =>
     console.log(
-      `  ok    [${String(r.code).padStart(2, '0')}] 段落${r.body.split('\n\n').length} 写真${r.images.length}  ${r.title.slice(0, 40)}`
+      `  ok    [${String(r.code).padStart(2, '0')}]${r.cls === 2 ? ' (概要でない・穴埋め)' : ''} 写真${r.images.length}  ${r.title.slice(0, 40)}`
     );
 
-  for (const url of urls.slice(0, LIMIT)) {
-    try {
-      const { row, why } = await extract(url);
-      if (!row) { skipped++; console.log(`  skip  ${url}  (${why})`); continue; }
-      rows.push(row);
-      note(row);
-      // 相手のサーバに負荷をかけない
-      await new Promise((s) => setTimeout(s, 400));
-    } catch (e) {
-      skipped++;
-      console.log(`  fail  ${url}  ${e.message.slice(0, 60)}`);
+  if (BY_PREF) {
+    /**
+     * 県ごとに、概要らしい候補から順に取り、PER_PREF 本そろったら次の県へ。
+     * パンくずが隣県に振った記事は、その隣県の数として数える（捨てない）。
+     * 概要の記事だけでは1本もそろわない県は、最後に「概要でない」記事でも
+     * 埋める ―― 何も出ない県を作るよりはいい。
+     */
+    const byPref = await collectUrls();
+    const taken = new Set();
+    const countOf = new Map();
+    const leftovers = new Map();
+    for (const [listCode, items] of byPref) {
+      for (const it of items) {
+        if ((countOf.get(listCode) ?? 0) >= PER_PREF) break;
+        if (taken.has(it.url)) continue;
+        if (it.cls === 2) { (leftovers.get(listCode) ?? leftovers.set(listCode, []).get(listCode)).push(it); continue; }
+        try {
+          const { row, why } = await extract(it.url);
+          taken.add(it.url);
+          if (!row) { skipped++; console.log(`  skip  ${it.url}  (${why})`); continue; }
+          if (row.cls === 2) { skipped++; console.log(`  skip  ${it.url}  (本文が乗り物の話: ${row.title.slice(0, 28)})`); continue; }
+          rows.push(row);
+          countOf.set(row.code, (countOf.get(row.code) ?? 0) + 1);
+          note(row);
+        } catch (e) {
+          skipped++;
+          console.log(`  fail  ${it.url}  ${e.message.slice(0, 60)}`);
+        }
+        await new Promise((s) => setTimeout(s, 400));
+      }
+    }
+    // 概要の記事が1本も無かった県を、概要でない記事で埋める
+    for (const [listCode, items] of leftovers) {
+      if ((countOf.get(listCode) ?? 0) > 0) continue;
+      for (const it of items) {
+        if (taken.has(it.url)) continue;
+        try {
+          const { row } = await extract(it.url);
+          taken.add(it.url);
+          if (row && (countOf.get(row.code) ?? 0) < PER_PREF) {
+            rows.push(row);
+            countOf.set(row.code, (countOf.get(row.code) ?? 0) + 1);
+            note(row);
+            if (row.code === listCode) break;
+          }
+        } catch {}
+        await new Promise((s) => setTimeout(s, 400));
+      }
+    }
+  } else {
+    const urls = await collectUrls();
+    console.log(`記事の候補: ${urls.length} 件 → 先頭 ${LIMIT} 件を見ます\n`);
+    for (const url of urls.slice(0, LIMIT)) {
+      try {
+        const { row, why } = await extract(url);
+        if (!row) { skipped++; console.log(`  skip  ${url}  (${why})`); continue; }
+        rows.push(row);
+        note(row);
+        // 相手のサーバに負荷をかけない
+        await new Promise((s) => setTimeout(s, 400));
+      } catch (e) {
+        skipped++;
+        console.log(`  fail  ${url}  ${e.message.slice(0, 60)}`);
+      }
     }
   }
 
