@@ -14,7 +14,7 @@ import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
 import { planBook, MIN_PHOTOS, type Page } from '@/lib/photobook/plan';
-import { readBookEdits, writeBookEdits, applyBookEdits, applyCover, type BookEdits } from '@/lib/photobook/edits';
+import { readBookEdits, applyBookEdits, applyCover, type BookEdits } from '@/lib/photobook/edits';
 import { renderPage, renderPdf, PAGE_SIZE, type RenderProgress } from '@/lib/photobook/render';
 
 import { useI18n } from '@/lib/i18n';
@@ -43,34 +43,9 @@ export default function TripBook() {
    */
   const [edits, setEdits] = useState<BookEdits>({ excluded: [] });
   useEffect(() => { if (id) setEdits(readBookEdits(id)); }, [id]);
-  const updateEdits = (next: BookEdits) => {
-    setEdits(next);
-    if (id) writeBookEdits(id, next);
-  };
-  const toggPhoto = (uri: string) =>
-    updateEdits({
-      ...edits,
-      excluded: edits.excluded.includes(uri)
-        ? edits.excluded.filter((u) => u !== uri)
-        : [...edits.excluded, uri],
-    });
-
   const plan = useMemo(
     () => (trip ? applyCover(planBook(applyBookEdits(trip, edits), { photosPerPage: edits.photosPerPage }), edits) : null),
     [trip, edits]
-  );
-
-  /** 取捨の候補。旅の全写真（外したものも、戻せるようにここには残す） */
-  const allPhotos = useMemo(
-    () =>
-      (trip?.steps ?? []).flatMap((s) =>
-        s.images.filter(Boolean).map((uri) => ({ uri, title: s.title }))
-      ),
-    [trip]
-  );
-  const coverCandidates = useMemo(
-    () => allPhotos.filter((p) => !edits.excluded.includes(p.uri)).slice(0, 12),
-    [allPhotos, edits.excluded]
   );
 
   const [previews, setPreviews] = useState<(string | null)[]>([]);
@@ -127,7 +102,7 @@ export default function TripBook() {
         <AppText variant="h2" tone="ink">{trip.title}</AppText>
         <Gap h={space.xs} />
         <AppText variant="small" tone="inkFaint">
-          A keepsake PDF of this trip — {plan.pages.length} pages · {plan.totalPhotos} photos · {plan.chapters.length} chapters
+          A keepsake PDF of this trip — {plan.pages.length} pages · {plan.totalPhotos} photos
         </AppText>
         {tooFewPhotos && (
           <>
@@ -148,81 +123,9 @@ export default function TripBook() {
           </>
         )}
 
-        {/* ---------------- 手直し（表紙と写真の取捨） ---------------- */}
-        <Gap h={space.xl} />
-        <Eyebrow tone="matcha">{t('book.cover')}</Eyebrow>
-        <Gap h={space.md} />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
-          {coverCandidates.map((p, i) => {
-            const chosen = (edits.cover ?? coverCandidates[0]?.uri) === p.uri;
-            return (
-              <Pressable
-                // 同じ写真を2つのstopで使う旅があるので、URIだけを鍵にしない
-                key={`${p.uri}-${i}`}
-                onPress={() => updateEdits({ ...edits, cover: p.uri })}
-                style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-              >
-                <View style={[styles.coverThumb, chosen && { borderColor: palette.matcha, borderWidth: 2 }]}>
-                  <Image source={{ uri: p.uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                </View>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        {/* 1ページの写真の枚数。置く位置は自動のまま、密度だけ選ばせる */}
-        <Gap h={space.xl} />
-        <Eyebrow tone="matcha">{t('book.perPage')}</Eyebrow>
-        <Gap h={space.sm} />
-        <AppText variant="small" tone="inkFaint">{t('book.perPageHint')}</AppText>
-        <Gap h={space.md} />
-        <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
-          {[undefined, 1, 2, 3, 4, 5, 6].map((n) => {
-            const on = edits.photosPerPage === n || (!edits.photosPerPage && n === undefined);
-            return (
-              <Pressable
-                key={String(n)}
-                onPress={() => updateEdits({ ...edits, photosPerPage: n })}
-                style={[
-                  styles.perChip,
-                  { borderColor: on ? palette.matcha : palette.ruleStrong, backgroundColor: on ? palette.matcha : 'transparent' },
-                ]}
-              >
-                <AppText variant="bodyStrong" style={{ color: on ? '#fff' : palette.ink }}>
-                  {n === undefined ? t('book.perPageAuto') : String(n)}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </Row>
-
-        <Gap h={space.xl} />
-        <Eyebrow tone="matcha">{t('book.customize')}</Eyebrow>
-        <Gap h={space.sm} />
-        <AppText variant="small" tone="inkFaint">{t('book.customizeHint')}</AppText>
-        <Gap h={space.md} />
-        <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
-          {allPhotos.map((p, i) => {
-            const off = edits.excluded.includes(p.uri);
-            return (
-              <Pressable key={`${p.uri}-${i}`} onPress={() => toggPhoto(p.uri)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-                <View style={[styles.pickThumb, { width: thumbW, height: thumbW }]}>
-                  <Image
-                    source={{ uri: p.uri }}
-                    style={{ width: '100%', height: '100%', opacity: off ? 0.3 : 1 }}
-                    resizeMode="cover"
-                  />
-                  {off && (
-                    <View style={styles.pickOff} pointerEvents="none">
-                      <Ionicons name="close" size={22} color="#fff" />
-                    </View>
-                  )}
-                </View>
-              </Pressable>
-            );
-          })}
-        </Row>
-
+        {/* 手直し（表紙・1ページの枚数・写真の取捨）は製本の画面（bind）に
+            まとめた。ここは**眺めて、そのまま保存する**だけの画面 ――
+            編集の入り口が2か所にあると導線が濁る（指摘を受けた） */}
         {/* 台割 */}
         <Gap h={space.xl} />
         <Eyebrow tone="matcha">{t('book.pagePlan')}</Eyebrow>
@@ -242,31 +145,6 @@ export default function TripBook() {
             </View>
           ))}
         </Row>
-
-        {/* 章立て */}
-        <Gap h={space.xl} />
-        <Eyebrow tone="matcha">{t('book.chapters')}</Eyebrow>
-        <Gap h={space.sm} />
-        <AppText variant="small" tone="inkFaint">{t('book.chaptersHint')}</AppText>
-        <Gap h={space.md} />
-        <Rule />
-        {plan.chapters.map((ch, i) => (
-          <View key={`${ch.prefCode}-${i}`}>
-            <Row style={styles.chapter}>
-              <AppText variant="small" tone="inkFaint" style={{ width: 26 }}>{i + 1}</AppText>
-              <View style={{ flex: 1 }}>
-                <AppText variant="bodyStrong" tone="ink">
-                  {ch.prefEn}{ch.visitNo > 1 ? ` (visit ${ch.visitNo})` : ''}
-                </AppText>
-                <AppText variant="small" tone="inkFaint">
-                  {t('book.chapterMeta', { stops: ch.stops.length, photos: ch.photoCount, days: ch.days })}
-                </AppText>
-              </View>
-              <AppText variant="small" tone="matcha">{ch.pages}p</AppText>
-            </Row>
-            <Rule />
-          </View>
-        ))}
 
         <Gap h={space.xl} />
         <Button

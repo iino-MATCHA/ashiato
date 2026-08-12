@@ -9,9 +9,9 @@
  * 既存のジャーナルPDF（/trip/[id]/book）は残し、一番下から見本として辿れる。
  */
 import { track } from '@/lib/analytics';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Pressable, ScrollView, StyleSheet, Modal,
+  View, Image, Pressable, ScrollView, StyleSheet, Modal,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,7 +24,7 @@ import { useTheme } from '@/lib/useTheme';
 import { useTrip, useCart } from '@/lib/useData';
 import { useI18n } from '@/lib/i18n';
 import { planBook, MIN_PHOTOS } from '@/lib/photobook/plan';
-import { readBookEdits, applyBookEdits, applyCover } from '@/lib/photobook/edits';
+import { readBookEdits, writeBookEdits, applyBookEdits, applyCover, type BookEdits } from '@/lib/photobook/edits';
 import { renderPage, PAGE_SIZE } from '@/lib/photobook/render';
 import { BookPreview } from '@/components/BookPreview';
 import { addToCart, PLAN_PRICE, type BookPlanKey } from '@/lib/api';
@@ -53,12 +53,43 @@ export default function TripBind() {
   // 最初に全ページを描くと重いので、BookPreview から求められた分だけ描く。
   // ジャーナル画面(book.tsx)での手直し（写真の取捨・表紙）をここにも効かせる ――
   // 見本・かごに入れて焼く本・PDF がすべて同じ台割になる
+  /**
+   * 手直し（表紙・1ページの枚数・写真の取捨）。**編集はこの画面に集めた** ――
+   * ジャーナル(book)は眺めて保存するだけの画面にする（導線の指摘を受けた）。
+   * 端末に残すので、開き直しても消えない。
+   */
+  const [edits, setEdits] = useState<BookEdits>({ excluded: [] });
+  useEffect(() => { if (trip) setEdits(readBookEdits(trip.id)); }, [trip?.id]);
+  const updateEdits = (next: BookEdits) => {
+    setEdits(next);
+    if (trip) writeBookEdits(trip.id, next);
+  };
+  const toggPhoto = (uri: string) =>
+    updateEdits({
+      ...edits,
+      excluded: edits.excluded.includes(uri)
+        ? edits.excluded.filter((u) => u !== uri)
+        : [...edits.excluded, uri],
+    });
+  const allPhotos = useMemo(
+    () =>
+      (trip?.steps ?? []).flatMap((s) =>
+        s.images.filter(Boolean).map((uri) => ({ uri, title: s.title }))
+      ),
+    [trip]
+  );
+  const coverCandidates = useMemo(
+    () => allPhotos.filter((p) => !edits.excluded.includes(p.uri)).slice(0, 12),
+    [allPhotos, edits.excluded]
+  );
+
   const book = useMemo(() => {
     if (!trip) return null;
-    const edits = readBookEdits(trip.id);
     // 焼く本はプレビューと同じ台割にする（写真の密度の注文も含めて）
     return applyCover(planBook(applyBookEdits(trip, edits), { photosPerPage: edits.photosPerPage }), edits);
-  }, [trip]);
+  }, [trip, edits]);
+  // 台割が変わったら描き置きを捨てる（前の本のページが混ざる）
+  useEffect(() => { cache.current.clear(); }, [book]);
   const cache = useRef(new Map<number, string | null>());
   const getPage = useCallback(
     async (i: number) => {
@@ -124,11 +155,88 @@ export default function TripBind() {
 
         <View style={{ alignItems: 'center' }}>
           <BookPreview
+            key={`${book.pages.length}-${edits.photosPerPage ?? 0}-${edits.excluded.length}-${edits.cover ?? ''}`}
             total={book.pages.length}
             getPage={getPage}
             width={bookW}
             ratio={PAGE_SIZE.height / PAGE_SIZE.width}
           />
+        </View>
+
+        {/* ①' 手直し。表紙・1ページの枚数・写真の取捨はここでする ------- */}
+        <View style={{ paddingHorizontal: space.lg }}>
+          <Gap h={space.xl} />
+          <Eyebrow tone="matcha">{t('book.cover')}</Eyebrow>
+          <Gap h={space.md} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+            {coverCandidates.map((p, i) => {
+              const chosen = (edits.cover ?? coverCandidates[0]?.uri) === p.uri;
+              return (
+                <Pressable
+                  key={`${p.uri}-${i}`}
+                  onPress={() => updateEdits({ ...edits, cover: p.uri })}
+                  style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+                >
+                  <View style={[styles.coverThumb, chosen && { borderColor: palette.matcha, borderWidth: 2 }]}>
+                    <Image source={{ uri: p.uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <Gap h={space.xl} />
+          <Eyebrow tone="matcha">{t('book.perPage')}</Eyebrow>
+          <Gap h={space.sm} />
+          <AppText variant="small" tone="inkFaint">{t('book.perPageHint')}</AppText>
+          <Gap h={space.md} />
+          <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
+            {[undefined, 1, 2, 3, 4, 5, 6].map((n) => {
+              const on = edits.photosPerPage === n || (!edits.photosPerPage && n === undefined);
+              return (
+                <Pressable
+                  key={String(n)}
+                  onPress={() => updateEdits({ ...edits, photosPerPage: n })}
+                  style={[
+                    styles.perChip,
+                    { borderColor: on ? palette.matcha : palette.ruleStrong, backgroundColor: on ? palette.matcha : 'transparent' },
+                  ]}
+                >
+                  <AppText variant="bodyStrong" style={{ color: on ? '#fff' : palette.ink }}>
+                    {n === undefined ? t('book.perPageAuto') : String(n)}
+                  </AppText>
+                </Pressable>
+              );
+            })}
+          </Row>
+
+          <Gap h={space.xl} />
+          <Eyebrow tone="matcha">{t('book.customize')}</Eyebrow>
+          <Gap h={space.sm} />
+          <AppText variant="small" tone="inkFaint">{t('book.customizeHint')}</AppText>
+          <Gap h={space.md} />
+          <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
+            {allPhotos.map((p, i) => {
+              const off = edits.excluded.includes(p.uri);
+              const pickW = Math.min((width - space.lg * 2 - space.sm * 2) / 3, 120);
+              return (
+                <Pressable key={`${p.uri}-${i}`} onPress={() => toggPhoto(p.uri)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                  <View style={[styles.pickThumb, { width: pickW, height: pickW }]}>
+                    <Image
+                      source={{ uri: p.uri }}
+                      style={{ width: '100%', height: '100%', opacity: off ? 0.3 : 1 }}
+                      resizeMode="cover"
+                    />
+                    {off && (
+                      <View style={styles.pickOff} pointerEvents="none">
+                        <Ionicons name="close" size={22} color="#fff" />
+                      </View>
+                    )}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </Row>
         </View>
 
 
@@ -166,6 +274,18 @@ export default function TripBind() {
                 {tooFewPhotos
                   ? t('bind.needPhotosShort', { n: MIN_PHOTOS, done: book.totalPhotos })
                   : t('bind.startOrderHint')}
+              </AppText>
+              {/* もう一つの出口。同じ台割を無料のPDFとして眺めて保存する */}
+              <Gap h={space.lg} />
+              <Button
+                label={t('bind.makeJournal')}
+                variant="outline"
+                tone="matcha"
+                onPress={() => router.push(`/trip/${trip.id}/book` as any)}
+              />
+              <Gap h={space.sm} />
+              <AppText variant="small" tone="inkFaint" center style={{ lineHeight: 19 }}>
+                {t('bind.makeJournalHint')}
               </AppText>
             </>
           )}
@@ -229,23 +349,6 @@ export default function TripBind() {
           </>
           )}
 
-          {/* 見本（既存のジャーナル） ---------------------------------- */}
-          <Gap h={space.xl} />
-          <Rule />
-          <Pressable
-            onPress={() => router.push(`/trip/${trip.id}/book`)}
-            style={({ pressed }) => [styles.sampleRow, pressed && { opacity: 0.6 }]}
-          >
-            <View style={[styles.sampleIcon, { backgroundColor: palette.fill }]}>
-              <Ionicons name="document-text-outline" size={19} color={palette.matcha} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <AppText variant="bodyStrong" tone="ink">{t('bind.seeSample')}</AppText>
-              <AppText variant="small" tone="inkFaint">{t('bind.seeSampleSub')}</AppText>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={palette.inkFaint} />
-          </Pressable>
-          <Rule />
         </View>
       </ScrollView>
 
@@ -337,6 +440,10 @@ function PlanCard({ tier, name, price, badges, features, accent, palette, t, onP
 }
 
 const styles = StyleSheet.create({
+  coverThumb: { width: 96, height: 68, borderRadius: 8, overflow: 'hidden', borderWidth: hairline, borderColor: 'rgba(0,0,0,0.12)' },
+  perChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5, minWidth: 44, alignItems: 'center' },
+  pickThumb: { borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.05)' },
+  pickOff: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,18,15,0.25)' },
   plan: { borderWidth: hairline * 2, borderRadius: 16, overflow: 'hidden' },
   planEdge: { height: 4, width: '100%' },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },

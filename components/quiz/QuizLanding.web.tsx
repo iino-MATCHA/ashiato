@@ -82,30 +82,31 @@ const QUESTION_BG: number[] = [
  * 磨りガラス（背景の観光地がぼけて透ける）。
  *
  * - photo: 写真の面（横長2コマ。big は2×2の見せ場）
- * - hex:   六角形のガラス（1コマ）
+ * - shape: 'l' / 'lr' … **角の直角な六角形（L字）**のガラス。2×2を占め、
+ *          欠けた角から背景の観光地が覗く。'lr' は左右反転
  * - tint:  ガラスの色。緑系でそろえつつ、抹茶・若葉・青磁・若菜・
  *          千歳緑・柳鼠と少しずつ変える（同じ色で塗り潰さない）
  * - 並び順もここで決める。種類が固まらないよう写真とガラスを互い違いに
  */
-const BENTO: { id: string; photo?: number; hex?: boolean; big?: boolean; tint?: number }[] = [
+const BENTO: { id: string; photo?: number; shape?: 'l' | 'lr'; big?: boolean; tint?: number }[] = [
   { id: 'shrines', photo: 26 },        // 伏見稲荷
   { id: 'ramen', tint: 0 },
-  { id: 'sake', hex: true, tint: 1 },
-  { id: 'onsen', photo: 10, big: true }, // 草津の湯畑（見せ場）
+  { id: 'sake', shape: 'l', tint: 1 }, // L字
   { id: 'sweets', tint: 2 },
-  { id: 'castles', photo: 28 },        // 姫路城
+  { id: 'onsen', photo: 10, big: true }, // 草津の湯畑（見せ場）
   { id: 'cityShopping', tint: 3 },
-  { id: 'crafts', hex: true, tint: 4 },
-  { id: 'snow', photo: 5 },            // 冬の田沢湖
+  { id: 'castles', photo: 28 },        // 姫路城
   { id: 'nightlife', tint: 5 },
+  { id: 'crafts', shape: 'lr', tint: 4 }, // 反転のL字
+  { id: 'snow', photo: 5 },            // 冬の田沢湖
+  { id: 'artMuseums', tint: 2 },
   { id: 'gardens', photo: 17 },        // 兼六園
-  { id: 'artMuseums', hex: true, tint: 2 },
   { id: 'beaches', photo: 47, big: true }, // 川平湾（見せ場）
+  { id: 'wildlife', tint: 0 },
   { id: 'festivals', photo: 13 },      // 浅草
-  { id: 'wildlife', hex: true, tint: 0 },
   { id: 'mountainHikes', photo: 20 },  // 上高地
-  { id: 'island', photo: 46 },         // 桜島
   { id: 'popCulture', tint: 1 },
+  { id: 'island', photo: 46 },         // 桜島
 ];
 
 const CSS = `
@@ -123,28 +124,29 @@ const CSS = `
 .mjq h1, .mjq h2, .mjq h3 { margin:0; font-weight:400; }
 .mjq .lead { color:#5E5B57; font-size:clamp(14px,3.2vw,16.5px); line-height:1.85; margin-top:14px; max-width:36em; }
 
-/* --- ヒーロー。既存LPと同じ「暗い写真の壁＋明朝の白文字」 --- */
+/* --- ヒーロー。明るい観光地のモザイクの上に、白いベールと墨の明朝 ---
+   （以前は暗い写真の壁＋白文字。入口が暗いという指摘で明るくした） */
 .mjq .qHero { position:relative; min-height:var(--vh,100svh); display:flex; align-items:center;
-  justify-content:center; overflow:hidden; background:#0B0F0A; padding:22px; }
-/* 写真は1枚だけ。既存LPは壁一面に敷いているが、こちらは広告の着地で、
-   開くのが1秒遅れるぶんがそのまま費用になる。12枚(約2.4MB)から1枚(約110KB)にした。
-   Wikimediaは任意の幅を配信しないので、縮めて軽くする手は使えない（480pxは400が返る） */
-.mjq .heroShot { position:absolute; inset:0; overflow:hidden; }
-.mjq .heroShot img { width:100%; height:100%; object-fit:cover; opacity:.72; filter:saturate(1.05);
+  justify-content:center; overflow:hidden; background:var(--paper); padding:22px; }
+.mjq .heroMosaic { position:absolute; inset:0; display:grid;
+  grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); gap:3px; }
+.mjq .heroMosaic img { width:100%; height:100%; object-fit:cover; filter:saturate(1.08) brightness(1.04);
   animation:mjqKb 26s ease-in-out infinite alternate; }
-@keyframes mjqKb { from { transform:scale(1) } to { transform:scale(1.1) } }
+@keyframes mjqKb { from { transform:scale(1) } to { transform:scale(1.08) } }
+@media (max-width:560px) { .mjq .heroMosaic { grid-template-columns:repeat(2,1fr); grid-template-rows:repeat(3,1fr); } }
+/* 文字が乗る中央だけ白を強く。縁は写真を見せる */
 .mjq .heroVeil { position:absolute; inset:0;
-  background:radial-gradient(120% 80% at 50% 40%, rgba(8,12,8,.30) 0%, rgba(8,12,8,.80) 55%, rgba(8,12,8,.95) 100%); }
+  background:radial-gradient(115% 85% at 50% 46%, rgba(251,250,247,.94) 0%, rgba(251,250,247,.82) 46%, rgba(251,250,247,.38) 100%); }
 .mjq .heroInner { position:relative; text-align:center; max-width:720px; }
-.mjq .heroBrand { color:rgba(255,255,255,.72); font-size:11px; letter-spacing:7px; }
-.mjq .heroTitle { color:#fff; font-size:clamp(36px,8vw,68px); line-height:1.18; margin-top:16px; white-space:pre-line; }
-.mjq .heroBy { text-align:right; margin:2px 4% 0 0; color:rgba(255,255,255,.46); font-size:11px; letter-spacing:2.5px; }
-.mjq .heroLead { color:rgba(255,255,255,.86); font-size:clamp(14px,3.4vw,17px); line-height:1.8;
+.mjq .heroBrand { color:#69AF00; font-size:11px; letter-spacing:7px; }
+.mjq .heroTitle { color:var(--ink); font-size:clamp(36px,8vw,68px); line-height:1.18; margin-top:16px; white-space:pre-line; }
+.mjq .heroBy { text-align:right; margin:2px 4% 0 0; color:#8F887A; font-size:11px; letter-spacing:2.5px; }
+.mjq .heroLead { color:#4A453C; font-size:clamp(14px,3.4vw,17px); line-height:1.8;
   margin:20px auto 0; max-width:32em; }
-.mjq .heroTime { color:rgba(255,255,255,.56); font-size:11.5px; letter-spacing:2px; margin-top:26px; }
-.mjq .heroSignin { display:inline-block; margin-top:18px; color:rgba(255,255,255,.66); font-size:12.5px;
+.mjq .heroTime { color:#8F887A; font-size:11.5px; letter-spacing:2px; margin-top:26px; }
+.mjq .heroSignin { display:inline-block; margin-top:18px; color:#6B6862; font-size:12.5px;
   background:none; border:0; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
-.mjq .heroSignin:hover { color:#fff; }
+.mjq .heroSignin:hover { color:var(--ink); }
 
 /* --- ボタン。光らせない（既存LPと同じ判断） --- */
 .mjq .cta { display:inline-flex; align-items:center; justify-content:center; gap:10px; border:0; cursor:pointer;
@@ -253,10 +255,22 @@ const CSS = `
 .mjq .btile.g3 { --bt:hsla(62,50%,87%,.42); --btOn:hsla(62,55%,83%,.66); }
 .mjq .btile.g4 { --bt:hsla(160,30%,85%,.42); --btOn:hsla(160,36%,81%,.66); }
 .mjq .btile.g5 { --bt:hsla(90,22%,88%,.42); --btOn:hsla(90,28%,84%,.66); }
-/* 六角形のガラス。枠は clip されるので inset の影で描く。字は中央 */
-.mjq .btile.hex { clip-path:polygon(50% 2%, 96% 26%, 96% 74%, 50% 98%, 4% 74%, 4% 26%);
-  border-radius:0; align-items:center; justify-content:center; padding:10px 14px; }
-.mjq .btile.hex .btLabel { text-align:center; }
+/* 角の直角な六角形（L字）。2×2を占め、欠けた角から背景が覗く。
+   ガラス本体は中の .shape が持つ ―― ボタン自身を clip すると選択の枠線まで
+   切れてしまうので、枠線は drop-shadow で L の輪郭に沿わせる */
+.mjq .btile.lshape { grid-column:span 2; grid-row:span 2;
+  background:transparent; box-shadow:none; border-radius:0; overflow:visible; padding:0; }
+.mjq .btile.lshape .shape { position:absolute; inset:0;
+  clip-path:polygon(0 0, 46% 0, 46% 44%, 100% 44%, 100% 100%, 0 100%);
+  backdrop-filter:blur(12px) saturate(1.2); -webkit-backdrop-filter:blur(12px) saturate(1.2);
+  background:var(--bt); box-shadow: inset 0 0 0 1.2px rgba(255,255,255,.65);
+  transition:background-color .25s; }
+.mjq .btile.lshape.lr .shape { clip-path:polygon(54% 0, 100% 0, 100% 100%, 0 100%, 0 44%, 54% 44%); }
+.mjq .btile.lshape .btLabel { position:absolute; left:14px; bottom:12px; }
+.mjq .btile.lshape.on { filter:
+  drop-shadow(1.6px 0 0 var(--matcha)) drop-shadow(-1.6px 0 0 var(--matcha))
+  drop-shadow(0 1.6px 0 var(--matcha)) drop-shadow(0 -1.6px 0 var(--matcha)); }
+.mjq .btile.lshape.on .shape { background:var(--btOn); }
 .mjq .btLabel { position:relative; z-index:1; font-size:13.5px; line-height:1.3; color:var(--ink); }
 .mjq .btile.photo .btLabel { position:absolute; left:12px; right:12px; bottom:10px; }
 /* 選択。枠線が抹茶になり、ガラスの透明度が少し下がる（✓は出さない） */
@@ -446,7 +460,16 @@ const CSS = `
  * 富士山と海が1枚に入っていて、どこの国の話かが一目で分かる。
  * 47件の中でいちばん軽い（約110KB）のもここに置いた理由。
  */
-const HERO_SHOT = photoFor(22);
+/**
+ * ヒーローの背景。**明るい観光地を数枚並べたモザイク**にする。
+ * 以前は三保松原1枚に暗いベールを重ねていて、入口が暗かった（指摘を受けた）。
+ * 写真は設問の背景（QUESTION_BG）とも bento とも**かぶらせない**:
+ * 富良野のラベンダー・ひたち海浜公園のネモフィラ・夫婦岩・祐徳稲荷・
+ * 栗林公園・由布院
+ */
+const HERO_MOSAIC = [1, 8, 24, 41, 37, 44]
+  .map((c) => photoFor(c))
+  .filter((p): p is NonNullable<ReturnType<typeof photoFor>> => !!p);
 
 /**
  * 軸 → 観光エリアの area_type。
@@ -853,9 +876,11 @@ export function QuizLanding() {
       {/* ============================================================ ヒーロー */}
       {stage === 'hero' && (
         <section className="qHero">
-          {!!HERO_SHOT && (
-            <div className="heroShot" aria-hidden>
-              <img src={HERO_SHOT.url} alt="" fetchPriority="high" />
+          {HERO_MOSAIC.length > 0 && (
+            <div className="heroMosaic" aria-hidden>
+              {HERO_MOSAIC.map((p, i) => (
+                <img key={p.url} src={p.url} alt="" fetchPriority={i < 3 ? 'high' : undefined} />
+              ))}
             </div>
           )}
           <div className="heroVeil" aria-hidden />
@@ -968,11 +993,12 @@ export function QuizLanding() {
                       if (!o) return null;
                       const on = picked.includes(o.id);
                       const photo = cfg.photo ? PREFECTURE_PHOTO[cfg.photo] : null;
+                      const lshape = !photo && !!cfg.shape;
                       const cls = [
                         'btile',
-                        photo ? 'photo' : 'plain',
+                        photo ? 'photo' : lshape ? 'lshape' : 'plain',
                         cfg.big ? 'big' : '',
-                        cfg.hex ? 'hex' : '',
+                        cfg.shape === 'lr' ? 'lr' : '',
                         !photo ? `g${cfg.tint ?? 0}` : '',
                         on ? 'on' : '',
                       ].filter(Boolean).join(' ');
@@ -985,6 +1011,7 @@ export function QuizLanding() {
                           onClick={(e) => choose(o.id, e)}
                           aria-pressed={on}
                         >
+                          {lshape && <span className="shape" aria-hidden />}
                           <span className="btLabel">{t(o.labelKey)}</span>
                         </button>
                       );
