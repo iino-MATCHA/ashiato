@@ -24,10 +24,17 @@ import { useTheme } from '@/lib/useTheme';
 import { useTrip, useCart } from '@/lib/useData';
 import { useI18n } from '@/lib/i18n';
 import { planBook, MIN_PHOTOS } from '@/lib/photobook/plan';
-import { readBookEdits, writeBookEdits, applyBookEdits, applyCover, type BookEdits } from '@/lib/photobook/edits';
+import {
+  readBookEdits, writeBookEdits, applyBookEdits, applyCover, pageAssignmentsFrom,
+  type BookEdits, type BookPageOverride,
+} from '@/lib/photobook/edits';
 import { renderPage, PAGE_SIZE } from '@/lib/photobook/render';
 import { BookPreview } from '@/components/BookPreview';
-import { addToCart, PLAN_PRICE, type BookPlanKey } from '@/lib/api';
+import { PhotoPicker } from '@/components/PhotoPicker';
+import {
+  addToCart, PLAN_PRICE, uploadPhoto, publicUrl, currentUserId, yieldToUi,
+  type BookPlanKey,
+} from '@/lib/api';
 
 export default function TripBind() {
   const { palette } = useTheme();
@@ -78,15 +85,26 @@ export default function TripBind() {
       ),
     [trip]
   );
+  const extras = edits.extraPhotos ?? [];
+  // 表紙は**旅の全写真＋追加写真**から選べる（以前は先頭12枚に絞っていた）
   const coverCandidates = useMemo(
-    () => allPhotos.filter((p) => !edits.excluded.includes(p.uri)).slice(0, 12),
-    [allPhotos, edits.excluded]
+    () => [
+      ...allPhotos.filter((p) => !edits.excluded.includes(p.uri)),
+      ...extras.map((uri) => ({ uri, title: '' })),
+    ],
+    [allPhotos, edits.excluded, extras]
   );
 
   const book = useMemo(() => {
     if (!trip) return null;
-    // 焼く本はプレビューと同じ台割にする（写真の密度の注文も含めて）
-    return applyCover(planBook(applyBookEdits(trip, edits), { photosPerPage: edits.photosPerPage }), edits);
+    // 焼く本はプレビューと同じ台割にする（密度・ページごとの割付も含めて）
+    return applyCover(
+      planBook(applyBookEdits(trip, edits), {
+        photosPerPage: edits.photosPerPage,
+        pageAssignments: pageAssignmentsFrom(edits),
+      }),
+      edits
+    );
   }, [trip, edits]);
   // 台割が変わったら描き置きを捨てる（前の本のページが混ざる）
   useEffect(() => { cache.current.clear(); }, [book]);
@@ -102,6 +120,96 @@ export default function TripBind() {
     },
     [book]
   );
+
+  // ---- ページごとの割付 -------------------------------------------------
+  // 表示中の台割の写真ページ（本のノンブル付き）。編集はこの並びを写して固定する
+  const photoPages = useMemo(() => {
+    const out: { photos: { uri: string; stopTitle: string }[]; pageNo: number }[] = [];
+    (book?.pages ?? []).forEach((p, i) => {
+      if (p.kind === 'photos') out.push({ photos: p.photos, pageNo: i + 1 });
+    });
+    return out;
+  }, [book]);
+  /** いまの台割をそのまま pageOverrides の形に写す（最初の手直しで固定する） */
+  const currentAssignments = (): BookPageOverride[] =>
+    photoPages.map((pg) => ({ photos: pg.photos.map((ph) => ph.uri) }));
+  const usedUris = useMemo(
+    () => new Set(photoPages.flatMap((pg) => pg.photos.map((ph) => ph.uri))),
+    [photoPages]
+  );
+  // ページに足せる写真: 旅の写真（外していないもの）＋追加写真 − すでに載っているもの
+  const poolPhotos = useMemo(
+    () =>
+      [
+        ...allPhotos.filter((p) => !edits.excluded.includes(p.uri)),
+        ...extras.map((uri) => ({ uri, title: '' })),
+      ].filter((p, i, arr) => !usedUris.has(p.uri) && arr.findIndex((q) => q.uri === p.uri) === i),
+    [allPhotos, edits.excluded, extras, usedUris]
+  );
+  /** どのページに写真を足そうとしているか（写真ページの並びの中の番号）。null なら閉じている */
+  const [picking, setPicking] = useState<number | null>(null);
+  const removeFromPage = (idx: number, uri: string) => {
+    const pages = currentAssignments();
+    if (!pages[idx]) return;
+    pages[idx] = { photos: pages[idx].photos.filter((u) => u !== uri) };
+    updateEdits({ ...edits, pageOverrides: pages.filter((p) => p.photos.length > 0) });
+  };
+  const addToPage = (idx: number, uri: string) => {
+    const pages = currentAssignments();
+    if (!pages[idx] || pages[idx].photos.length >= 6 || pages[idx].photos.includes(uri)) return;
+    pages[idx] = { photos: [...pages[idx].photos, uri] };
+    setPicking(null);
+    updateEdits({ ...edits, pageOverrides: pages });
+  };
+  const resetPages = () => updateEdits({ ...edits, pageOverrides: undefined });
+
+  // ---- 本のためだけの追加写真 --------------------------------------------
+  const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
+  const [uploadFailed, setUploadFailed] = useState(0);
+  const onPickExtras = async (files: File[]) => {
+    if (!trip || uploading) return;
+    const list = files.slice(0, 20); // 一度に扱うのはほどほどに
+    setUploadFailed(0);
+    setUploading({ done: 0, total: list.length });
+    const uid = await currentUserId();
+    if (!uid) {
+      setUploading(null);
+      setUploadFailed(list.length);
+      return;
+    }
+    const added: string[] = [];
+    let failed = 0;
+    for (let i = 0; i < list.length; i++) {
+      try {
+        // 旅の写真と同じ経路（縮小してから Storage の photos バケットへ）。
+        // stop には紐付けない ―― logs/photos のテーブルには書かない
+        const path = await uploadPhoto(uid, trip.id, list[i], 'book-extra');
+        if (path) added.push(publicUrl(path));
+        else failed += 1;
+      } catch {
+        failed += 1;
+      }
+      setUploading({ done: i + 1, total: list.length });
+      await yieldToUi(); // 画面を固めない
+    }
+    setUploading(null);
+    setUploadFailed(failed);
+    if (added.length) updateEdits({ ...edits, extraPhotos: [...(edits.extraPhotos ?? []), ...added] });
+  };
+  const removeExtra = (uri: string) => {
+    // 表紙・ページ割付からも同時に消す（消した写真が本に残らないように）
+    const pages = edits.pageOverrides?.length
+      ? currentAssignments()
+          .map((p) => ({ photos: p.photos.filter((u) => u !== uri) }))
+          .filter((p) => p.photos.length > 0)
+      : undefined;
+    updateEdits({
+      ...edits,
+      cover: edits.cover === uri ? undefined : edits.cover,
+      extraPhotos: (edits.extraPhotos ?? []).filter((u) => u !== uri),
+      pageOverrides: pages,
+    });
+  };
 
   const bookW = Math.min(width - space.lg * 2, 460);
 
@@ -155,7 +263,7 @@ export default function TripBind() {
 
         <View style={{ alignItems: 'center' }}>
           <BookPreview
-            key={`${book.pages.length}-${edits.photosPerPage ?? 0}-${edits.excluded.length}-${edits.cover ?? ''}`}
+            key={`${book.pages.length}-${edits.photosPerPage ?? 0}-${edits.excluded.length}-${edits.cover ?? ''}-${(edits.pageOverrides ?? []).map((p) => p.photos.length).join('.')}-${extras.length}`}
             total={book.pages.length}
             getPage={getPage}
             width={bookW}
@@ -196,7 +304,9 @@ export default function TripBind() {
               return (
                 <Pressable
                   key={String(n)}
-                  onPress={() => updateEdits({ ...edits, photosPerPage: n })}
+                  // 密度を選び直したら、ページごとの手直しは白紙に戻して割り直す
+                  // （固定した割付と両立しないため。下の注記で先に言う）
+                  onPress={() => updateEdits({ ...edits, photosPerPage: n, pageOverrides: undefined })}
                   style={[
                     styles.perChip,
                     { borderColor: on ? palette.matcha : palette.ruleStrong, backgroundColor: on ? palette.matcha : 'transparent' },
@@ -209,6 +319,12 @@ export default function TripBind() {
               );
             })}
           </Row>
+          {!!edits.pageOverrides?.length && (
+            <>
+              <Gap h={space.sm} />
+              <AppText variant="small" tone="inkFaint">{t('book.perPageResets')}</AppText>
+            </>
+          )}
 
           <Gap h={space.xl} />
           <Eyebrow tone="matcha">{t('book.customize')}</Eyebrow>
@@ -237,6 +353,105 @@ export default function TripBind() {
               );
             })}
           </Row>
+
+          {/* ①'' 本のためだけの追加写真。旅のstopには足さない ----------- */}
+          <Gap h={space.xl} />
+          <Eyebrow tone="matcha">{t('book.extras')}</Eyebrow>
+          <Gap h={space.sm} />
+          <AppText variant="small" tone="inkFaint">{t('book.extrasHint')}</AppText>
+          <Gap h={space.md} />
+          {extras.length > 0 && (
+            <>
+              <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
+                {extras.map((uri) => {
+                  const pickW = Math.min((width - space.lg * 2 - space.sm * 2) / 3, 120);
+                  return (
+                    <View key={uri} style={[styles.pickThumb, { width: pickW, height: pickW }]}>
+                      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                      <Pressable
+                        onPress={() => removeExtra(uri)}
+                        hitSlop={8}
+                        style={({ pressed }) => [styles.extraRemove, pressed && { opacity: 0.7 }]}
+                      >
+                        <Ionicons name="close" size={14} color="#fff" />
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </Row>
+              <Gap h={space.md} />
+            </>
+          )}
+          <PhotoPicker multiple onPick={onPickExtras}>
+            {/* 押せる面なので枠を持ってよい */}
+            <View style={[styles.extraAdd, { borderColor: palette.ruleStrong }]}>
+              <Ionicons name="add" size={18} color={palette.matcha} />
+              <AppText variant="bodyStrong" tone="matcha">
+                {uploading ? t('book.extrasUploading', { done: uploading.done, total: uploading.total }) : t('book.extrasUpload')}
+              </AppText>
+            </View>
+          </PhotoPicker>
+          {uploadFailed > 0 && (
+            <>
+              <Gap h={space.sm} />
+              <AppText variant="small" tone="shu">{t('book.extrasFailed', { n: uploadFailed })}</AppText>
+            </>
+          )}
+
+          {/* ①''' ページごとの割付。枚数も中身もページ単位で決める ------- */}
+          <Gap h={space.xl} />
+          <Eyebrow tone="matcha">{t('book.pages')}</Eyebrow>
+          <Gap h={space.sm} />
+          <AppText variant="small" tone="inkFaint">{t('book.pagesHint')}</AppText>
+          <Gap h={space.md} />
+          {photoPages.map((pg, idx) => {
+            const thumbW = Math.min((width - space.lg * 2 - space.sm * 4) / 4, 88);
+            return (
+              <View key={`page-${pg.pageNo}-${idx}`}>
+                {idx > 0 && <Rule />}
+                <Gap h={space.sm} />
+                <AppText variant="small" tone="inkFaint">
+                  {t('book.pageLabel', { n: pg.pageNo })} · {pg.photos.length}/6
+                </AppText>
+                <Gap h={space.sm} />
+                <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
+                  {pg.photos.map((ph, pi) => (
+                    <View key={`${ph.uri}-${pi}`} style={[styles.pickThumb, { width: thumbW, height: thumbW }]}>
+                      <Image source={{ uri: ph.uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                      <Pressable
+                        onPress={() => removeFromPage(idx, ph.uri)}
+                        hitSlop={8}
+                        style={({ pressed }) => [styles.extraRemove, pressed && { opacity: 0.7 }]}
+                      >
+                        <Ionicons name="close" size={14} color="#fff" />
+                      </Pressable>
+                    </View>
+                  ))}
+                  {pg.photos.length < 6 && (
+                    <Pressable
+                      onPress={() => setPicking(idx)}
+                      style={({ pressed }) => [
+                        styles.pageAdd,
+                        { width: thumbW, height: thumbW, borderColor: palette.ruleStrong },
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <Ionicons name="add" size={20} color={palette.matcha} />
+                    </Pressable>
+                  )}
+                </Row>
+                <Gap h={space.sm} />
+              </View>
+            );
+          })}
+          {!!edits.pageOverrides?.length && (
+            <>
+              <Gap h={space.sm} />
+              <Pressable onPress={resetPages} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                <AppText variant="small" tone="matcha">{t('book.pagesReset')}</AppText>
+              </Pressable>
+            </>
+          )}
         </View>
 
 
@@ -357,6 +572,46 @@ export default function TripBind() {
           どこまで進んだのかを出して、戻る操作を塞ぐ。 */}
       {/* visible={false} でも中身がDOMに残り、製本ページへ戻ったときに
           「0 / 0」の幕が被る。焼いている間だけ組み立てる。 */}
+      {/* ⑥ ページに足す写真を選ぶ ------------------------------------- */}
+      {picking !== null && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setPicking(null)}>
+          <Pressable style={styles.backdrop} onPress={() => setPicking(null)}>
+            <Pressable style={[styles.sheet, { backgroundColor: palette.washi, maxHeight: '75%' }]} onPress={() => {}}>
+              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <AppText variant="h3" tone="ink">
+                  {t('book.pickerTitle', { n: photoPages[picking]?.pageNo ?? 0 })}
+                </AppText>
+                <Pressable onPress={() => setPicking(null)} hitSlop={8}>
+                  <Ionicons name="close" size={22} color={palette.ink} />
+                </Pressable>
+              </Row>
+              <Gap h={space.md} />
+              {poolPhotos.length === 0 ? (
+                <AppText variant="small" tone="inkFaint" style={{ lineHeight: 20 }}>
+                  {t('book.pickerEmpty')}
+                </AppText>
+              ) : (
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
+                    {poolPhotos.map((p, i) => (
+                      <Pressable
+                        key={`${p.uri}-${i}`}
+                        onPress={() => addToPage(picking, p.uri)}
+                        style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+                      >
+                        <View style={[styles.pickThumb, { width: 88, height: 88 }]}>
+                          <Image source={{ uri: p.uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                        </View>
+                      </Pressable>
+                    ))}
+                  </Row>
+                </ScrollView>
+              )}
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
+
       {adding !== null && (
       <Modal visible transparent animationType="fade" onRequestClose={() => {}}>
         <View style={styles.backdrop}>
@@ -444,6 +699,20 @@ const styles = StyleSheet.create({
   perChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5, minWidth: 44, alignItems: 'center' },
   pickThumb: { borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.05)' },
   pickOff: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,18,15,0.25)' },
+  // 写真の右上に重ねる小さな「外す」ボタン
+  extraRemove: {
+    position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,18,15,0.55)',
+  },
+  // 押せる面なので枠を持つ（説明文の枠ではない）
+  extraAdd: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    borderWidth: 1.5, borderRadius: 10, borderStyle: 'dashed', paddingVertical: 12,
+  },
+  pageAdd: {
+    borderWidth: 1.5, borderRadius: 8, borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center',
+  },
   plan: { borderWidth: hairline * 2, borderRadius: 16, overflow: 'hidden' },
   planEdge: { height: 4, width: '100%' },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },

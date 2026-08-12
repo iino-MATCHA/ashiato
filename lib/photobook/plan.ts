@@ -173,10 +173,17 @@ export function groupPhotos(n: number, per?: number): number[] {
   return groups;
 }
 
-/** 台割の注文。写真の密度だけ（並べる位置は自動のまま） */
+/** 台割の注文 */
 export interface PlanOptions {
   /** 1ページに置く写真の枚数（1〜6）。未指定なら自動（2〜3枚） */
   photosPerPage?: number;
+  /**
+   * 写真ページの割付を明示する（ページごとに、載せる写真そのもの）。
+   * 指定があれば groupPhotos による自動割付は使わず、この並びのとおりに
+   * ページを作る。旅に無いURI（本のための追加写真）も載せてよい ――
+   * その場合の説明文と進行帯は、同じページの旅の写真（無ければ直前の地点）に寄せる。
+   */
+  pageAssignments?: { photos: string[] }[];
 }
 
 // ---------------------------------------------------------------- 台割
@@ -231,8 +238,56 @@ export function planBook(trip: Trip, opts: PlanOptions = {}): BookPlan {
     progress: 0,
   });
 
-  // 写真ページ: 章ごとに全写真を2〜3枚ずつ割る。章の最初のページに帯を付ける
-  chapters.forEach((ch) => {
+  // 写真ページ。
+  // ① 割付の明示（pageAssignments）があれば、その並びをそのままページにする。
+  //    章の帯は「その章の写真が最初に現れたページ」に付ける
+  // ② 無ければ従来どおり、章ごとに全写真を2〜3枚ずつ（または photosPerPage）割る
+  const assignments = (opts.pageAssignments ?? [])
+    .map((p) => ({ photos: p.photos.filter(Boolean).slice(0, 6) }))
+    .filter((p) => p.photos.length > 0);
+
+  let printedPhotos = totalPhotos;
+
+  if (assignments.length) {
+    printedPhotos = assignments.reduce((n, p) => n + p.photos.length, 0);
+    // URI → stop / stop → 章 の引き当て（同じURIが複数stopにあれば最初のもの）
+    const stepOf = new Map<string, Step>();
+    steps.forEach((s) => s.images.filter(Boolean).forEach((u) => { if (!stepOf.has(u)) stepOf.set(u, s); }));
+    const chapterOfStep = new Map<Step, Chapter>();
+    chapters.forEach((ch) => { ch.pages = 0; ch.stops.forEach((s) => chapterOfStep.set(s, ch)); });
+    const labeled = new Set<Chapter>();
+    let lastStop: Step | undefined = steps[0];
+    assignments.forEach((pg) => {
+      // 追加写真だけのページは、直前の地点に寄せる（進行帯が逆走しない）
+      const stop = pg.photos.map((u) => stepOf.get(u)).find((s): s is Step => !!s) ?? lastStop;
+      lastStop = stop;
+      const ch = stop ? chapterOfStep.get(stop) : undefined;
+      let chapter: ChapterLabel | undefined;
+      if (ch) {
+        ch.pages += 1;
+        if (!labeled.has(ch)) {
+          labeled.add(ch);
+          const first = ch.stops[0];
+          chapter = {
+            prefEn: ch.prefEn,
+            prefKanji: ch.prefKanji,
+            prefKana: ch.prefKana,
+            visitNo: ch.visitNo,
+            dateLabel: dateLabel(first?.loggedAt, ch.stops[ch.stops.length - 1]?.loggedAt),
+            sekki: sekkiFor(first?.loggedAt ?? ''),
+          };
+        }
+      }
+      pages.push({
+        kind: 'photos',
+        photos: pg.photos.map((uri) => ({ uri, stopTitle: stepOf.get(uri)?.title ?? '' })),
+        caption: stop?.note ?? '',
+        place: stop?.placeName || stop?.title || '',
+        chapter,
+        progress: stop ? progressOfStop(stop) : 0,
+      });
+    });
+  } else chapters.forEach((ch) => {
     const photos: PagePhoto[] = [];
     ch.stops.forEach((s) => {
       s.images.filter(Boolean).forEach((uri) => photos.push({ uri, stopTitle: s.title }));
@@ -275,12 +330,12 @@ export function planBook(trip: Trip, opts: PlanOptions = {}): BookPlan {
       ['Stops', String(steps.length)],
       ['Distance', `${trip.distanceKm.toLocaleString()} km`],
       ['Days', String(daysBetween(trip.startDate, trip.endDate))],
-      ['Photos', String(totalPhotos)],
+      ['Photos', String(printedPhotos)],
     ],
     progress: 1,
   });
 
-  return { pages, chapters, totalPhotos, stopProgress };
+  return { pages, chapters, totalPhotos: printedPhotos, stopProgress };
 }
 
 // ---------------------------------------------------------------- 小物

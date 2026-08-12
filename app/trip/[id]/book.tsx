@@ -14,7 +14,7 @@ import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useTrip } from '@/lib/useData';
 import { planBook, MIN_PHOTOS, type Page } from '@/lib/photobook/plan';
-import { readBookEdits, applyBookEdits, applyCover, type BookEdits } from '@/lib/photobook/edits';
+import { readBookEdits, applyBookEdits, applyCover, pageAssignmentsFrom, type BookEdits } from '@/lib/photobook/edits';
 import { renderPage, renderPdf, PAGE_SIZE, type RenderProgress } from '@/lib/photobook/render';
 
 import { useI18n } from '@/lib/i18n';
@@ -44,7 +44,17 @@ export default function TripBook() {
   const [edits, setEdits] = useState<BookEdits>({ excluded: [] });
   useEffect(() => { if (id) setEdits(readBookEdits(id)); }, [id]);
   const plan = useMemo(
-    () => (trip ? applyCover(planBook(applyBookEdits(trip, edits), { photosPerPage: edits.photosPerPage }), edits) : null),
+    () =>
+      trip
+        ? applyCover(
+            planBook(applyBookEdits(trip, edits), {
+              photosPerPage: edits.photosPerPage,
+              // bind で決めたページごとの割付・追加写真も、無料PDFに同じ形で効かせる
+              pageAssignments: pageAssignmentsFrom(edits),
+            }),
+            edits
+          )
+        : null,
     [trip, edits]
   );
 
