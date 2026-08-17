@@ -129,8 +129,20 @@ export default function TripBind() {
     );
   }, [trip, edits]);
   // 台割が変わったら描き置きを捨てる（前の本のページが混ざる）
-  useEffect(() => { cache.current.clear(); }, [book]);
   const cache = useRef(new Map<number, string | null>());
+  /**
+   * 台割が変わったら、描いた絵の控えを捨てる。
+   *
+   * **効果(useEffect)ではなく描画のときに捨てる。** 効果は子から先に走るので、
+   * 見本(BookPreview)が「控えを捨てたから引き直す」と動いたときには、
+   * こちらの控えがまだ古いままで、古い絵をそのまま掴んでいた
+   * （枚数を2→3にしても見本が変わらなかった正体）。
+   */
+  const lastBook = useRef(book);
+  if (lastBook.current !== book) {
+    lastBook.current = book;
+    cache.current.clear();
+  }
   const getPage = useCallback(
     async (i: number) => {
       if (!book) return null;
@@ -165,7 +177,7 @@ export default function TripBind() {
    * ページを送るたび、そのページの行が光って画面に入ってくる。
    */
   const [openSpread, setOpenSpread] = useState(0);
-  const onSpreadChange = useCallback((left: number) => setOpenSpread(left), []);
+  const onSpreadChange = useCallback((left: number) => { setOpenSpread(left); setShortOf(null); }, []);
   /** いま見開きに出ている写真ページ（左右のどちらか）。無ければ -1 */
   const openPageIdx = useMemo(
     () => photoPages.findIndex((pg) => pg.bookIndex === openSpread || pg.bookIndex === openSpread + 1),
@@ -216,6 +228,8 @@ export default function TripBind() {
   const [over, setOver] = useState<{ zone: Zone; at: number | null } | null>(null);
   /** 6枚を超えるので断った先。少しの間だけ印を出す（黙って無視しない） */
   const [refused, setRefused] = useState<Zone | null>(null);
+  /** 頼まれた枚数にできなかったとき、何枚までかを覚えておく */
+  const [shortOf, setShortOf] = useState<number | null>(null);
   const refuseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (refuseTimer.current) clearTimeout(refuseTimer.current); }, []);
   const refuse = (zone: Zone) => {
@@ -293,20 +307,54 @@ export default function TripBind() {
   };
 
   /**
-   * このページの枚数を決める。増やすときは、どのページにも載っていない
-   * 写真から順に足す。足りなければ足せるところまで。
+   * このページの枚数を決める。**利用者の指示を最優先する。**
+   *
+   * 以前は「どのページにも載っていない写真」からしか足せなかったので、
+   * 写真が全部どこかのページに載っていると、3枚と押しても何も起きなかった
+   * （指摘の「反応しない」の正体）。いまは足りなければ**ほかのページから
+   * 借りてくる**。借り先は写真の多いページから順で、1枚は残す ――
+   * ページごと消すと番号がずれ、見ていたページが画面から消えてしまう。
+   * それでも足りないときは、旅の写真が足りないということなので、
+   * 何枚までにできるかをその場で伝える。
+   *
+   * 減らしたぶんは棚（どこにも載っていない写真）へ戻るので、いつでも戻せる。
    */
   const setPageCount = (idx: number, n: number) => {
     const pages = currentAssignments();
     if (!pages[idx]) return;
     const cur = pages[idx].photos;
+    if (n === cur.length) return;
     if (n < cur.length) {
       pages[idx] = { photos: cur.slice(0, n) };
       updateEdits({ ...edits, pageOverrides: pages });
       return;
     }
-    const spare = poolPhotos.map((p) => p.uri).filter((u) => !cur.includes(u));
-    pages[idx] = { photos: [...cur, ...spare.slice(0, n - cur.length)] };
+
+    const need = n - cur.length;
+    const taken: string[] = [];
+    // ① まず、どのページにも載っていない写真から
+    for (const u of poolPhotos.map((ph) => ph.uri)) {
+      if (taken.length >= need) break;
+      if (!cur.includes(u)) taken.push(u);
+    }
+    // ② 足りなければ、写真の多いページから借りる
+    if (taken.length < need) {
+      const order = pages
+        .map((pg, i) => ({ i, count: pg.photos.length }))
+        .filter((x) => x.i !== idx)
+        .sort((a, b) => b.count - a.count);
+      for (const { i } of order) {
+        while (taken.length < need && pages[i].photos.length > 1) {
+          const u = pages[i].photos[pages[i].photos.length - 1];
+          pages[i] = { photos: pages[i].photos.slice(0, -1) };
+          if (!cur.includes(u) && !taken.includes(u)) taken.push(u);
+        }
+        if (taken.length >= need) break;
+      }
+    }
+    // 借りても足りなければ、あるぶんだけ（写真そのものは増やせない）
+    setShortOf(taken.length < need ? cur.length + taken.length : null);
+    pages[idx] = { photos: [...cur, ...taken] };
     updateEdits({ ...edits, pageOverrides: pages });
   };
 
@@ -503,6 +551,12 @@ export default function TripBind() {
                   <>
                     <Gap h={space.sm} />
                     <AppText variant="small" tone="shu">{t('book.pageFull')}</AppText>
+                  </>
+                )}
+                {shortOf !== null && (
+                  <>
+                    <Gap h={space.sm} />
+                    <AppText variant="small" tone="shu">{t('book.notEnough', { n: shortOf })}</AppText>
                   </>
                 )}
                 <Gap h={space.md} />
