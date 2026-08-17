@@ -198,21 +198,6 @@ export default function TripBind() {
       ].filter((p, i, arr) => !usedUris.has(p.uri) && arr.findIndex((q) => q.uri === p.uri) === i),
     [allPhotos, edits.excluded, extras, usedUris]
   );
-  /** どのページに写真を足そうとしているか（写真ページの並びの中の番号）。null なら閉じている */
-  const [picking, setPicking] = useState<number | null>(null);
-  const removeFromPage = (idx: number, uri: string) => {
-    const pages = currentAssignments();
-    if (!pages[idx]) return;
-    pages[idx] = { photos: pages[idx].photos.filter((u) => u !== uri) };
-    updateEdits({ ...edits, pageOverrides: pages.filter((p) => p.photos.length > 0) });
-  };
-  const addToPage = (idx: number, uri: string) => {
-    const pages = currentAssignments();
-    if (!pages[idx] || pages[idx].photos.length >= 6 || pages[idx].photos.includes(uri)) return;
-    pages[idx] = { photos: [...pages[idx].photos, uri] };
-    setPicking(null);
-    updateEdits({ ...edits, pageOverrides: pages });
-  };
   const resetPages = () => updateEdits({ ...edits, pageOverrides: undefined });
 
   // ---- 掴んで置く（ドラッグ＆ドロップ、とタップの2経路） ----------------
@@ -289,18 +274,47 @@ export default function TripBind() {
     setHeld(null);
     setOver(null);
   };
+  /**
+   * 一覧から、そのページに「載せる／外す」を切り替える。
+   * 写真は1つのページにしか載らないので、ほかのページに居たら引き取る。
+   */
+  const togglePhotoOnPage = (idx: number, uri: string) => {
+    const pages = currentAssignments();
+    if (!pages[idx]) return;
+    if (pages[idx].photos.includes(uri)) {
+      pages[idx] = { photos: pages[idx].photos.filter((u) => u !== uri) };
+      updateEdits({ ...edits, pageOverrides: pages });
+      return;
+    }
+    if (pages[idx].photos.length >= 6) { refuse(idx); return; }
+    const next = pages.map((pg, i) => (i === idx ? pg : { photos: pg.photos.filter((u) => u !== uri) }));
+    next[idx] = { photos: [...next[idx].photos, uri] };
+    updateEdits({ ...edits, pageOverrides: next });
+  };
+
+  /**
+   * このページの枚数を決める。増やすときは、どのページにも載っていない
+   * 写真から順に足す。足りなければ足せるところまで。
+   */
+  const setPageCount = (idx: number, n: number) => {
+    const pages = currentAssignments();
+    if (!pages[idx]) return;
+    const cur = pages[idx].photos;
+    if (n < cur.length) {
+      pages[idx] = { photos: cur.slice(0, n) };
+      updateEdits({ ...edits, pageOverrides: pages });
+      return;
+    }
+    const spare = poolPhotos.map((p) => p.uri).filter((u) => !cur.includes(u));
+    pages[idx] = { photos: [...cur, ...spare.slice(0, n - cur.length)] };
+    updateEdits({ ...edits, pageOverrides: pages });
+  };
+
   const dropAt = (to: Zone, at: number | null) => {
     const h = heldRef.current;
     release();
     if (!h) return;
     if (!movePhoto(h.uri, h.from, to, at)) refuse(to);
-  };
-  /** 写真そのものをタップ: 何も持っていなければ持ち上げ、持っていればそこへ置く */
-  const tapPhoto = (uri: string, zone: Zone, index: number) => {
-    const h = heldRef.current;
-    if (!h) return grab(uri, zone);
-    if (h.uri === uri && h.from === zone) return release(); // 同じ写真＝持つのをやめる
-    dropAt(zone, index);
   };
 
   // ---- 本のためだけの追加写真 --------------------------------------------
@@ -413,184 +427,118 @@ export default function TripBind() {
         </View>
 
         {/* ①' いま見本に出ているページだけを、その真下で直す ------------
-            ページごとの編集欄を全部並べると、どれを直しているのか分からない
-            （指摘を受けた）。見本をめくると、この段の中身が入れ替わる。
-            表紙の編集は、表紙が見えているときだけ出す */}
+            見本をめくると、この段の中身が入れ替わる。表紙の編集は
+            表紙が見えているときだけ出す。
+            **説明文は置かない。見出しだけで足りる**（指摘を受けた） */}
         <View style={{ paddingHorizontal: space.lg }}>
           {coverVisible && (
-          <>
-          <Gap h={space.xl} />
-          <Eyebrow tone="matcha">{t('book.cover')}</Eyebrow>
-          <Gap h={space.sm} />
-          <AppText variant="small" tone="inkFaint">{t('book.coverDrop')}</AppText>
-          <Gap h={space.md} />
-          {/* 表紙の落とし口。ここへ写真を落とす／持っているときに押すと表紙になる */}
-          <CoverSlot
-            uri={coverUri}
-            palette={palette}
-            label={t('book.coverSlot')}
-            place={t('book.placeHere')}
-            holding={!!held}
-            active={over?.zone === 'cover'}
-            onOver={() => setOver({ zone: 'cover', at: null })}
-            onLeave={() => setOver((o) => (o?.zone === 'cover' ? null : o))}
-            onDrop={() => dropAt('cover', null)}
-          />
-          <Gap h={space.md} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
-            {coverCandidates.map((p, i) => {
-              const chosen = coverUri === p.uri;
-              return (
-                <Pressable
-                  key={`${p.uri}-${i}`}
-                  onPress={() => updateEdits({ ...edits, cover: p.uri })}
-                  style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-                >
-                  <View style={[styles.coverThumb, chosen && { borderColor: palette.matcha, borderWidth: 2 }]}>
-                    <Image source={{ uri: p.uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                  </View>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-          </>
-          )}
-
-          {/* いま開いている写真ページ。これ1枚だけを出す */}
-          {openPageIdx >= 0 && !!photoPages[openPageIdx] && (
             <>
               <Gap h={space.xl} />
-              <Eyebrow tone="matcha">{t('book.pages')}</Eyebrow>
-              <Gap h={space.sm} />
-              <AppText variant="small" tone="inkFaint">{t('book.pagesHint')}</AppText>
-              <Gap h={space.sm} />
-              <AppText variant="small" tone="inkFaint">{t('book.dragHint')}</AppText>
+              <Eyebrow tone="matcha">{t('book.cover')}</Eyebrow>
               <Gap h={space.md} />
-              <PageRow
-                key={`page-${photoPages[openPageIdx].pageNo}`}
-                idx={openPageIdx}
-                pageNo={photoPages[openPageIdx].pageNo}
-                photos={photoPages[openPageIdx].photos.map((ph) => ph.uri)}
-                thumbW={Math.min((width - space.lg * 2 - space.sm * 4) / 4, 88)}
-                first
+              <CoverSlot
+                uri={coverUri}
                 palette={palette}
-                t={t}
-                held={held}
-                over={over}
-                refused={refused === openPageIdx}
-                onGrab={(uri: string) => grab(uri, openPageIdx)}
-                onRelease={release}
-                onTap={(uri: string, i: number) => tapPhoto(uri, openPageIdx, i)}
-                onOver={(at: number | null) => setOver({ zone: openPageIdx, at })}
-                onLeave={() => setOver((o) => (o?.zone === openPageIdx ? null : o))}
-                onDrop={(at: number | null) => dropAt(openPageIdx, at)}
-                onRemove={(uri: string) => removeFromPage(openPageIdx, uri)}
-                onPick={() => setPicking(openPageIdx)}
+                label={t('book.coverSlot')}
+                place={t('book.placeHere')}
+                holding={!!held}
+                active={over?.zone === 'cover'}
+                onOver={() => setOver({ zone: 'cover', at: null })}
+                onLeave={() => setOver((o) => (o?.zone === 'cover' ? null : o))}
+                onDrop={() => dropAt('cover', null)}
               />
-            </>
-          )}
-
-          {/* 持ち上げているときの案内。棚はページ間の受け渡しに要る */}
-          {!!held && (
-            <>
-              <Gap h={space.sm} />
-              <Row style={{ gap: space.sm, alignItems: 'center' }}>
-                <AppText variant="small" tone="matcha" style={{ flex: 1 }}>{t('book.holding')}</AppText>
-                <Pressable onPress={release} hitSlop={8} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-                  <AppText variant="small" tone="inkFaint">{t('book.holdCancel')}</AppText>
-                </Pressable>
-              </Row>
-            </>
-          )}
-          <Gap h={space.md} />
-          <PhotoTray
-            photos={poolPhotos.map((p) => p.uri)}
-            palette={palette}
-            t={t}
-            held={held}
-            over={over}
-            onGrab={(uri: string) => grab(uri, 'tray')}
-            onRelease={release}
-            onTap={(uri: string, i: number) => tapPhoto(uri, 'tray', i)}
-            onOver={() => setOver({ zone: 'tray', at: null })}
-            onLeave={() => setOver((o) => (o?.zone === 'tray' ? null : o))}
-            onDrop={() => dropAt('tray', null)}
-          />
-          {!!edits.pageOverrides?.length && (
-            <>
-              <Gap h={space.sm} />
-              <Pressable onPress={resetPages} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-                <AppText variant="small" tone="matcha">{t('book.pagesReset')}</AppText>
-              </Pressable>
-            </>
-          )}
-
-          <Gap h={space.xl} />
-          <Eyebrow tone="matcha">{t('book.perPage')}</Eyebrow>
-          <Gap h={space.sm} />
-          <AppText variant="small" tone="inkFaint">{t('book.perPageHint')}</AppText>
-          <Gap h={space.md} />
-          <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
-            {[undefined, 1, 2, 3, 4, 5, 6].map((n) => {
-              const on = edits.photosPerPage === n || (!edits.photosPerPage && n === undefined);
-              return (
-                <Pressable
-                  key={String(n)}
-                  // 密度を選び直したら、ページごとの手直しは白紙に戻して割り直す
-                  // （固定した割付と両立しないため。下の注記で先に言う）
-                  onPress={() => updateEdits({ ...edits, photosPerPage: n, pageOverrides: undefined })}
-                  style={[
-                    styles.perChip,
-                    { borderColor: on ? palette.matcha : palette.ruleStrong, backgroundColor: on ? palette.matcha : 'transparent' },
-                  ]}
-                >
-                  <AppText variant="bodyStrong" style={{ color: on ? '#fff' : palette.ink }}>
-                    {n === undefined ? t('book.perPageAuto') : String(n)}
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </Row>
-          {!!edits.pageOverrides?.length && (
-            <>
-              <Gap h={space.sm} />
-              <AppText variant="small" tone="inkFaint">{t('book.perPageResets')}</AppText>
-            </>
-          )}
-
-          <Gap h={space.xl} />
-          <Eyebrow tone="matcha">{t('book.customize')}</Eyebrow>
-          <Gap h={space.sm} />
-          <AppText variant="small" tone="inkFaint">{t('book.customizeHint')}</AppText>
-          <Gap h={space.md} />
-          <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
-            {allPhotos.map((p, i) => {
-              const off = edits.excluded.includes(p.uri);
-              const pickW = Math.min((width - space.lg * 2 - space.sm * 2) / 3, 120);
-              return (
-                <Pressable key={`${p.uri}-${i}`} onPress={() => toggPhoto(p.uri)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-                  <View style={[styles.pickThumb, { width: pickW, height: pickW }]}>
-                    <Image
-                      source={{ uri: p.uri }}
-                      style={{ width: '100%', height: '100%', opacity: off ? 0.3 : 1 }}
-                      resizeMode="cover"
-                    />
-                    {off && (
-                      <View style={styles.pickOff} pointerEvents="none">
-                        <Ionicons name="close" size={22} color="#fff" />
+              <Gap h={space.md} />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+                {coverCandidates.map((p, i) => {
+                  const chosen = coverUri === p.uri;
+                  return (
+                    <Pressable
+                      key={`${p.uri}-${i}`}
+                      onPress={() => updateEdits({ ...edits, cover: p.uri })}
+                      style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+                    >
+                      <View style={[styles.coverThumb, chosen && { borderColor: palette.matcha, borderWidth: 2 }]}>
+                        <Image source={{ uri: p.uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                       </View>
-                    )}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </Row>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </>
+          )}
 
-          {/* ①'' 本のためだけの追加写真。旅のstopには足さない ----------- */}
+          {/* このページ ―― 枚数と、一覧からの取捨。この2つだけ */}
+          {openPageIdx >= 0 && !!photoPages[openPageIdx] && (() => {
+            const pg = photoPages[openPageIdx];
+            const on = pg.photos.map((ph) => ph.uri);
+            const pickW = Math.min((width - space.lg * 2 - space.sm * 2) / 3, 120);
+            return (
+              <>
+                <Gap h={space.xl} />
+                <Eyebrow tone="matcha">{t('book.pageLabel', { n: pg.pageNo })}</Eyebrow>
+                <Gap h={space.md} />
+                <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
+                  {[1, 2, 3, 4, 5, 6].map((n) => {
+                    const sel = on.length === n;
+                    return (
+                      <Pressable
+                        key={n}
+                        onPress={() => setPageCount(openPageIdx, n)}
+                        style={[
+                          styles.perChip,
+                          {
+                            borderColor: sel ? palette.matcha : palette.ruleStrong,
+                            backgroundColor: sel ? palette.matcha : 'transparent',
+                          },
+                        ]}
+                      >
+                        <AppText variant="bodyStrong" style={{ color: sel ? '#fff' : palette.ink }}>{n}</AppText>
+                      </Pressable>
+                    );
+                  })}
+                </Row>
+                {refused === openPageIdx && (
+                  <>
+                    <Gap h={space.sm} />
+                    <AppText variant="small" tone="shu">{t('book.pageFull')}</AppText>
+                  </>
+                )}
+                <Gap h={space.md} />
+                {/* 旅の写真ぜんぶ。押すとこのページに載る／外れる */}
+                <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
+                  {coverCandidates.map((p, i) => {
+                    const here = on.includes(p.uri);
+                    const elsewhere = !here && usedUris.has(p.uri);
+                    return (
+                      <Pressable
+                        key={`${p.uri}-${i}`}
+                        onPress={() => togglePhotoOnPage(openPageIdx, p.uri)}
+                        style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+                      >
+                        <View
+                          style={[
+                            styles.pickThumb,
+                            { width: pickW, height: pickW },
+                            here && { borderColor: palette.matcha, borderWidth: 3 },
+                          ]}
+                        >
+                          <Image
+                            source={{ uri: p.uri }}
+                            style={{ width: '100%', height: '100%', opacity: here ? 1 : elsewhere ? 0.45 : 0.75 }}
+                            resizeMode="cover"
+                          />
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </Row>
+              </>
+            );
+          })()}
+
+          {/* この本のための追加写真 */}
           <Gap h={space.xl} />
           <Eyebrow tone="matcha">{t('book.extras')}</Eyebrow>
-          <Gap h={space.sm} />
-          <AppText variant="small" tone="inkFaint">{t('book.extrasHint')}</AppText>
           <Gap h={space.md} />
           {extras.length > 0 && (
             <>
@@ -750,45 +698,6 @@ export default function TripBind() {
           どこまで進んだのかを出して、戻る操作を塞ぐ。 */}
       {/* visible={false} でも中身がDOMに残り、製本ページへ戻ったときに
           「0 / 0」の幕が被る。焼いている間だけ組み立てる。 */}
-      {/* ⑥ ページに足す写真を選ぶ ------------------------------------- */}
-      {picking !== null && (
-        <Modal visible transparent animationType="fade" onRequestClose={() => setPicking(null)}>
-          <Pressable style={styles.backdrop} onPress={() => setPicking(null)}>
-            <Pressable style={[styles.sheet, { backgroundColor: palette.washi, maxHeight: '75%' }]} onPress={() => {}}>
-              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                <AppText variant="h3" tone="ink">
-                  {t('book.pickerTitle', { n: photoPages[picking]?.pageNo ?? 0 })}
-                </AppText>
-                <Pressable onPress={() => setPicking(null)} hitSlop={8}>
-                  <Ionicons name="close" size={22} color={palette.ink} />
-                </Pressable>
-              </Row>
-              <Gap h={space.md} />
-              {poolPhotos.length === 0 ? (
-                <AppText variant="small" tone="inkFaint" style={{ lineHeight: 20 }}>
-                  {t('book.pickerEmpty')}
-                </AppText>
-              ) : (
-                <ScrollView showsVerticalScrollIndicator={false}>
-                  <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
-                    {poolPhotos.map((p, i) => (
-                      <Pressable
-                        key={`${p.uri}-${i}`}
-                        onPress={() => addToPage(picking, p.uri)}
-                        style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-                      >
-                        <View style={[styles.pickThumb, { width: 88, height: 88 }]}>
-                          <Image source={{ uri: p.uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                        </View>
-                      </Pressable>
-                    ))}
-                  </Row>
-                </ScrollView>
-              )}
-            </Pressable>
-          </Pressable>
-        </Modal>
-      )}
 
       {adding !== null && (
       <Modal visible transparent animationType="fade" onRequestClose={() => {}}>
@@ -957,223 +866,6 @@ function useDnd(cfg: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return ref;
-}
-
-/**
- * 写真1枚。掴んで運べて、落とし先にもなる。
- * ドラッグできない端末・人のために、押すと「持ち上げ／置く」も同じ動きをする。
- */
-function Tile({
-  uri, tag, size, palette, carried, insert, corner, onGrab, onRelease, onTap, onOver, onDrop,
-}: {
-  uri: string;
-  /** どの面かをDOMに残す（Webの検証用。data-mjtile） */
-  tag: string;
-  size: number;
-  palette: any;
-  /** いま運んでいる1枚 */
-  carried: boolean;
-  /** 挿入線をどちら側に引くか */
-  insert: 'before' | 'after' | null;
-  corner?: React.ReactNode;
-  onGrab: () => void;
-  onRelease: () => void;
-  onTap: () => void;
-  onOver: (side: 'before' | 'after' | null) => void;
-  onDrop: (side: 'before' | 'after' | null) => void;
-}) {
-  const ref = useDnd({ onGrab, onRelease, onOver, onDrop, sided: true });
-  return (
-    <View style={{ width: size, height: size }}>
-      <View
-        ref={ref as any}
-        {...({ dataSet: WEB ? { mjtile: tag } : undefined } as any)}
-        style={[
-          styles.pickThumb,
-          { width: size, height: size },
-          carried && { borderWidth: 2, borderColor: palette.matcha },
-        ]}
-      >
-        <Image
-          source={{ uri }}
-          style={{ width: '100%', height: '100%', opacity: carried ? 0.4 : 1 }}
-          resizeMode="cover"
-        />
-        {/* タップの経路。✕ より下に敷いて、✕ の当たりを奪わない */}
-        <Pressable onPress={onTap} style={StyleSheet.absoluteFill} />
-        {corner}
-      </View>
-      {insert && (
-        <View
-          pointerEvents="none"
-          style={[
-            styles.insertBar,
-            { backgroundColor: palette.matcha },
-            insert === 'before' ? { left: -5 } : { right: -5 },
-          ]}
-        />
-      )}
-    </View>
-  );
-}
-
-/** 写真ページ1行。行そのものが落とし先（末尾に足す） */
-/**
- * ページ1枚ぶんの編集の行。
- * **出るのは見本で開いているページの1枚だけ**（指定を受けた）。
- * 全ページを並べていた頃は、どのページを直しているのか分からなかった。
- */
-function PageRow({
-  idx, pageNo, photos, thumbW, first, palette, t, held, over, refused,
-  onGrab, onRelease, onTap, onOver, onLeave, onDrop, onRemove, onPick,
-}: any) {
-  const ref = useDnd({ onOver: () => onOver(null), onLeave, onDrop: () => onDrop(null) });
-  const active = over?.zone === idx;
-  return (
-    <View {...({ dataSet: WEB ? { mjrow: `p${idx}` } : undefined } as any)}>
-      {!first && <Rule />}
-      <Gap h={space.sm} />
-      <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: space.sm }}>
-        <AppText variant="small" tone="inkFaint" style={{ flex: 1 }}>
-          {t('book.pageLabel', { n: pageNo })} ·{' '}
-          {photos.length === 1 ? t('book.pageCount.one') : t('book.pageCount', { n: photos.length })}
-        </AppText>
-        {/* 満杯のページには置き先を出さない（並べ替えのときだけ出す） */}
-        {!!held && (photos.length < 6 || held.from === idx) && (
-          <Pressable
-            onPress={() => onDrop(null)}
-            hitSlop={6}
-            style={({ pressed }: any) => [styles.placeHere, { borderColor: palette.matcha }, pressed && { opacity: 0.7 }]}
-          >
-            <AppText variant="small" tone="matcha">{t('book.placeHere')}</AppText>
-          </Pressable>
-        )}
-      </Row>
-      <Gap h={space.sm} />
-      <View
-        ref={ref as any}
-        {...({ dataSet: WEB ? { mjdrop: `p${idx}`, mjcount: String(photos.length) } : undefined } as any)}
-        style={[
-          styles.dropRow,
-          { borderColor: active ? palette.matcha : refused ? palette.ruleStrong : 'transparent' },
-          !!refused && { borderStyle: 'solid' },
-        ]}
-      >
-        <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
-          {photos.map((uri: string, pi: number) => (
-            <Tile
-              key={`${uri}-${pi}`}
-              uri={uri}
-              tag={`p${idx}-${pi}`}
-              size={thumbW}
-              palette={palette}
-              carried={held?.uri === uri && held?.from === idx}
-              insert={
-                active && over?.at === pi
-                  ? 'before'
-                  : active && over?.at === photos.length && pi === photos.length - 1
-                    ? 'after'
-                    : null
-              }
-              onGrab={() => onGrab(uri)}
-              onRelease={onRelease}
-              onTap={() => onTap(uri, pi)}
-              onOver={(side) => onOver(side === 'after' ? pi + 1 : pi)}
-              onDrop={(side) => onDrop(side === 'after' ? pi + 1 : pi)}
-              corner={
-                <Pressable
-                  onPress={() => onRemove(uri)}
-                  hitSlop={8}
-                  style={({ pressed }: any) => [styles.extraRemove, pressed && { opacity: 0.7 }]}
-                >
-                  <Ionicons name="close" size={14} color="#fff" />
-                </Pressable>
-              }
-            />
-          ))}
-          {photos.length < 6 && (
-            <Pressable
-              onPress={onPick}
-              style={({ pressed }: any) => [
-                styles.pageAdd,
-                { width: thumbW, height: thumbW, borderColor: palette.ruleStrong },
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <Ionicons name="add" size={20} color={palette.matcha} />
-            </Pressable>
-          )}
-        </Row>
-      </View>
-      {!!refused && (
-        <>
-          <Gap h={space.sm} />
-          <AppText variant="small" tone="inkSoft">{t('book.pageFull')}</AppText>
-        </>
-      )}
-      <Gap h={space.sm} />
-    </View>
-  );
-}
-
-/** どのページにも置いていない写真の棚。引き出し口であり、外す先でもある */
-function PhotoTray({
-  photos, palette, t, held, over, onGrab, onRelease, onTap, onOver, onLeave, onDrop,
-}: any) {
-  const ref = useDnd({ onOver: () => onOver(), onLeave, onDrop: () => onDrop() });
-  const active = over?.zone === 'tray';
-  return (
-    <View>
-      <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: space.sm }}>
-        <AppText variant="small" tone="inkFaint" style={{ flex: 1 }}>
-          {/* 0枚のときは枚数を出さない（下の「すべて載っています」と重なる） */}
-          {photos.length
-            ? `${t('book.tray')} · ${photos.length === 1 ? t('book.pageCount.one') : t('book.pageCount', { n: photos.length })}`
-            : t('book.tray')}
-        </AppText>
-        {!!held && held.from !== 'tray' && (
-          <Pressable
-            onPress={() => onDrop()}
-            hitSlop={6}
-            style={({ pressed }: any) => [styles.placeHere, { borderColor: palette.matcha }, pressed && { opacity: 0.7 }]}
-          >
-            <AppText variant="small" tone="matcha">{t('book.placeHere')}</AppText>
-          </Pressable>
-        )}
-      </Row>
-      <Gap h={space.sm} />
-      <View
-        ref={ref as any}
-        {...({ dataSet: WEB ? { mjdrop: 'tray', mjcount: String(photos.length) } : undefined } as any)}
-        style={[styles.dropRow, { borderColor: active ? palette.matcha : 'transparent' }]}
-      >
-        {photos.length === 0 ? (
-          <AppText variant="small" tone="inkFaint">{t('book.trayEmpty')}</AppText>
-        ) : (
-          <Row style={{ flexWrap: 'wrap', gap: space.sm }}>
-            {photos.map((uri: string, i: number) => (
-              <Tile
-                key={`${uri}-${i}`}
-                uri={uri}
-                tag={`tray-${i}`}
-                size={64}
-                palette={palette}
-                carried={held?.uri === uri && held?.from === 'tray'}
-                insert={null}
-                onGrab={() => onGrab(uri)}
-                onRelease={onRelease}
-                onTap={() => onTap(uri, i)}
-                onOver={() => onOver()}
-                onDrop={() => onDrop()}
-              />
-            ))}
-          </Row>
-        )}
-      </View>
-      <Gap h={space.sm} />
-      <AppText variant="small" tone="inkFaint">{t('book.trayHint')}</AppText>
-    </View>
-  );
 }
 
 /** 表紙の落とし口。写真を落とすとその1枚が表紙になる */
