@@ -1476,6 +1476,58 @@ export async function setAdminRoleDetailed(username: string, role: string | null
   return ok ? 'ok' : 'forbidden';
 }
 
+/** いまログインしている人のメールアドレス（自分の行に「自分」と出すのに使う） */
+export async function fetchMyEmail(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user?.email?.toLowerCase() ?? null;
+}
+
+/** 管理者の1人。メールアドレスは auth.users にしか無いので関数から受け取る */
+export interface AdminPerson {
+  username: string;
+  name: string;
+  email: string;
+  role: string;
+  isOwner: boolean;
+}
+
+/**
+ * 管理者の一覧（メールアドレス付き・0033 の admin_list_admins）。
+ * auth.users はクライアントから読めないので、関数に束ねてもらう。
+ * 0033 を貼る前は profiles だけの一覧に落ちる（メールは空）。
+ */
+export async function fetchAdminPeople(): Promise<AdminPerson[]> {
+  const { data, error } = await supabase.rpc('admin_list_admins');
+  if (!error && Array.isArray(data)) {
+    return data.map((a: any) => ({
+      username: a.username ?? '',
+      name: a.name ?? a.username ?? '',
+      email: a.email ?? '',
+      role: a.role ?? '',
+      isOwner: !!a.is_owner,
+    }));
+  }
+  const old = await fetchAdmins();
+  return old.map((a) => ({ ...a, email: '', isOwner: false }));
+}
+
+/** 付け外しの結果。owner = 持ち主の全権は外せない */
+export type AdminEmailResult = AdminRoleResult | 'owner';
+
+/**
+ * メールアドレスで管理者を付ける/外す（0033）。
+ * 運営が把握しているのはたいていメールの方なので、こちらを主の入口にする。
+ */
+export async function setAdminRoleByEmail(email: string, role: string | null): Promise<AdminEmailResult> {
+  const addr = email.trim().toLowerCase();
+  if (!addr) return 'not_found';
+  const { data, error } = await supabase.rpc('admin_set_role_by_email', { p_email: addr, p_role: role ?? '' });
+  if (!error && data && typeof data === 'object') {
+    return (data as any).ok ? 'ok' : (((data as any).reason as AdminEmailResult) ?? 'failed');
+  }
+  return 'failed';
+}
+
 /** 分析データ（都道府県 / 市区町村 / 滞在 / 移動手段）。管理者のみ。 */
 export async function fetchAnalytics(): Promise<{
   prefecture: any | null;

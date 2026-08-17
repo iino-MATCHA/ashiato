@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { isSupabaseConfigured } from './supabase';
 import {
-  fetchMyAdminRole, fetchAdminStats, fetchAdminOrders, fetchAdmins, fetchAnalytics,
+  fetchMyAdminRole, fetchAdminStats, fetchAdminOrders, fetchAdminPeople, fetchAnalytics,
   fetchAdminNotifications, markAdminNotificationsRead, type AdminNotification,
 } from './api';
 
@@ -14,7 +14,7 @@ export interface AdminData {
   role: string | null | 'loading';
   stats: any | null;
   orders: any[] | null;
-  admins: { username: string; name: string; role: string }[];
+  admins: { username: string; name: string; email: string; role: string; isOwner: boolean }[];
   analytics: Awaited<ReturnType<typeof fetchAnalytics>> | null;
   /** 決済完了などの通知。新しい順。 */
   notifications: AdminNotification[];
@@ -44,7 +44,7 @@ async function loadAll(force: boolean) {
       return;
     }
     const [stats, orders, admins, analytics, notifications] = await Promise.all([
-      fetchAdminStats(), fetchAdminOrders(), fetchAdmins(), fetchAnalytics(), fetchAdminNotifications(),
+      fetchAdminStats(), fetchAdminOrders(), fetchAdminPeople(), fetchAnalytics(), fetchAdminNotifications(),
     ]);
     cache = { role, stats, orders, admins, analytics, notifications };
     emit();

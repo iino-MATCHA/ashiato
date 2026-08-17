@@ -14,7 +14,7 @@ import { Segmented } from '@/components/admin/Charts';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useAdmin } from '@/lib/useAdmin';
-import { setAdminRoleDetailed, fetchMyUsername, type AdminRoleResult } from '@/lib/api';
+import { setAdminRoleByEmail, fetchMyEmail, type AdminEmailResult } from '@/lib/api';
 
 /** admin_role 型（0002）の3つ。これ以外は入れない */
 const ROLES = [
@@ -33,11 +33,13 @@ const ORDER_LABEL: Record<string, string> = {
 };
 
 /** 結果を日本語の一言に。何が悪かったのかまで書く */
-function messageFor(result: AdminRoleResult, name: string, roleLabel: string): string {
+function messageFor(result: AdminEmailResult, email: string, roleLabel: string): string {
   switch (result) {
-    case 'ok': return `@${name} を「${roleLabel}」にしました。`;
-    case 'not_found': return `@${name} という利用者は見つかりません。ユーザー名を確かめてください。`;
+    case 'ok': return `${email} を「${roleLabel}」にしました。`;
+    case 'not_found':
+      return `${email} の利用者が見つかりません。そのアドレスで登録が済んでいるか確かめてください。`;
     case 'self': return '自分の権限は変えられません。ほかの全権の管理者に頼んでください。';
+    case 'owner': return 'このアドレスの全権は外せません。';
     case 'forbidden': return '管理者の付け外しができるのは全権の管理者だけです。';
     case 'bad_role': return 'その権限は使えません（閲覧のみ / 編集 / 全権 のどれか）。';
     default: return '変更できませんでした。少し時間をおいて試してください。';
@@ -47,7 +49,7 @@ function messageFor(result: AdminRoleResult, name: string, roleLabel: string): s
 export default function AdminManage() {
   const { palette } = useTheme();
   const { role, stats, orders, admins, reload } = useAdmin();
-  const [grantName, setGrantName] = useState('');
+  const [grantEmail, setGrantEmail] = useState('');
   const [grantRole, setGrantRole] = useState('moderator');
   const [msg, setMsg] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
@@ -55,39 +57,39 @@ export default function AdminManage() {
   const [me, setMe] = useState<string | null>(null);
   const [confirmOff, setConfirmOff] = useState<string | null>(null);
 
-  useEffect(() => { fetchMyUsername().then(setMe).catch(() => setMe(null)); }, []);
+  useEffect(() => { fetchMyEmail().then(setMe).catch(() => setMe(null)); }, []);
 
   const canManage = role === 'superadmin';
 
-  const show = useCallback((result: AdminRoleResult, name: string, roleLabel: string) => {
+  const show = useCallback((result: AdminEmailResult, email: string, roleLabel: string) => {
     setOk(result === 'ok');
-    setMsg(messageFor(result, name, roleLabel));
+    setMsg(messageFor(result, email, roleLabel));
   }, []);
 
   const grant = async () => {
-    const name = grantName.trim().replace(/^@/, '');
-    if (!name || busy) return;
+    const email = grantEmail.trim().toLowerCase();
+    if (!email || busy) return;
     setBusy(true);
     setMsg(null);
-    const result = await setAdminRoleDetailed(name, grantRole);
+    const result = await setAdminRoleByEmail(email, grantRole);
     setBusy(false);
-    show(result, name, ROLE_LABEL[grantRole] ?? grantRole);
-    if (result === 'ok') { setGrantName(''); reload(); }
+    show(result, email, ROLE_LABEL[grantRole] ?? grantRole);
+    if (result === 'ok') { setGrantEmail(''); reload(); }
   };
 
   /** 権限を外す。押し間違いが効くので2度押しにする */
-  const revoke = async (username: string) => {
+  const revoke = async (email: string) => {
     if (busy) return;
-    if (confirmOff !== username) { setConfirmOff(username); return; }
+    if (confirmOff !== email) { setConfirmOff(email); return; }
     setConfirmOff(null);
     setBusy(true);
     setMsg(null);
-    const result = await setAdminRoleDetailed(username, null);
+    const result = await setAdminRoleByEmail(email, null);
     setBusy(false);
     setOk(result === 'ok');
     setMsg(result === 'ok'
-      ? `@${username} の管理者権限を外しました。`
-      : messageFor(result, username, ''));
+      ? `${email} の管理者権限を外しました。`
+      : messageFor(result, email, ''));
     if (result === 'ok') reload();
   };
 
@@ -125,17 +127,18 @@ export default function AdminManage() {
       <Panel>
         {admins.length === 0 && <AppText variant="small" tone="inkFaint">まだ誰もいません。</AppText>}
         {admins.map((a) => (
-          <Row key={a.username} style={styles.adminRow}>
+          <Row key={a.email || a.username} style={styles.adminRow}>
             <Ionicons name="shield-checkmark" size={16} color={palette.matcha} />
             <View style={{ flex: 1, minWidth: 0 }}>
-              <AppText variant="bodyStrong" tone="ink">{a.name}</AppText>
+              <AppText variant="bodyStrong" tone="ink">{a.email || a.name}</AppText>
               <AppText variant="small" tone="inkFaint">
-                @{a.username} · {ROLE_LABEL[a.role] ?? a.role}{a.username === me ? '（自分）' : ''}
+                {ROLE_LABEL[a.role] ?? a.role}
+                {a.isOwner ? '（持ち主）' : a.email && a.email === me ? '（自分）' : ''}
               </AppText>
             </View>
-            {canManage && a.username !== me && (
-              <Pressable onPress={() => revoke(a.username)} hitSlop={8}>
-                <AppText variant="small" tone="shu">{confirmOff === a.username ? '外しますか？' : '外す'}</AppText>
+            {canManage && !a.isOwner && a.email !== me && !!a.email && (
+              <Pressable onPress={() => revoke(a.email)} hitSlop={8}>
+                <AppText variant="small" tone="shu">{confirmOff === a.email ? '外しますか？' : '外す'}</AppText>
               </Pressable>
             )}
           </Row>
@@ -151,20 +154,21 @@ export default function AdminManage() {
           <Gap h={space.md} />
           <View style={[styles.grantBar, { borderColor: palette.ruleStrong }]}>
             <TextInput
-              value={grantName}
-              onChangeText={setGrantName}
-              placeholder="ユーザー名（@は不要）"
+              value={grantEmail}
+              onChangeText={setGrantEmail}
+              placeholder="メールアドレス"
               placeholderTextColor={palette.inkFaint}
               autoCapitalize="none"
+              keyboardType="email-address"
               style={[styles.grantInput, { color: palette.ink }]}
               onSubmitEditing={grant}
             />
             <Pressable
               onPress={grant}
-              disabled={!grantName.trim() || busy}
-              style={[styles.grantBtn, { backgroundColor: grantName.trim() && !busy ? palette.matcha : palette.fill }]}
+              disabled={!grantEmail.trim() || busy}
+              style={[styles.grantBtn, { backgroundColor: grantEmail.trim() && !busy ? palette.matcha : palette.fill }]}
             >
-              <AppText variant="small" style={{ color: grantName.trim() && !busy ? '#fff' : palette.inkFaint }}>
+              <AppText variant="small" style={{ color: grantEmail.trim() && !busy ? '#fff' : palette.inkFaint }}>
                 {busy ? '…' : '追加'}
               </AppText>
             </Pressable>
