@@ -66,9 +66,14 @@ export interface BookPreviewProps {
   width: number;
   /** 1ページの縦横比（高さ / 幅） */
   ratio?: number;
+  /**
+   * 開いている見開きの左ページ番号を知らせる（0, 2, 4 …）。
+   * 製本の画面が、いま見ているページの編集欄を前に出すのに使う。
+   */
+  onSpreadChange?: (leftPage: number) => void;
 }
 
-export function BookPreview({ total, getPage, width, ratio = 1654 / 1165 }: BookPreviewProps) {
+export function BookPreview({ total, getPage, width, ratio = 1654 / 1165, onSpreadChange }: BookPreviewProps) {
   const pageW = width / 2;
   const height = pageW * ratio;
 
@@ -79,6 +84,9 @@ export function BookPreview({ total, getPage, width, ratio = 1654 / 1165 }: Book
   const [, force] = useState(0);
 
   const spreadCount = Math.max(1, Math.ceil(total / 2));
+
+  // いま開いている見開きを外へ知らせる（最初の描画でも1度）
+  useEffect(() => { onSpreadChange?.(at); }, [at, onSpreadChange]);
 
   // 見えている見開きと、その前後だけを先に用意しておく
   useEffect(() => {

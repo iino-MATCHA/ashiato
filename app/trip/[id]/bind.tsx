@@ -153,12 +153,27 @@ export default function TripBind() {
    * （扉と目次のぶん先頭にずれる）。
    */
   const photoPages = useMemo(() => {
-    const out: { photos: { uri: string; stopTitle: string }[]; pageNo: number }[] = [];
-    (book?.pages ?? []).forEach((p) => {
-      if (p.kind === 'photos') out.push({ photos: p.photos, pageNo: out.length + 1 });
+    const out: { photos: { uri: string; stopTitle: string }[]; pageNo: number; bookIndex: number }[] = [];
+    (book?.pages ?? []).forEach((p, i) => {
+      if (p.kind === 'photos') out.push({ photos: p.photos, pageNo: out.length + 1, bookIndex: i });
     });
     return out;
   }, [book]);
+  /**
+   * 見本で開いている見開きの左ページ番号。
+   * **開いたページの編集欄をその場で前に出す**ために持つ（指定を受けた）。
+   * ページを送るたび、そのページの行が光って画面に入ってくる。
+   */
+  const [openSpread, setOpenSpread] = useState(0);
+  const onSpreadChange = useCallback((left: number) => setOpenSpread(left), []);
+  /** いま見開きに出ている写真ページ（左右のどちらか） */
+  const openPageIdx = useMemo(() => {
+    const i = photoPages.findIndex(
+      (pg) => pg.bookIndex === openSpread || pg.bookIndex === openSpread + 1
+    );
+    return i;
+  }, [photoPages, openSpread]);
+
   /** いまの台割をそのまま pageOverrides の形に写す（最初の手直しで固定する） */
   const currentAssignments = (): BookPageOverride[] =>
     photoPages.map((pg) => ({ photos: pg.photos.map((ph) => ph.uri) }));
@@ -390,6 +405,7 @@ export default function TripBind() {
             getPage={getPage}
             width={bookW}
             ratio={PAGE_SIZE.height / PAGE_SIZE.width}
+            onSpreadChange={onSpreadChange}
           />
         </View>
 
@@ -584,6 +600,7 @@ export default function TripBind() {
               held={held}
               over={over}
               refused={refused === idx}
+              open={idx === openPageIdx}
               onGrab={(uri: string) => grab(uri, idx)}
               onRelease={release}
               onTap={(uri: string, i: number) => tapPhoto(uri, idx, i)}
@@ -991,17 +1008,42 @@ function Tile({
 
 /** 写真ページ1行。行そのものが落とし先（末尾に足す） */
 function PageRow({
-  idx, pageNo, photos, thumbW, first, palette, t, held, over, refused,
+  idx, pageNo, photos, thumbW, first, palette, t, held, over, refused, open,
   onGrab, onRelease, onTap, onOver, onLeave, onDrop, onRemove, onPick,
 }: any) {
   const ref = useDnd({ onOver: () => onOver(null), onLeave, onDrop: () => onDrop(null) });
   const active = over?.zone === idx;
+  /**
+   * 見本で開いているページの行を、画面の中へ引き込む。
+   * ページを送るだけで、そのページの編集欄が目の前に来る（指定を受けた）。
+   */
+  const rowRef = useRef<View | null>(null);
+  useEffect(() => {
+    if (!WEB || !open) return;
+    const node = rowRef.current as unknown as HTMLElement | null;
+    node?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+  }, [open]);
   return (
-    <View {...({ dataSet: WEB ? { mjrow: `p${idx}` } : undefined } as any)}>
-      {!first && <Rule />}
+    <View
+      ref={rowRef}
+      {...({ dataSet: WEB ? { mjrow: `p${idx}`, mjopen: open ? '1' : '0' } : undefined } as any)}
+      style={
+        open
+          ? {
+              // いま開いているページ。紙を1枚持ち上げたように見せる
+              backgroundColor: palette.fill,
+              borderRadius: 12,
+              marginHorizontal: -space.sm,
+              paddingHorizontal: space.sm,
+            }
+          : undefined
+      }
+    >
+      {!first && !open && <Rule />}
       <Gap h={space.sm} />
       <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: space.sm }}>
-        <AppText variant="small" tone="inkFaint" style={{ flex: 1 }}>
+        <AppText variant="small" tone={open ? 'matcha' : 'inkFaint'} style={{ flex: 1 }}>
+          {open ? `${t('book.openNow')} · ` : ''}
           {t('book.pageLabel', { n: pageNo })} ·{' '}
           {photos.length === 1 ? t('book.pageCount.one') : t('book.pageCount', { n: photos.length })}
         </AppText>
