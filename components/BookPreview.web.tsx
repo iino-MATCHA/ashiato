@@ -71,9 +71,17 @@ export interface BookPreviewProps {
    * 製本の画面が、いま見ているページの編集欄を前に出すのに使う。
    */
   onSpreadChange?: (leftPage: number) => void;
+  /**
+   * 中身が変わったことを知らせる合図。
+   *
+   * **この部品を key で作り直さないこと。** 作り直すと開いていたページを
+   * 忘れ、写真を1枚足すたびに表紙へ戻ってしまう（指摘を受けた）。
+   * 合図が変わったら、描いた絵の控えだけ捨てて引き直す。
+   */
+  revision?: string | number;
 }
 
-export function BookPreview({ total, getPage, width, ratio = 1654 / 1165, onSpreadChange }: BookPreviewProps) {
+export function BookPreview({ total, getPage, width, ratio = 1654 / 1165, onSpreadChange, revision }: BookPreviewProps) {
   const pageW = width / 2;
   const height = pageW * ratio;
 
@@ -88,9 +96,20 @@ export function BookPreview({ total, getPage, width, ratio = 1654 / 1165, onSpre
   // いま開いている見開きを外へ知らせる（最初の描画でも1度）
   useEffect(() => { onSpreadChange?.(at); }, [at, onSpreadChange]);
 
+  // ページが減ったら、開いている見開きを中へ引き戻す
+  useEffect(() => {
+    setAt((cur) => (cur < total ? cur : Math.max(0, (Math.max(1, Math.ceil(total / 2)) - 1) * 2)));
+  }, [total]);
+
   // 見えている見開きと、その前後だけを先に用意しておく
+  const lastRev = useRef(revision);
   useEffect(() => {
     let alive = true;
+    // 中身が変わったら控えを捨てる（開いているページはそのまま）
+    if (lastRev.current !== revision) {
+      lastRev.current = revision;
+      cache.current.clear();
+    }
     const want = [at, at + 1, at - 1, at - 2, at + 2, at + 3].filter((i) => i >= 0 && i < total);
     (async () => {
       for (const i of want) {
@@ -103,7 +122,7 @@ export function BookPreview({ total, getPage, width, ratio = 1654 / 1165, onSpre
       }
     })();
     return () => { alive = false; };
-  }, [at, total, getPage]);
+  }, [at, total, getPage, revision]);
 
   const page = (i: number) => (i >= 0 && i < total ? cache.current.get(i) ?? null : null);
 

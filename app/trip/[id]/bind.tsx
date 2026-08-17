@@ -417,7 +417,9 @@ export default function TripBind() {
 
         <View style={{ alignItems: 'center' }}>
           <BookPreview
-            key={`${book.pages.length}-${edits.photosPerPage ?? 0}-${edits.excluded.length}-${edits.cover ?? ''}-${(edits.pageOverrides ?? []).map((p) => p.photos.length).join('.')}-${extras.length}`}
+            /* key で作り直さない。作り直すと開いていたページを忘れ、
+               写真を1枚足すたびに表紙へ戻る（指摘を受けた） */
+            revision={`${book.pages.length}-${edits.photosPerPage ?? 0}-${edits.excluded.length}-${edits.cover ?? ''}-${(edits.pageOverrides ?? []).map((p) => p.photos.join(',')).join('|')}-${extras.length}`}
             total={book.pages.length}
             getPage={getPage}
             width={bookW}
