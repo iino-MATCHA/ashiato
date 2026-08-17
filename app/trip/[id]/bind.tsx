@@ -55,7 +55,16 @@ export default function TripBind() {
    * まず本そのものを見てもらい、注文する気になった人だけが仕様と値段を見る。
    * 経路を分けてあるので、端末の戻るでちゃんと前の画面へ戻れる。
    */
-  const showPlans = step === 'plans';
+  /**
+   * プランの段を出しているか。
+   *
+   * **画面を積み直さない。** 以前は router.push で同じ画面をもう一枚
+   * 積んでいたので、新しい方は見本が表紙から始まり、編集欄まで二重に出て
+   * 「編集した内容が引き継がれていない」ように見えた（指摘）。
+   * 同じ画面のまま切り替えれば、見本も編集の結果もそのまま残る。
+   * ?step=plans で来たときのために、最初の値だけ引数から取る。
+   */
+  const [showPlans, setShowPlans] = useState(step === 'plans');
   const { trip } = useTrip(id);
   const { items: cart } = useCart();
 
@@ -479,8 +488,10 @@ export default function TripBind() {
         {/* ①' いま見本に出ているページだけを、その真下で直す ------------
             見本をめくると、この段の中身が入れ替わる。表紙の編集は
             表紙が見えているときだけ出す。
-            **説明文は置かない。見出しだけで足りる**（指摘を受けた） */}
-        <View style={{ paddingHorizontal: space.lg }}>
+            **説明文は置かない。見出しだけで足りる**（指摘を受けた）。
+            プランを選ぶ段では編集欄を出さない ―― 中身はもう決まっていて、
+            ここで直すものではない（指摘を受けた） */}
+        <View style={{ paddingHorizontal: space.lg, display: showPlans ? 'none' : 'flex' }}>
           {coverVisible && (
             <>
               <Gap h={space.xl} />
@@ -662,7 +673,7 @@ export default function TripBind() {
                 label={t('bind.startOrder')}
                 tone="matcha"
                 disabled={tooFewPhotos}
-                onPress={() => router.push(`/trip/${trip.id}/bind?step=plans` as any)}
+                onPress={() => setShowPlans(true)}
               />
               <Gap h={space.md} />
               {/* 写真が足りない旅で先へ進ませると、プランを選んだ先で行き止まりになる。
@@ -690,7 +701,13 @@ export default function TripBind() {
           {showPlans && (
           <>
           <Gap h={space.xl} />
-          <Eyebrow tone="matcha">{t('bind.plansEyebrow')}</Eyebrow>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Eyebrow tone="matcha">{t('bind.plansEyebrow')}</Eyebrow>
+            {/* 画面を積んでいないので、戻る道はここに置く */}
+            <Pressable onPress={() => setShowPlans(false)} hitSlop={8} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+              <AppText variant="small" tone="matcha">{t('bind.backToEdit')}</AppText>
+            </Pressable>
+          </Row>
           <Gap h={space.md} />
 
           <PlanCard
