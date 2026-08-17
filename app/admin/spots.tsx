@@ -12,7 +12,7 @@ import { SpotHeatmap } from '@/components/admin/SpotHeatmap';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useAdmin } from '@/lib/useAdmin';
-import { PREFECTURE_EN_BY_ID } from '@/lib/prefectures';
+import { PREFECTURE_JA_BY_ID } from '@/lib/prefectures';
 
 export default function AdminSpots() {
   const { palette } = useTheme();
@@ -24,7 +24,7 @@ export default function AdminSpots() {
       code: m.code,
       name: m.name ?? String(m.code),
       pref: Number(m.pref),
-      prefName: PREFECTURE_EN_BY_ID[Number(m.pref)] ?? `#${m.pref}`,
+      prefName: PREFECTURE_JA_BY_ID[Number(m.pref)] ?? `#${m.pref}`,
       lat: Number(m.lat), lng: Number(m.lng), visits: Number(m.visits),
     })),
     [analytics]
@@ -37,13 +37,13 @@ export default function AdminSpots() {
   }, [all, q]);
 
   return (
-    <AdminShell title="Spot mapping" role={role}>
+    <AdminShell title="市区町村のようす" role={role}>
       <Row style={[styles.search, { borderColor: palette.ruleStrong }]}>
         <Ionicons name="search" size={18} color={palette.inkFaint} />
         <TextInput
           value={q}
           onChangeText={setQ}
-          placeholder="Filter by municipality or prefecture"
+          placeholder="市区町村名や県名で絞る"
           placeholderTextColor={palette.inkFaint}
           style={[styles.searchInput, { color: palette.ink }]}
           autoCapitalize="none"
@@ -56,20 +56,20 @@ export default function AdminSpots() {
       </Row>
 
       <Gap h={space.lg} />
-      <Eyebrow tone="matcha">Heatmap</Eyebrow>
+      <Eyebrow tone="matcha">ヒートマップ</Eyebrow>
       <Gap h={space.sm} />
-      <AppText variant="small" tone="inkFaint">Every check-in placed on the map. Zoom in to see individual towns.</AppText>
+      <AppText variant="small" tone="inkFaint">チェックインを地図に置いたもの。拡大すると市区町村ごとに見える。</AppText>
       <Gap h={space.md} />
       <SpotHeatmap points={rows} height={440} />
 
       <Gap h={space.xl} />
-      <Eyebrow tone="matcha">Most visited municipalities</Eyebrow>
+      <Eyebrow tone="matcha">チェックインの多い市区町村</Eyebrow>
       <Gap h={space.md} />
       <Panel>
         <BarList
           items={rows.map((m: any) => ({ key: String(m.code), label: m.name, value: m.visits, note: m.prefName }))}
           limit={30}
-          emptyText="No check-ins match this filter."
+          emptyText="この条件に当たるチェックインはありません。"
         />
       </Panel>
       <View style={{ height: space.xl }} />

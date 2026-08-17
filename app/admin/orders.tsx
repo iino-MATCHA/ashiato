@@ -96,7 +96,7 @@ export default function AdminOrders() {
   const inFlight = (orders ?? []).filter((o) => o.status === 'printing').length;
 
   return (
-    <AdminShell title="Orders" role={role}>
+    <AdminShell title="注文をさばく" role={role}>
       <>
         {/* いま何冊刷ればいいのか。ここだけ見れば分かるようにする */}
         <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>

@@ -1,7 +1,10 @@
 /**
  * /admin — まず日本全体を見るページ。
- * ここで全国の傾向（訪問の多い県・季節性・滞在日数・インバウンド比・移動手段）を
- * 掴んでから、Prefectures タブで個別の県に降りていく。
+ * ここで全国の傾向（訪問の多い県・季節性・滞在日数・インバウンド比）を
+ * 掴んでから、都道府県タブで個別の県に降りていく。
+ *
+ * 移動手段は全国のまとめを置かない。全国で見ても「電車が多い」以上のことは
+ * 分からないので、県ごとのページ（/admin/prefecture/[code]）に移した。
  */
 import { useMemo } from 'react';
 import { View, Pressable } from 'react-native';
@@ -14,12 +17,11 @@ import { JapanSvgMap } from '@/components/JapanSvgMap';
 import { space } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useAdmin } from '@/lib/useAdmin';
-import { PREFECTURE_EN_BY_ID } from '@/lib/prefectures';
+import { PREFECTURE_JA_BY_ID } from '@/lib/prefectures';
 
-const SEGMENT_LABEL: Record<string, string> = { inbound: 'Inbound', domestic: 'Domestic', unknown: 'Not stated' };
-const TRANSPORT_LABEL: Record<string, string> = {
-  walk: 'Walk', bicycle: 'Bicycle', car: 'Car', bus: 'Bus', train: 'Train',
-  shinkansen: 'Shinkansen', ferry: 'Ferry', plane: 'Plane', other: 'Other',
+const AGE_LABEL: Record<string, string> = {
+  '<20': '20歳未満', '20s': '20代', '30s': '30代', '40s': '40代',
+  '50s': '50代', '60+': '60歳以上', unknown: '未記入',
 };
 
 export default function AdminJapan() {
@@ -29,7 +31,35 @@ export default function AdminJapan() {
 
   const byPref = analytics?.prefecture?.by_prefecture ?? [];
   const overall = analytics?.stay?.overall ?? null;
-  const inbound = analytics?.stay?.inbound_vs_domestic ?? [];
+
+  /**
+   * インバウンドと国内の2つだけにする。
+   * 出身は profiles.residence（'inbound' / 'domestic'）から取る。
+   * 未記入の人は国内に数える ―― 3本目の「不明」を作らないため
+   * （DB側も 0032 の origin_segment で同じ寄せ方をしている。
+   *   まだ貼っていない環境では 'unknown' が返るので、ここでも畳む）。
+   */
+  const origin = useMemo(() => {
+    const rows = analytics?.stay?.inbound_vs_domestic ?? [];
+    const base: Record<'inbound' | 'domestic', { travellers: number; trips: number; days: number }> = {
+      inbound: { travellers: 0, trips: 0, days: 0 },
+      domestic: { travellers: 0, trips: 0, days: 0 },
+    };
+    rows.forEach((r: any) => {
+      const key = r.segment === 'inbound' ? 'inbound' : 'domestic';
+      const trips = Number(r.trips) || 0;
+      base[key].travellers += Number(r.travellers) || 0;
+      base[key].days += (Number(r.avg_days) || 0) * trips;   // 平均を足し直せるよう旅数で重みづけ
+      base[key].trips += trips;
+    });
+    return (['inbound', 'domestic'] as const).map((key) => ({
+      key,
+      label: key === 'inbound' ? 'インバウンド' : '国内',
+      travellers: base[key].travellers,
+      trips: base[key].trips,
+      avgDays: base[key].trips ? base[key].days / base[key].trips : 0,
+    }));
+  }, [analytics]);
 
   const intensity = useMemo(() => {
     const top = Math.max(1, ...byPref.map((r: any) => Number(r.visits)));
@@ -47,7 +77,7 @@ export default function AdminJapan() {
   const coverage = byPref.length;
 
   return (
-    <AdminShell title="Japan overview" role={role}>
+    <AdminShell title="全国のようす" role={role}>
       {/* 注文をさばく画面への入口。通知だけでは「何を刷ればいいか」が追えない */}
       <Pressable
         onPress={() => router.push('/admin/orders' as any)}
@@ -74,11 +104,11 @@ export default function AdminJapan() {
         <>
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <Eyebrow tone={unread.length ? 'shu' : 'matcha'}>
-              {unread.length ? `New orders (${unread.length})` : 'Orders'}
+              {unread.length ? `新しい注文（${unread.length}件）` : '注文のお知らせ'}
             </Eyebrow>
             {unread.length > 0 && (
               <Pressable onPress={() => markRead()} hitSlop={8}>
-                <AppText variant="small" tone="inkFaint">Mark all read</AppText>
+                <AppText variant="small" tone="inkFaint">すべて既読にする</AppText>
               </Pressable>
             )}
           </Row>
@@ -114,22 +144,22 @@ export default function AdminJapan() {
         </>
       )}
 
-      <Eyebrow tone="matcha">Platform</Eyebrow>
+      <Eyebrow tone="matcha">全体</Eyebrow>
       <Gap h={space.md} />
       <Tiles
         items={[
-          ['Users', stats?.users ?? 0],
-          ['Trips', stats?.trips ?? 0],
-          ['Check-ins', stats?.stops ?? 0],
-          ['Prefectures reached', `${coverage} / 47`],
+          ['利用者', stats?.users ?? 0],
+          ['旅', stats?.trips ?? 0],
+          ['チェックイン', stats?.stops ?? 0],
+          ['訪問された県', `${coverage} / 47`],
         ]}
       />
 
       {/* 日本全体の訪問分布 */}
       <Gap h={space.xl} />
-      <Eyebrow tone="matcha">Visits across Japan</Eyebrow>
+      <Eyebrow tone="matcha">どこへ行っているか</Eyebrow>
       <Gap h={space.sm} />
-      <AppText variant="small" tone="inkFaint">The darker the prefecture, the more check-ins it has. Tap a row to open its page.</AppText>
+      <AppText variant="small" tone="inkFaint">色が濃い県ほどチェックインが多い。行を押すとその県のページへ。</AppText>
       <Gap h={space.md} />
       <Panel>
         <Row style={{ justifyContent: 'center' }}>
@@ -139,112 +169,94 @@ export default function AdminJapan() {
         <BarList
           items={byPref.map((r: any) => ({
             key: String(r.code),
-            label: PREFECTURE_EN_BY_ID[Number(r.code)] ?? `#${r.code}`,
+            label: PREFECTURE_JA_BY_ID[Number(r.code)] ?? `#${r.code}`,
             value: Number(r.visits),
-            note: `${r.travellers} travellers`,
+            note: `${r.travellers}人`,
           }))}
           limit={10}
           onPress={(item) => router.push(`/admin/prefecture/${item.key}` as any)}
-          emptyText="No check-ins recorded yet."
+          emptyText="チェックインはまだありません。"
         />
         {byPref.length > 10 && (
           <><Gap h={space.md} />
             <AppText variant="small" tone="matcha" onPress={() => router.replace('/admin/prefectures' as any)}>
-              See all {byPref.length} prefectures →
+              {byPref.length}県すべてを見る →
             </AppText></>
         )}
       </Panel>
 
       {/* 季節性 */}
       <Gap h={space.xl} />
-      <Eyebrow tone="matcha">When they travel</Eyebrow>
+      <Eyebrow tone="matcha">いつ行っているか</Eyebrow>
       <Gap h={space.md} />
-      <Panel title="Check-ins per month" hint="All prefectures combined.">
+      <Panel title="月ごとのチェックイン" hint="全都道府県の合計。">
         <MonthBars values={monthTotals} />
       </Panel>
 
       {/* 全国平均 */}
       <Gap h={space.xl} />
-      <Eyebrow tone="matcha">Nationwide averages</Eyebrow>
+      <Eyebrow tone="matcha">全国の平均</Eyebrow>
       <Gap h={space.md} />
       <Tiles
         items={[
-          ['Avg trip length', overall ? `${formatNumber(Number(overall.avg_trip_days))} d` : '–'],
-          ['Avg cities per trip', overall ? formatNumber(Number(overall.avg_cities)) : '–'],
-          ['Trips analysed', overall ? String(overall.trips) : '–'],
+          ['旅の日数', overall ? `${formatNumber(Number(overall.avg_trip_days))}日` : '–'],
+          ['1回の旅で回る市区町村', overall ? formatNumber(Number(overall.avg_cities)) : '–'],
+          ['集計した旅', overall ? String(overall.trips) : '–'],
         ]}
       />
-      <Gap h={space.md} />
-      <Panel title="By nationality">
-        <TableRow cells={['Nationality', 'Trips', 'Avg days', 'Avg cities']} header wide={0} />
-        {(analytics?.stay?.by_nationality ?? []).map((r: any) => (
-          <TableRow
-            key={r.nationality}
-            wide={0}
-            cells={[String(r.nationality).toUpperCase(), String(r.trips), formatNumber(Number(r.avg_days)), formatNumber(Number(r.avg_cities))]}
-          />
-        ))}
-      </Panel>
 
-      {/* インバウンド比 */}
+      {/* インバウンドと国内。国や都市ごとの内訳は置かない ―― 見たいのは
+          「外から来た人か、国内の人か」の2つだけ、という判断（オーナー） */}
       <Gap h={space.xl} />
-      <Eyebrow tone="matcha">Inbound vs domestic</Eyebrow>
+      <Eyebrow tone="matcha">インバウンドと国内</Eyebrow>
+      <Gap h={space.sm} />
+      <AppText variant="small" tone="inkFaint">日本の外から来た人と、国内の人の2つで見る。未記入の人は国内に数える。</AppText>
       <Gap h={space.md} />
       <Panel>
         <StackedBar
-          parts={inbound.map((r: any) => ({
-            key: r.segment,
-            label: SEGMENT_LABEL[r.segment] ?? r.segment,
-            value: Number(r.trips),
-            color: r.segment === 'inbound' ? palette.shu : r.segment === 'domestic' ? palette.matcha : palette.ruleStrong,
+          parts={origin.map((r) => ({
+            key: r.key,
+            label: r.label,
+            value: r.trips,
+            color: r.key === 'inbound' ? palette.shu : palette.matcha,
           }))}
         />
         <Gap h={space.md} />
-        <TableRow cells={['Segment', 'Travellers', 'Trips', 'Avg days']} header wide={0} />
-        {inbound.map((r: any) => (
+        <TableRow cells={['区分', '人数', '旅の数', '平均日数']} header wide={0} />
+        {origin.map((r) => (
           <TableRow
-            key={r.segment}
+            key={r.key}
             wide={0}
-            cells={[SEGMENT_LABEL[r.segment] ?? r.segment, String(r.travellers), String(r.trips), formatNumber(Number(r.avg_days))]}
+            cells={[r.label, String(r.travellers), String(r.trips), `${formatNumber(r.avgDays)}日`]}
           />
         ))}
       </Panel>
 
-      {/* 年代・移動手段 */}
+      {/* 年代 */}
       <Gap h={space.xl} />
-      <Eyebrow tone="matcha">Who they are</Eyebrow>
+      <Eyebrow tone="matcha">どんな人か</Eyebrow>
       <Gap h={space.md} />
-      <Panel title="Age bands">
+      <Panel title="年代">
         <BarList
-          items={(analytics?.stay?.by_age_band ?? []).map((r: any) => ({ key: r.band, label: r.band, value: Number(r.users) }))}
-          emptyText="No dates of birth on file yet."
-        />
-      </Panel>
-      <Gap h={space.md} />
-      <Panel title="How they travel">
-        <BarList
-          items={(analytics?.transport ?? []).map((r: any) => ({
-            key: r.mode,
-            label: TRANSPORT_LABEL[r.mode] ?? r.mode,
-            value: Number(r.moves),
-            note: `${formatNumber(Number(r.avg_km))} km avg`,
+          items={(analytics?.stay?.by_age_band ?? []).map((r: any) => ({
+            key: r.band, label: AGE_LABEL[r.band] ?? r.band, value: Number(r.users),
           }))}
-          emptyText="No legs recorded yet."
+          emptyText="生年月日の登録がまだありません。"
         />
       </Panel>
 
       {/* 回遊 */}
       <Gap h={space.xl} />
-      <Eyebrow tone="matcha">Common moves between prefectures</Eyebrow>
+      <Eyebrow tone="matcha">県から県への移動</Eyebrow>
       <Gap h={space.md} />
       <Panel>
-        <TableRow cells={['#', 'From → To', 'Moves']} header />
+        <TableRow cells={['#', 'どこから → どこへ', '回数']} header />
         {(analytics?.prefecture?.transitions ?? []).slice(0, 10).map((t: any, i: number) => (
           <TableRow
             key={`${t.from_code}-${t.to_code}`}
             cells={[
               String(i + 1),
-              `${PREFECTURE_EN_BY_ID[Number(t.from_code)] ?? t.from_code} → ${PREFECTURE_EN_BY_ID[Number(t.to_code)] ?? t.to_code}`,
+              `${PREFECTURE_JA_BY_ID[Number(t.from_code)] ?? t.from_code} → ${PREFECTURE_JA_BY_ID[Number(t.to_code)] ?? t.to_code}`,
               String(t.moves),
             ]}
           />

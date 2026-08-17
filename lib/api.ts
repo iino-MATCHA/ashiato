@@ -1356,6 +1356,31 @@ export async function saveSponsoredCard(input: {
   return !error && (count ?? 0) > 0;
 }
 
+/**
+ * スポンサーカードの画像を上げて、そのまま貼れる公開URLを返す。
+ *
+ * 写真と同じ 'photos' バケットの `<自分のuid>/sponsors/` に置く。
+ * バケットを分けないのは、既にあるポリシー（先頭が自分のuid）でそのまま
+ * 通るのと、公開URLの作り方を1本に保てるため。
+ *
+ * **必ず縮めてから送る。** カードの背景なので写真より大きめの 1600px で
+ * 揃える（推奨は 1600×1000px 以上・16:10）。縮められなかった大きい画像は
+ * 送らずに null を返す ―― 原寸をそのまま送ると回線の細い場所で必ず失敗する。
+ */
+export async function uploadSponsorImage(file: Blob): Promise<string | null> {
+  const uid = await currentUserId();
+  if (!uid) return null;
+  const compressed = await compressImage(file, 1600, 0.82);
+  if (!compressed) return null;
+  const rand = Math.random().toString(36).slice(2, 9);
+  const path = `${uid}/sponsors/${Date.now()}-${rand}.jpg`;
+  const { error } = await supabase.storage
+    .from(PHOTO_BUCKET)
+    .upload(path, compressed, { upsert: true, contentType: 'image/jpeg' });
+  if (error) return null;
+  return publicUrl(path);
+}
+
 export async function deleteSponsoredCard(id: string): Promise<boolean> {
   const { error, count } = await supabase
     .from('sponsored_cards')
@@ -1401,6 +1426,14 @@ export async function setOrderStatus(
   return !error && data === true;
 }
 
+/** 自分のユーザー名。管理画面で「自分の権限は変えられない」を出すのに使う。 */
+export async function fetchMyUsername(): Promise<string | null> {
+  const uid = await currentUserId();
+  if (!uid) return null;
+  const { data } = await supabase.from('profiles').select('username').eq('id', uid).maybeSingle();
+  return data?.username ?? null;
+}
+
 export async function fetchAdmins(): Promise<{ username: string; name: string; role: string }[]> {
   const { data } = await supabase
     .from('profiles')
@@ -1414,24 +1447,57 @@ export async function setAdminRole(username: string, role: string | null): Promi
   return !error && data === true;
 }
 
+/** 管理者の付け外しの結果。画面はこれを見て日本語の一言を出す。 */
+export type AdminRoleResult = 'ok' | 'not_found' | 'forbidden' | 'self' | 'bad_role' | 'failed';
+
+/**
+ * 管理者を付ける/外す（0032 の admin_set_role）。
+ *
+ * 真偽値だけだと「いない利用者」なのか「権限が足りない」のか言い分けられず、
+ * 画面が「できませんでした」としか言えなくなるので、理由まで受け取る。
+ * 0032 を貼る前の環境では関数が無いので、0007 の set_admin_role に落として
+ * 理由はこちらで推測する（利用者の有無は profiles を引けば分かる）。
+ */
+export async function setAdminRoleDetailed(username: string, role: string | null): Promise<AdminRoleResult> {
+  const name = username.trim().replace(/^@/, '');
+  if (!name) return 'not_found';
+  const { data, error } = await supabase.rpc('admin_set_role', { p_username: name, p_role: role ?? '' });
+  if (!error && data && typeof data === 'object') {
+    return (data as any).ok ? 'ok' : (((data as any).reason as AdminRoleResult) ?? 'failed');
+  }
+  // 関数が無い（=0032 未適用）ときだけ古い道へ。それ以外の失敗はそのまま返す
+  const missing = !!error && /function|does not exist|schema cache|PGRST202/i.test(`${error.code ?? ''} ${error.message ?? ''}`);
+  if (!missing) return 'failed';
+
+  const { data: who } = await supabase.from('profiles').select('id').eq('username', name).maybeSingle();
+  if (!who) return 'not_found';
+  if (who.id === (await currentUserId())) return 'self';
+  const ok = await setAdminRole(name, role);
+  return ok ? 'ok' : 'forbidden';
+}
+
 /** 分析データ（都道府県 / 市区町村 / 滞在 / 移動手段）。管理者のみ。 */
 export async function fetchAnalytics(): Promise<{
   prefecture: any | null;
   municipality: any | null;
   stay: any | null;
   transport: any[] | null;
+  /** 県別の移動手段（0032）。全国のまとめは画面から外した */
+  transportByPrefecture: any[] | null;
 }> {
-  const [p, m, s, t] = await Promise.all([
+  const [p, m, s, t, tp] = await Promise.all([
     supabase.rpc('admin_prefecture_stats'),
     supabase.rpc('admin_municipality_stats'),
     supabase.rpc('admin_stay_stats'),
     supabase.rpc('admin_transport_stats'),
+    supabase.rpc('admin_transport_by_prefecture'),
   ]);
   return {
     prefecture: p.error ? null : p.data,
     municipality: m.error ? null : m.data,
     stay: s.error ? null : s.data,
     transport: t.error ? null : (t.data as any[]),
+    transportByPrefecture: tp.error ? null : (tp.data as any[]),
   };
 }
 

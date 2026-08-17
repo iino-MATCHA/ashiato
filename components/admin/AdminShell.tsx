@@ -13,12 +13,12 @@ import { space, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 
 const TABS = [
-  { path: '/admin', label: 'Japan' },
-  { path: '/admin/prefectures', label: 'Prefectures' },
-  { path: '/admin/spots', label: 'Spots' },
-  { path: '/admin/orders', label: 'Orders' },
-  { path: '/admin/sponsors', label: 'Sponsors' },
-  { path: '/admin/manage', label: 'Manage' },
+  { path: '/admin', label: '全国' },
+  { path: '/admin/prefectures', label: '都道府県' },
+  { path: '/admin/spots', label: '市区町村' },
+  { path: '/admin/orders', label: '注文' },
+  { path: '/admin/sponsors', label: '広告' },
+  { path: '/admin/manage', label: '運営' },
 ];
 
 export function AdminShell({
@@ -39,20 +39,20 @@ export function AdminShell({
   if (role === 'loading') {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi, alignItems: 'center', justifyContent: 'center' }}>
-        <AppText variant="small" tone="inkFaint">Loading…</AppText>
+        <AppText variant="small" tone="inkFaint">読み込み中…</AppText>
       </SafeAreaView>
     );
   }
   if (!role) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: palette.washi }} edges={['top', 'bottom']}>
-        <Header title="Admin" />
+        <Header title="管理" />
         <Rule />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.lg }}>
           <Ionicons name="lock-closed-outline" size={40} color={palette.inkFaint} />
           <Gap h={space.sm} />
-          <AppText variant="h3" tone="ink">Admins only</AppText>
-          <AppText variant="small" tone="inkFaint" center>Sign in with an administrator account to open this console.</AppText>
+          <AppText variant="h3" tone="ink">管理者だけのページです</AppText>
+          <AppText variant="small" tone="inkFaint" center>管理者の権限を持つアカウントでログインしてください。</AppText>
         </View>
       </SafeAreaView>
     );

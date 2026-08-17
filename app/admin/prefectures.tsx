@@ -12,7 +12,7 @@ import { BarList, formatNumber } from '@/components/admin/Charts';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useAdmin } from '@/lib/useAdmin';
-import { PREFECTURE_EN_BY_ID, PREFECTURE_KANJI_BY_ID } from '@/lib/prefectures';
+import { PREFECTURE_EN_BY_ID, PREFECTURE_JA_BY_ID } from '@/lib/prefectures';
 
 export default function AdminPrefectures() {
   const { palette } = useTheme();
@@ -40,7 +40,7 @@ export default function AdminPrefectures() {
     const all = Array.from({ length: 47 }, (_, i) => i + 1).map((code) => ({
       code,
       en: PREFECTURE_EN_BY_ID[code] ?? `#${code}`,
-      ja: PREFECTURE_KANJI_BY_ID[code] ?? '',
+      ja: PREFECTURE_JA_BY_ID[code] ?? '',
       ...(visits[code] ?? { visits: 0, travellers: 0, inbound: 0 }),
       stay: stayByCode[code]?.avg ?? 0,
     }));
@@ -54,13 +54,13 @@ export default function AdminPrefectures() {
   const searching = q.trim().length > 0;
 
   return (
-    <AdminShell title="Prefectures" role={role}>
+    <AdminShell title="都道府県" role={role}>
       <Row style={[styles.search, { borderColor: palette.ruleStrong }]}>
         <Ionicons name="search" size={18} color={palette.inkFaint} />
         <TextInput
           value={q}
           onChangeText={setQ}
-          placeholder="Search a prefecture (Tokyo, 東京都, 13)"
+          placeholder="県名で絞る（東京都 / Tokyo / 13）"
           placeholderTextColor={palette.inkFaint}
           style={[styles.searchInput, { color: palette.ink }]}
           autoCapitalize="none"
@@ -73,9 +73,9 @@ export default function AdminPrefectures() {
       </Row>
 
       <Gap h={space.lg} />
-      <Eyebrow tone="matcha">{searching ? `${rows.length} match${rows.length === 1 ? '' : 'es'}` : 'All 47 prefectures'}</Eyebrow>
+      <Eyebrow tone="matcha">{searching ? `${rows.length}件` : '47都道府県'}</Eyebrow>
       <Gap h={space.sm} />
-      <AppText variant="small" tone="inkFaint">Ranked by check-ins. Tap a row for the full breakdown.</AppText>
+      <AppText variant="small" tone="inkFaint">チェックインの多い順。行を押すとその県のページへ。</AppText>
       <Gap h={space.md} />
 
       <View style={[styles.card, { borderColor: palette.rule, backgroundColor: palette.paper }]}>
@@ -87,9 +87,9 @@ export default function AdminPrefectures() {
             >
               <AppText variant="small" tone="inkFaint" style={{ width: 24 }}>{i + 1}</AppText>
               <View style={{ flex: 1 }}>
-                <AppText variant="bodyStrong" tone="ink">{r.en}</AppText>
+                <AppText variant="bodyStrong" tone="ink">{r.ja || r.en}</AppText>
                 <AppText variant="small" tone="inkFaint">
-                  {r.visits} check-ins · {r.travellers} travellers{r.stay ? ` · ${formatNumber(r.stay)} d avg` : ''}
+                  チェックイン{r.visits} · {r.travellers}人{r.stay ? ` · 平均${formatNumber(r.stay)}日` : ''}
                 </AppText>
               </View>
               <Ionicons name="chevron-forward" size={16} color={palette.inkFaint} />
@@ -99,7 +99,7 @@ export default function AdminPrefectures() {
         ))}
         {rows.length === 0 && (
           <View style={{ padding: space.lg }}>
-            <AppText variant="small" tone="inkFaint">No prefecture matches “{q.trim()}”.</AppText>
+            <AppText variant="small" tone="inkFaint">「{q.trim()}」に当たる県はありません。</AppText>
           </View>
         )}
       </View>
@@ -107,20 +107,20 @@ export default function AdminPrefectures() {
       {!searching && (
         <>
           <Gap h={space.xl} />
-          <Eyebrow tone="matcha">Longest average stay</Eyebrow>
+          <Eyebrow tone="matcha">滞在が長い県</Eyebrow>
           <Gap h={space.md} />
           <Panel>
             <BarList
               items={(analytics?.stay?.stay_by_prefecture ?? []).map((r: any) => ({
                 key: `s${r.code}`,
-                label: PREFECTURE_EN_BY_ID[Number(r.code)] ?? `#${r.code}`,
+                label: PREFECTURE_JA_BY_ID[Number(r.code)] ?? `#${r.code}`,
                 value: Number(r.avg_days),
-                note: `${r.trips} trips`,
+                note: `${r.trips}件の旅`,
               }))}
-              unit="d"
+              unit="日"
               limit={12}
               onPress={(it) => router.push(`/admin/prefecture/${it.key.slice(1)}` as any)}
-              emptyText="No stays recorded yet."
+              emptyText="滞在の記録がまだありません。"
             />
           </Panel>
         </>

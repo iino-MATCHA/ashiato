@@ -1,110 +1,204 @@
 /**
- * /admin/manage — 運営作業のページ。製本の注文、管理者の管理、直近の登録と旅。
+ * /admin/manage — 運営作業のページ。製本の注文、管理者の付け外し、直近の登録と旅。
+ *
+ * 管理者の付け外しは 0032 の admin_set_role() を叩く。
+ * 真偽値ではなく理由が返るので、「いない利用者」「権限が足りない」「自分自身」を
+ * 言い分けられる ―― できませんでした、だけだと直しようがない。
  */
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, Pressable, TextInput, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText, Row, Gap, Eyebrow } from '@/components/ui';
 import { AdminShell, Panel, TableRow } from '@/components/admin/AdminShell';
+import { Segmented } from '@/components/admin/Charts';
 import { space, fonts, type, hairline } from '@/lib/theme';
 import { useTheme } from '@/lib/useTheme';
 import { useAdmin } from '@/lib/useAdmin';
-import { setAdminRole } from '@/lib/api';
+import { setAdminRoleDetailed, fetchMyUsername, type AdminRoleResult } from '@/lib/api';
+
+/** admin_role 型（0002）の3つ。これ以外は入れない */
+const ROLES = [
+  { key: 'viewer', label: '閲覧のみ' },
+  { key: 'moderator', label: '編集' },
+  { key: 'superadmin', label: '全権' },
+];
+const ROLE_LABEL: Record<string, string> = {
+  viewer: '閲覧のみ', moderator: '編集', superadmin: '全権',
+};
+
+/** 注文の状態（/admin/orders と同じ言い方に揃える） */
+const ORDER_LABEL: Record<string, string> = {
+  pending: '未入金', paid: '入金済み', printing: '印刷中', shipped: '発送済み',
+  delivered: 'お届け済み', cancelled: 'キャンセル', refunded: '返金済み',
+};
+
+/** 結果を日本語の一言に。何が悪かったのかまで書く */
+function messageFor(result: AdminRoleResult, name: string, roleLabel: string): string {
+  switch (result) {
+    case 'ok': return `@${name} を「${roleLabel}」にしました。`;
+    case 'not_found': return `@${name} という利用者は見つかりません。ユーザー名を確かめてください。`;
+    case 'self': return '自分の権限は変えられません。ほかの全権の管理者に頼んでください。';
+    case 'forbidden': return '管理者の付け外しができるのは全権の管理者だけです。';
+    case 'bad_role': return 'その権限は使えません（閲覧のみ / 編集 / 全権 のどれか）。';
+    default: return '変更できませんでした。少し時間をおいて試してください。';
+  }
+}
 
 export default function AdminManage() {
   const { palette } = useTheme();
   const { role, stats, orders, admins, reload } = useAdmin();
   const [grantName, setGrantName] = useState('');
+  const [grantRole, setGrantRole] = useState('moderator');
   const [msg, setMsg] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [me, setMe] = useState<string | null>(null);
+  const [confirmOff, setConfirmOff] = useState<string | null>(null);
+
+  useEffect(() => { fetchMyUsername().then(setMe).catch(() => setMe(null)); }, []);
+
+  const canManage = role === 'superadmin';
+
+  const show = useCallback((result: AdminRoleResult, name: string, roleLabel: string) => {
+    setOk(result === 'ok');
+    setMsg(messageFor(result, name, roleLabel));
+  }, []);
 
   const grant = async () => {
     const name = grantName.trim().replace(/^@/, '');
-    if (!name) return;
+    if (!name || busy) return;
+    setBusy(true);
     setMsg(null);
-    const ok = await setAdminRole(name, 'moderator');
-    setMsg(ok ? `@${name} is now a moderator.` : `Could not find @${name}.`);
-    setGrantName('');
-    reload();
+    const result = await setAdminRoleDetailed(name, grantRole);
+    setBusy(false);
+    show(result, name, ROLE_LABEL[grantRole] ?? grantRole);
+    if (result === 'ok') { setGrantName(''); reload(); }
   };
+
+  /** 権限を外す。押し間違いが効くので2度押しにする */
   const revoke = async (username: string) => {
-    await setAdminRole(username, null);
-    reload();
+    if (busy) return;
+    if (confirmOff !== username) { setConfirmOff(username); return; }
+    setConfirmOff(null);
+    setBusy(true);
+    setMsg(null);
+    const result = await setAdminRoleDetailed(username, null);
+    setBusy(false);
+    setOk(result === 'ok');
+    setMsg(result === 'ok'
+      ? `@${username} の管理者権限を外しました。`
+      : messageFor(result, username, ''));
+    if (result === 'ok') reload();
   };
 
   return (
-    <AdminShell title="Manage" role={role}>
+    <AdminShell title="運営" role={role}>
       {/* 製本 */}
-      <Eyebrow tone="matcha">Photo book orders</Eyebrow>
+      <Eyebrow tone="matcha">製本の注文</Eyebrow>
       <Gap h={space.md} />
       {(orders ?? []).length === 0 ? (
         <View style={[styles.empty, { borderColor: palette.rule }]}>
           <Ionicons name="book-outline" size={22} color={palette.inkFaint} />
-          <AppText variant="small" tone="inkFaint" center>No orders yet. They will appear here once photo-book checkout launches.</AppText>
+          <AppText variant="small" tone="inkFaint" center>注文はまだありません。買われるとここに並びます。</AppText>
         </View>
       ) : (
         <Panel>
-          <TableRow cells={['Ordered', 'Buyer', 'Book', 'Status', '¥']} header wide={2} />
+          <TableRow cells={['注文日', '買った人', '本', '状態', '¥']} header wide={2} />
           {(orders ?? []).map((o: any) => (
-            <TableRow key={o.id} wide={2} cells={[o.ordered, `@${o.buyer ?? '-'}`, o.book_title ?? '-', o.status, String(o.amount_jpy ?? 0)]} />
+            <TableRow
+              key={o.id}
+              wide={2}
+              cells={[o.ordered, `@${o.buyer ?? '-'}`, o.book_title ?? '-', ORDER_LABEL[o.status] ?? o.status, String(o.amount_jpy ?? 0)]}
+            />
           ))}
         </Panel>
       )}
 
       {/* 管理者 */}
       <Gap h={space.xl} />
-      <Eyebrow tone="matcha">Administrators</Eyebrow>
+      <Eyebrow tone="matcha">管理者</Eyebrow>
+      <Gap h={space.sm} />
+      <AppText variant="small" tone="inkFaint">
+        閲覧のみ＝見るだけ。編集＝注文や記事を触れる。全権＝広告と管理者の付け外しまで。
+      </AppText>
       <Gap h={space.md} />
       <Panel>
+        {admins.length === 0 && <AppText variant="small" tone="inkFaint">まだ誰もいません。</AppText>}
         {admins.map((a) => (
           <Row key={a.username} style={styles.adminRow}>
             <Ionicons name="shield-checkmark" size={16} color={palette.matcha} />
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, minWidth: 0 }}>
               <AppText variant="bodyStrong" tone="ink">{a.name}</AppText>
-              <AppText variant="small" tone="inkFaint">@{a.username} · {a.role}</AppText>
+              <AppText variant="small" tone="inkFaint">
+                @{a.username} · {ROLE_LABEL[a.role] ?? a.role}{a.username === me ? '（自分）' : ''}
+              </AppText>
             </View>
-            {a.role !== 'superadmin' && (
+            {canManage && a.username !== me && (
               <Pressable onPress={() => revoke(a.username)} hitSlop={8}>
-                <AppText variant="small" tone="shu">Remove</AppText>
+                <AppText variant="small" tone="shu">{confirmOff === a.username ? '外しますか？' : '外す'}</AppText>
               </Pressable>
             )}
           </Row>
         ))}
       </Panel>
-      <Gap h={space.sm} />
-      <View style={[styles.grantBar, { borderColor: palette.ruleStrong }]}>
-        <TextInput
-          value={grantName}
-          onChangeText={setGrantName}
-          placeholder="username to grant moderator"
-          placeholderTextColor={palette.inkFaint}
-          autoCapitalize="none"
-          style={[styles.grantInput, { color: palette.ink }]}
-          onSubmitEditing={grant}
-        />
-        <Pressable onPress={grant} style={[styles.grantBtn, { backgroundColor: grantName.trim() ? palette.matcha : palette.fill }]}>
-          <AppText variant="small" style={{ color: grantName.trim() ? '#fff' : palette.inkFaint }}>Grant</AppText>
-        </Pressable>
-      </View>
-      {!!msg && (<><Gap h={space.sm} /><AppText variant="small" tone="inkSoft">{msg}</AppText></>)}
+
+      {canManage ? (
+        <>
+          <Gap h={space.md} />
+          <AppText variant="eyebrow" tone="inkFaint">権限</AppText>
+          <Gap h={space.sm} />
+          <Segmented options={ROLES} value={grantRole} onChange={setGrantRole} />
+          <Gap h={space.md} />
+          <View style={[styles.grantBar, { borderColor: palette.ruleStrong }]}>
+            <TextInput
+              value={grantName}
+              onChangeText={setGrantName}
+              placeholder="ユーザー名（@は不要）"
+              placeholderTextColor={palette.inkFaint}
+              autoCapitalize="none"
+              style={[styles.grantInput, { color: palette.ink }]}
+              onSubmitEditing={grant}
+            />
+            <Pressable
+              onPress={grant}
+              disabled={!grantName.trim() || busy}
+              style={[styles.grantBtn, { backgroundColor: grantName.trim() && !busy ? palette.matcha : palette.fill }]}
+            >
+              <AppText variant="small" style={{ color: grantName.trim() && !busy ? '#fff' : palette.inkFaint }}>
+                {busy ? '…' : '追加'}
+              </AppText>
+            </Pressable>
+          </View>
+        </>
+      ) : (
+        <>
+          <Gap h={space.sm} />
+          <AppText variant="small" tone="inkFaint">管理者の付け外しができるのは全権の管理者だけです。</AppText>
+        </>
+      )}
+      {!!msg && (<><Gap h={space.sm} /><AppText variant="small" tone={ok ? 'matcha' : 'shu'}>{msg}</AppText></>)}
 
       {/* 直近 */}
       <Gap h={space.xl} />
-      <Eyebrow tone="matcha">Recent signups</Eyebrow>
+      <Eyebrow tone="matcha">最近の登録</Eyebrow>
       <Gap h={space.md} />
       <Panel>
-        <TableRow cells={['Joined', 'Name', 'Username']} header />
+        <TableRow cells={['登録日', '名前', 'ユーザー名']} header />
         {(stats?.recent_users ?? []).map((u: any) => (
           <TableRow key={u.username} cells={[u.joined, u.display_name ?? '-', `@${u.username}`]} />
         ))}
       </Panel>
 
       <Gap h={space.xl} />
-      <Eyebrow tone="matcha">Recent trips</Eyebrow>
+      <Eyebrow tone="matcha">最近の旅</Eyebrow>
       <Gap h={space.md} />
       <Panel>
-        <TableRow cells={['Created', 'Title', 'Owner', 'Visibility']} header />
+        <TableRow cells={['作成日', '題', '持ち主', '公開']} header />
         {(stats?.recent_trips ?? []).map((t: any, i: number) => (
-          <TableRow key={`${t.title}-${i}`} cells={[t.created, t.title, `@${t.owner ?? '-'}`, t.visibility]} />
+          <TableRow
+            key={`${t.title}-${i}`}
+            cells={[t.created, t.title, `@${t.owner ?? '-'}`, t.visibility === 'public' ? '公開' : '非公開']}
+          />
         ))}
       </Panel>
       <View style={{ height: space.xl }} />

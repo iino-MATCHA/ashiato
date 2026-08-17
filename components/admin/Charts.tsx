@@ -22,7 +22,7 @@ export function BarList({
   unit = '',
   color,
   limit,
-  emptyText = 'No data yet.',
+  emptyText = 'まだデータがありません。',
   onPress,
 }: {
   items: BarItem[];
@@ -114,7 +114,7 @@ export function MonthBars({ values, color }: { values: number[]; color?: string 
       </Row>
       <Gap h={4} />
       <Row style={{ gap: 4 }}>
-        {['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'].map((m, i) => (
+        {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'].map((m, i) => (
           <AppText key={i} variant="small" tone="inkFaint" center style={{ flex: 1 }}>{m}</AppText>
         ))}
       </Row>
