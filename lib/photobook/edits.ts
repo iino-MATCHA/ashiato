@@ -126,7 +126,13 @@ export function pageAssignmentsFrom(edits: BookEdits): BookPageOverride[] | unde
  */
 export function applyCover(plan: BookPlan, edits: BookEdits): BookPlan {
   const cover = edits.cover;
-  if (!cover || edits.excluded.includes(cover)) return plan;
+  /**
+   * **除外した写真でも表紙にはできる。**
+   * ここで諦めていたので、ページから外した写真を表紙に選んでも
+   * 何も起きなかった（画面上は選べるのに反映されない）。
+   * 除外は「本文のページに刷らない」という意味であって、表紙とは別。
+   */
+  if (!cover) return plan;
   const first = plan.pages[0];
   if (!first || first.kind !== 'cover') return plan;
   const rest = first.photos.filter((u) => u !== cover);

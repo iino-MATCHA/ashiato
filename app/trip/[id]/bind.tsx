@@ -94,14 +94,28 @@ export default function TripBind() {
     [trip]
   );
   const extras = edits.extraPhotos ?? [];
-  // 表紙は**旅の全写真＋追加写真**から選べる（以前は先頭12枚に絞っていた）
-  const coverCandidates = useMemo(
-    () => [
-      ...allPhotos.filter((p) => !edits.excluded.includes(p.uri)),
-      ...extras.map((uri) => ({ uri, title: '' })),
-    ],
-    [allPhotos, edits.excluded, extras]
-  );
+  /**
+   * 表紙の候補は**旅の全写真＋追加写真**。除外した写真も外さない。
+   *
+   * 「表紙にできない画像がある」という指摘の正体がここだった。
+   * 除外した写真を候補から落としていたので、ページから外した1枚は
+   * 表紙にも選べなくなっていた。さらに追加写真は除外の絞り込みを
+   * 通っていなかったため、帯には残るのに押しても何も起きなかった
+   * （applyCover が除外を見て黙って諦めていた）。
+   *
+   * 表紙はページの割付とは別の話 ―― 本文に刷らない写真でも表紙にはできる。
+   * 同じ写真が二度並ばないようにだけ揃える。
+   */
+  const coverCandidates = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { uri: string; title: string }[] = [];
+    for (const p of [...allPhotos, ...extras.map((uri) => ({ uri, title: '' }))]) {
+      if (!p.uri || seen.has(p.uri)) continue;
+      seen.add(p.uri);
+      out.push(p);
+    }
+    return out;
+  }, [allPhotos, extras]);
 
   const book = useMemo(() => {
     if (!trip) return null;
