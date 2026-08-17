@@ -35,6 +35,42 @@ export interface Recommendation {
   seasonFits: boolean;
 }
 
+/**
+ * **珍しい軸ほど重く数える。**
+ *
+ * 素点をそのまま平均していた頃、何にでも3が付く県（兵庫・鹿児島・熊本・
+ * 神奈川）が質問の内容に関わらず上位を占めていた ―― 4,000通りを試すと
+ * 兵庫が2,248回、鹿児島が1,592回出るのに沖縄は100回しか出なかった。
+ *
+ * 「食べ物が3」は珍しくない（多くの県が3）が、「離島が3」は47県で4県しか
+ * ない。同じ3でも意味の重さが違う。
+ *
+ * **点ではなく重みに掛ける。** 点の方を平均で割ると、離島のように
+ * 平均が低い軸では素点2も3も上限に張り付いて区別が消えた
+ * （広島が沖縄と同点になった）。重みに掛ければ、軸の中の順位はそのまま、
+ * 軸どうしの比べ方だけが変わる。満点の計算にも同じ重みを使う。
+ */
+const RAW_AXES = ['food', 'nature', 'history', 'city', 'onsen', 'island',
+  'craft', 'wildlife', 'sea', 'mountain', 'urban'] as const;
+type RawAxis = (typeof RAW_AXES)[number];
+
+const AXIS_WEIGHT: Partial<Record<Axis, number>> = (() => {
+  const mean = (a: RawAxis) =>
+    PREFECTURE_PROFILES.reduce((t, p) => t + p.s[a], 0) / PREFECTURE_PROFILES.length;
+  const means = RAW_AXES.map(mean);
+  const overall = means.reduce((t, v) => t + v, 0) / means.length;
+  const out: Partial<Record<Axis, number>> = {};
+  RAW_AXES.forEach((a, i) => {
+    // 効きすぎないよう平方根で丸め、0.7〜2.0 に収める
+    const raw = Math.pow(overall / Math.max(0.25, means[i]), 0.75);
+    out[a] = Math.min(2.5, Math.max(0.7, raw));
+  });
+  return out;
+})();
+
+/** その軸の効き具合。珍しさを持たない従の軸は等倍 */
+const rarity = (a: Axis): number => AXIS_WEIGHT[a] ?? 1;
+
 /** 軸ごとの、その県の素点（0..3に揃える） */
 function axisScore(p: PrefectureProfile, axis: Axis): number {
   switch (axis) {
@@ -118,7 +154,10 @@ const SECONDARY = new Set<Axis>([
 const PRIMARY_SHARE = 0.72;
 
 export function recommend(answers: Answers, visited: Iterable<number>, limit = 3): Recommendation[] {
-  const w = weightsFor(answers);
+  const raw = weightsFor(answers);
+  /** 珍しさを織り込んだ重み。素点との掛け算にも、満点の計算にも使う */
+  const w: Partial<Record<Axis, number>> = {};
+  (Object.keys(raw) as Axis[]).forEach((a) => { w[a] = (raw[a] ?? 0) * rarity(a); });
   const axes = Object.keys(w) as Axis[];
   const priAxes = axes.filter((a) => !SECONDARY.has(a));
   const secAxes = axes.filter((a) => SECONDARY.has(a));
@@ -158,7 +197,19 @@ export function recommend(answers: Answers, visited: Iterable<number>, limit = 3
     } as Recommendation;
   });
 
-  scored.sort((a, b) => b.fit - a.fit || a.code - b.code);
+  /**
+   * 同点のときは県コード順にしない。
+   * 番号順だと若い番号が常に勝ち、47番の沖縄は同点になるたび最後へ回って
+   * 上位3件から押し出されていた。**同じくらい合うなら、その希望を
+   * より確かに叶えられる方**（知られていて、実際に行きやすい方）を先に出す。
+   * 「静かな場所」を望んだ人は従の軸で差が付くので、ここは効かない。
+   */
+  scored.sort(
+    (a, b) =>
+      b.fit - a.fit ||
+      (PROFILE_BY_CODE[b.code]?.popularity ?? 0) - (PROFILE_BY_CODE[a.code]?.popularity ?? 0) ||
+      a.code - b.code
+  );
   if (!scored.length) return [];
 
   const out: Recommendation[] = [];

@@ -95,7 +95,14 @@ export type Region =
   | 'kansai'
   | 'chugoku'
   | 'shikoku'
-  | 'kyushu';
+  | 'kyushu'
+  /**
+   * **沖縄は九州に入れない。**
+   * 同じ地方は2件までという絞り込みがあるので、九州に入れておくと
+   * 長崎・鹿児島で枠が埋まり、沖縄が結果から落ちる。
+   * 「離島」と答えたのに沖縄が一度も出ない、という事故の原因がこれだった。
+   */
+  | 'okinawa';
 
 export const REGION_BY_CODE: Record<number, Region> = {
   1: 'hokkaido',
@@ -107,7 +114,8 @@ export const REGION_BY_CODE: Record<number, Region> = {
   31: 'chugoku', 32: 'chugoku', 33: 'chugoku', 34: 'chugoku', 35: 'chugoku',
   36: 'shikoku', 37: 'shikoku', 38: 'shikoku', 39: 'shikoku',
   40: 'kyushu', 41: 'kyushu', 42: 'kyushu', 43: 'kyushu', 44: 'kyushu',
-  45: 'kyushu', 46: 'kyushu', 47: 'kyushu',
+  45: 'kyushu', 46: 'kyushu',
+  47: 'okinawa',
 };
 
 /** 素点を書くときの助け。順番は s の宣言と同じ */
@@ -141,7 +149,7 @@ export const PREFECTURE_PROFILES: PrefectureProfile[] = [
   { code: 11, s: s(2, 1, 2, 2, 1, 0, 0, 0, 0, 1, 2), popularity: 1, budget: 1, days: 2, seasons: se(2, 1, 2, 1) },
   { code: 12, s: s(2, 2, 1, 2, 1, 0, 0, 0, 3, 1, 2), popularity: 2, budget: 2, days: 2, seasons: se(2, 3, 1, 1) },
   { code: 13, s: s(3, 1, 2, 3, 1, 1, 1, 0, 1, 1, 3), popularity: 5, budget: 3, days: 3, seasons: se(3, 2, 2, 2) }, // 江戸切子
-  { code: 14, s: s(2, 2, 3, 3, 3, 1, 0, 0, 3, 2, 3), popularity: 4, budget: 2, days: 2, seasons: se(2, 2, 3, 2) },
+  { code: 14, s: s(2, 2, 3, 2, 3, 1, 0, 0, 2, 2, 3), popularity: 4, budget: 2, days: 2, seasons: se(2, 2, 3, 2) },
   // ------------------------------------------------------------ 中部
   { code: 15, s: s(3, 3, 1, 1, 3, 1, 2, 1, 2, 3, 1), popularity: 2, budget: 1, days: 3, seasons: se(2, 2, 3, 3) }, // 燕三条・漆器
   { code: 16, s: s(3, 3, 1, 1, 2, 0, 2, 1, 2, 3, 0), popularity: 2, budget: 2, days: 2, seasons: se(3, 2, 3, 2) }, // 高岡銅器
@@ -157,7 +165,7 @@ export const PREFECTURE_PROFILES: PrefectureProfile[] = [
   { code: 25, s: s(2, 3, 3, 1, 1, 0, 1, 1, 1, 2, 1), popularity: 1, budget: 1, days: 2, seasons: se(2, 2, 3, 1) },
   { code: 26, s: s(3, 2, 3, 3, 1, 0, 3, 0, 1, 2, 3), popularity: 5, budget: 3, days: 4, seasons: se(3, 1, 3, 2) }, // 西陣織・京焼
   { code: 27, s: s(3, 1, 2, 3, 1, 0, 1, 0, 1, 0, 3), popularity: 5, budget: 2, days: 2, seasons: se(2, 2, 2, 2) },
-  { code: 28, s: s(3, 2, 3, 3, 3, 1, 1, 1, 3, 2, 3), popularity: 3, budget: 2, days: 3, seasons: se(2, 2, 2, 3) },
+  { code: 28, s: s(3, 2, 3, 2, 3, 1, 1, 1, 3, 2, 3), popularity: 3, budget: 2, days: 3, seasons: se(2, 2, 2, 3) },
   { code: 29, s: s(1, 2, 3, 1, 1, 0, 2, 2, 0, 2, 1), popularity: 4, budget: 1, days: 2, seasons: se(3, 1, 3, 1) }, // 奈良墨・奈良の鹿
   { code: 30, s: s(2, 3, 3, 1, 3, 0, 1, 2, 3, 3, 0), popularity: 2, budget: 2, days: 3, seasons: se(2, 3, 3, 1) }, // クジラ・熊野の原生林
   // ------------------------------------------------------------ 中国
@@ -178,7 +186,7 @@ export const PREFECTURE_PROFILES: PrefectureProfile[] = [
   { code: 43, s: s(2, 3, 3, 2, 3, 1, 1, 2, 2, 3, 2), popularity: 3, budget: 1, days: 3, seasons: se(3, 2, 3, 1) }, // 阿蘇の草原
   { code: 44, s: s(2, 3, 1, 1, 3, 1, 2, 1, 2, 3, 1), popularity: 3, budget: 1, days: 3, seasons: se(2, 2, 3, 3) }, // 別府・竹田の竹細工
   { code: 45, s: s(3, 3, 2, 1, 2, 0, 1, 2, 3, 3, 0), popularity: 1, budget: 1, days: 3, seasons: se(2, 3, 2, 1) }, // 都井岬の野生馬
-  { code: 46, s: s(3, 3, 2, 2, 3, 3, 2, 3, 3, 3, 1), popularity: 3, budget: 2, days: 4, seasons: se(2, 3, 2, 2) }, // 薩摩焼・屋久島・奄美
+  { code: 46, s: s(3, 3, 2, 1, 3, 3, 2, 3, 3, 2, 1), popularity: 3, budget: 2, days: 4, seasons: se(2, 3, 2, 2) }, // 薩摩焼・屋久島・奄美
   { code: 47, s: s(3, 3, 2, 1, 1, 3, 2, 3, 3, 1, 1), popularity: 5, budget: 3, days: 4, seasons: se(3, 3, 2, 2) }, // 琉球ガラス・紅型・イリオモテヤマネコ
 ];
 
