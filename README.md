@@ -1,78 +1,51 @@
-# Ashiato (足跡)
+# My Japan（リポジトリ名: ashiato）
 
-A Polarsteps-style travel journal for Japan: a rotating 3D globe, trips plotted
-on a Mapbox map of Japan, photo pins per location, transport-aware routes, and a
-47-prefecture digital goshuin (shrine stamp) collection.
+日本を旅した記録を残し、都道府県ごとに御朱印を集め、旅を製本（御朱印帳）に
+できるアプリ。運営は株式会社MATCHA。UIは5言語（en / ja / ko / zh-Hans / zh-Hant）。
 
-Expo (React Native) + Supabase. Runs on iOS / Android / Web. The UI is in English.
+- 本番: https://www.my-japan-matcha.com
+- 構成: Expo (React Native) + expo-router + Supabase。**Web運用が前提**（Vercel）
+- リポジトリ名・DBユーザー・Storageパス・bundle id は旧名 `ashiato` のまま
+  （変えると既存データと繋がらないので、意図的にそのまま）
 
-## Design language — "Sumi & Shu"
+## まず読むもの
 
-Washi paper ground, indigo (ai) as the structural colour, vermilion (shu) as the
-accent. No heavy boxes — space, hairline rules and a Mincho display face.
-Light / dark aware (`lib/theme.ts`, `lib/useTheme.ts`).
+| 知りたいこと | どこ |
+|---|---|
+| 開発の決まりごと・ハマりどころ（**開発前に必読**） | [`CLAUDE.md`](CLAUDE.md) |
+| 引き継ぎの段取り（権限・秘密情報・残作業） | [`docs/HANDOVER.md`](docs/HANDOVER.md) |
+| アプリ・管理画面・運営道具の使い方 | [`docs/MANUAL.md`](docs/MANUAL.md) |
+| 製本（PDF）の設計思想 | [`docs/photobook.md`](docs/photobook.md) |
 
-## The map experience
-
-- **Home (`app/(tabs)/map.tsx`)** — a rotating Mapbox globe at the top with a pin
-  on each trip, and the trip list below.
-- **Trip (`app/trip/[id]/index.tsx`)** — a Mapbox map of Japan. Each saved
-  location becomes a photo pin (the first of up to 10 photos). A horizontal card
-  carousel sits over the map; sliding the cards flies the map to the active
-  location (`easeTo`), and tapping a pin scrolls to its card. Legs between
-  locations are drawn per transport mode: car/walk use the Mapbox Directions API;
-  flight/shinkansen/train/ferry are drawn as arcs.
-
-Web uses `mapbox-gl` (loaded from CDN in `lib/mapbox.ts`). Native uses a
-placeholder for now — swap in `@rnmapbox/maps` for a native build.
-`components/map/*.web.tsx` and `*.native.tsx` are resolved per platform by Metro.
-
-## Setup
+## 動かす
 
 ```bash
 npm install
-npm run web      # browser
-npm start        # Expo Go on a device
+# .env に2行（値は Vercel の環境変数からコピー）
+#   EXPO_PUBLIC_SUPABASE_URL=...
+#   EXPO_PUBLIC_SUPABASE_ANON_KEY=...
+#   EXPO_PUBLIC_MAPBOX_TOKEN=...   # 地図を出すなら
+npx expo start --web
 ```
 
-Environment (`.env`, all optional — the app runs on mock data without them):
+`.env` が無くてもモックデータで起動する。デプロイは Vercel が main を見て自動
+（`vercel.json` が `npx expo export -p web` → `dist` → SPA rewrite を設定）。
+
+## 置き場所の地図
 
 ```
-EXPO_PUBLIC_SUPABASE_URL=
-EXPO_PUBLIC_SUPABASE_ANON_KEY=
-EXPO_PUBLIC_MAPBOX_TOKEN=      # public pk. token; restrict it by URL in Mapbox
+app/(tabs)/        ホーム(map) / 御朱印(goshuin) / 発見(explore)
+app/trip/[id]/     旅の地図・共有カード・ジャーナル(book)・製本(bind)
+app/cart.tsx ほか  かご → 購入手続き → 控え
+app/admin/         管理コンソール（日本語・管理者のみ）
+lib/i18n.ts        5言語の辞書と t()
+lib/api.ts         Supabaseアクセス層（ほぼ全てのクエリ）
+lib/photobook/     製本の台割と紙面描画
+lib/quiz/          都道府県診断
+scripts/           MATCHA記事の取り込み道具（読み取り専用）
+supabase/migrations/  DBの変更履歴。SQL Editor に手で貼る運用
+supabase/functions/   Stripe決済（checkout / webhook）
 ```
 
-## Screens
-
-| Area | Route |
-|------|-------|
-| Login | `app/(auth)/login.tsx` |
-| Onboarding | `app/(auth)/onboarding.tsx` |
-| Home (globe + trips) | `app/(tabs)/map.tsx` |
-| Goshuin collection | `app/(tabs)/goshuin.tsx` |
-| Explore | `app/(tabs)/explore.tsx` |
-| Profile | `app/(tabs)/profile.tsx` |
-| Trip (map + cards) | `app/trip/[id]/index.tsx` |
-| New trip | `app/trip/new.tsx` |
-| Add / edit stop | `app/trip/[id]/step/*` |
-| Goshuin detail | `app/goshuin/[id].tsx` |
-| Share | `app/share.tsx` |
-| Gallery | `app/gallery.tsx` |
-
-### Shells only (engines not built yet)
-
-Route card create/preview (`app/ugc/*`) and photo book (`app/book/new.tsx`):
-UI is present; Skia rendering, PDF export and checkout are planned.
-
-Admin (web) screens are out of scope for now.
-
-## Deploy (Vercel)
-
-`vercel.json` sets `buildCommand: npx expo export -p web`, `outputDirectory: dist`,
-and an SPA rewrite so deep links resolve.
-
-## Data model
-
-See `supabase/migrations/`. Location tracking is manual check-in (no background
-GPS); choosing a prefecture on a stop stamps its goshuin.
+DBの変更はサービスキーを環境に置かず、migrationファイルを
+Supabase の SQL Editor に手で貼る運用にしている（理由は HANDOVER §3）。

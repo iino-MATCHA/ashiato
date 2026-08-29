@@ -252,7 +252,8 @@ bind「かごに入れる」→ 全ページを焼いて Storage へ → cart_it
 
 ## 未着手・残件
 
-- Stripe の接続（かご〜注文〜通知は動いている。カード決済だけ未接続）
+- Stripe は**実装・デプロイ済み**（stripe-checkout / stripe-webhook、0020）。
+  残るのはテストカードでの通し確認と、本番鍵への切替（docs/HANDOVER.md 参照）
 - 印刷所への入稿（`order_items.page_urls` を渡す先が未定）
 - 記事→アプリの導線（MATCHAの記事に「My Japanに保存」を埋める）— 集客の本体
 - 「MATCHA 200」を制覇の軸にする案（47都道府県だと天井が低い）
