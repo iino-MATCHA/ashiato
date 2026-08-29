@@ -1,6 +1,8 @@
 # My Japan — 開発メモ
 
 日本を旅した記録を残し、都道府県ごとに御朱印を集め、旅をジャーナル(PDF)にするアプリ。
+**製本（印刷版）の販売は 2026-08 に取りやめた。** アプリの軸は「アフィリエイト」と
+「MATCHAの体験を良くすること」。本は無料のPDFだけが残る（0034で購入まわりを全部落とした）。
 表に出る名前は **My Japan**。リポジトリ名・DBのユーザー名(`ashiato_demo`)・
 Storageのパス・bundle id は `ashiato` のまま（変えると既存データと繋がらない）。
 運営は株式会社MATCHA。Expo(React Native) + expo-router + Supabase、Web(Vercel)が主戦場。
@@ -15,7 +17,7 @@ Storageのパス・bundle id は `ashiato` のまま（変えると既存デー�
 
 | 目的 | ファイル |
 |---|---|
-| 製本(PDF)の設計思想とアルゴリズム | `docs/photobook.md` |
+| ジャーナル(PDF)の設計思想とアルゴリズム | `docs/photobook.md` |
 | 進捗表 | `docs/progress.xlsx` |
 
 ---
@@ -99,11 +101,9 @@ Storageのパス・bundle id は `ashiato` のまま（変えると既存デー�
 
 ```
 app/(tabs)/        ホーム(map) / 御朱印(goshuin) / 発見(explore)
-app/trip/[id]/     旅の地図・共有カード・ジャーナル(book)・編集・stop・製本(bind)
-app/cart.tsx       ① 注文かご
-app/checkout.tsx   ② 連絡先・お届け先・送料・決済（1画面）
-app/order/[id].tsx ③ ご購入ありがとうございました
-app/admin/         管理コンソール（Japan / Prefectures / Spots / Manage）
+app/trip/[id]/     旅の地図・共有カード・ジャーナル(book)・編集・stop・ジャーナルの編集(bind)
+app/journals.tsx   旅ごとのジャーナル(PDF)一覧
+app/admin/         管理コンソール（Japan / Prefectures / Spots / Sponsors / Manage）
 lib/i18n.ts        辞書と t()。localizeMatchaUrl もここ
 lib/api.ts         Supabaseアクセス層（ほぼ全てのクエリ）
 lib/photobook/     台割(plan) と 紙面描画(render.web)
@@ -115,7 +115,7 @@ lib/cardShot.*     ネイティブでカードのビューを写し取って画�
 lib/autotrip.ts    写真 → 立ち寄り先 → 旅（写真から記録を起こす本体）
 lib/useSession.ts  ログインしているかの唯一の入口（ゲスト判定）
 lib/localCache.ts  前回のデータを端末に残して即座に出す（遅い回線対策）
-supabase/migrations/  0001〜0018。適用済み
+supabase/migrations/  0001〜0034
 ```
 
 ---
@@ -138,7 +138,7 @@ supabase/migrations/  0001〜0018。適用済み
 - 判定は `lib/useSession` の一箇所だけ。`signedIn === null` は読み込み中なので
   ゲストと決めつけない（一瞬ログインを促す画面が出てしまう）
 - 止める操作: 旅の新規作成 / 写真から作る / stop追加 / いいね / コメント /
-  製本の注文 / 御朱印カードの共有
+  御朱印カードの共有
 - RLS は触っていない。公開の旅は元から未ログインでも読める設定
 - タブのレイアウトで弾いていたのをやめた。**ここで弾くと他人の記録すら
   見られず、登録の理由が伝わらない**
@@ -215,46 +215,32 @@ Gemini を通していた Edge Function とシークレットは 0017 と一緒�
 
 ---
 
-## 製本の購入（0014）
+## 製本の購入はやめた（0034）
+
+印刷版は売れる見込みが立たず、2026-08 に**購入導線をまるごと削除した**。
+消したもの: かご / 購入手続き / 注文の控え / 注文履歴 / 管理画面の注文タブ /
+Stripe の Edge Function（stripe-checkout・stripe-webhook）/ 送料計算 /
+注文の通知。DB側は `0034_drop_book_orders.sql` で
+`cart_items` `orders` `order_items` `books` `admin_notifications` と
+関連関数・型を落とす（**まだ貼っていない。貼るのは人**）。
+
+**PDFのジャーナルは残る。** これはクライアント側だけで完結していて、
+DBを一切使わない。
 
 ```
-bind「かごに入れる」→ 全ページを焼いて Storage へ → cart_items に1行
-  ↓
-/cart          削除だけできる。冊数は増やせない
-  ↓
-/checkout      お届けエリアを選ぶと送料が即確定
-  ↓ checkout_cart()   かご→orders + order_items + books(status='ordered')、かごは空に
-                      この時点で admin_notifications に order_placed を1件
-  ↓ mark_order_paid() ここを通ったときだけ paid。order_paid を1件（二度目は無視）
-/order/[id]    控えを出して、地図へ戻るか注文履歴へ
+/trip/[id]/bind   ジャーナルを作る（見本をめくり、開いたページの枚数と中身を決める）
+      ↓ 「PDFにする」
+/trip/[id]/book   台割を並べて Export PDF
+/journals         旅ごとのPDFをいつでも取り出せる一覧（旧 /orders）
 ```
 
-- **かごに入れた時点で全ページを画像として保存する**。旅をあとから編集しても
-  届く本は変わらない。印刷所に渡すのは `order_items.page_urls`
-- 金額はクライアントから受け取らない。`checkout_cart()` がDBの単価から組み直す
-- **送料はお届けエリア別の一律料金**（0016）。冊数にも小計にもよらない。
-  日本は east-asia に含む。金額の正は `shipping_fee_for(region)`
-
-  | region | | ¥ |
-  |---|---|---|
-  | `east-asia` | 日本・韓国・台湾・香港・中国 | 1,000 |
-  | `southeast-asia` | タイ・ベトナム・シンガポールなど | 1,300 |
-  | `west` | ヨーロッパ・北米・オセアニア | 2,200 |
-  | `other` | 南米・中東・アフリカなど | 2,500 |
-- Stripe はまだ繋いでいない。注文は `pending` のまま止まり、決済画面に
-  その旨を出す（黙って成功にしない）。
-  **試験用の鍵は Supabase のシークレットに入れてある**
-  （`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET`）。
-  秘密鍵はクライアントに置かない ―― `EXPO_PUBLIC_*` はビルド成果物に
-  焼き込まれて誰でも読める。Edge Function から使う
-
----
+- Stripe の鍵は Supabase のシークレットに残っているが、**もう誰も使っていない**。
+  引き継ぎのときに消してよい
+- LPからも「実物の御朱印帳を製本して送る」という文言を全言語で外した。
+  **売っていないものを約束しない**
 
 ## 未着手・残件
 
-- Stripe は**実装・デプロイ済み**（stripe-checkout / stripe-webhook、0020）。
-  残るのはテストカードでの通し確認と、本番鍵への切替（docs/HANDOVER.md 参照）
-- 印刷所への入稿（`order_items.page_urls` を渡す先が未定）
 - 記事→アプリの導線（MATCHAの記事に「My Japanに保存」を埋める）— 集客の本体
 - 「MATCHA 200」を制覇の軸にする案（47都道府県だと天井が低い）
 - 管理画面は日本語。運営（MATCHA）が使う画面なので多言語にはしない。

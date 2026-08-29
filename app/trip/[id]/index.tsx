@@ -58,7 +58,7 @@ export default function TripDetail() {
   const [fromPhotos, setFromPhotos] = useState(false);
   // 未ログイン閲覧（共有リンク経由）を許すので、案内を出し分ける
   const { signedIn, guest } = useSession();
-  const [askSignIn, setAskSignIn] = useState<null | 'save' | 'order'>(null);
+  const [askSignIn, setAskSignIn] = useState<null | 'save'>(null);
   // 招待リンクで来た人に出す、その場で登録する窓
   const [askJoin, setAskJoin] = useState(false);
   const [notice, setNotice] = useState<{ title: string; body: string } | null>(null);
@@ -178,7 +178,7 @@ export default function TripDetail() {
           {!isFellow && (
             <>
               <Glass onPress={() => router.push(`/trip/${trip.id}/share`)} icon="share-outline" palette={palette} />
-              <Glass onPress={() => (guest ? setAskSignIn('order') : router.push(`/trip/${trip.id}/bind` as any))} icon="book-outline" palette={palette} />
+              <Glass onPress={() => (guest ? setAskSignIn('save') : router.push(`/trip/${trip.id}/bind` as any))} icon="book-outline" palette={palette} />
               <Glass onPress={() => (canEdit ? router.push(`/trip/${trip.id}/edit`) : blockedBy())} icon="settings-outline" palette={palette} />
               {/* 写真を選ぶだけで立ち寄り先を足す。手入力の「＋」は下のドックに残す */}
               <Glass onPress={() => (canEdit ? setFromPhotos(true) : blockedBy())} icon="images-outline" palette={palette} />

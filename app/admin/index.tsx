@@ -26,8 +26,7 @@ const AGE_LABEL: Record<string, string> = {
 
 export default function AdminJapan() {
   const { palette } = useTheme();
-  const { role, stats, analytics, notifications, markRead } = useAdmin();
-  const unread = notifications.filter((n) => !n.readAt);
+  const { role, stats, analytics } = useAdmin();
 
   const byPref = analytics?.prefecture?.by_prefecture ?? [];
   const overall = analytics?.stay?.overall ?? null;
@@ -78,72 +77,6 @@ export default function AdminJapan() {
 
   return (
     <AdminShell title="全国のようす" role={role}>
-      {/* 注文をさばく画面への入口。通知だけでは「何を刷ればいいか」が追えない */}
-      <Pressable
-        onPress={() => router.push('/admin/orders' as any)}
-        style={({ pressed }) => [
-          {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: space.md,
-            paddingVertical: space.md,
-            opacity: pressed ? 0.6 : 1,
-          },
-        ]}
-      >
-        <Ionicons name="cube-outline" size={20} color={palette.matcha} />
-        <AppText variant="bodyStrong" tone="ink" style={{ flex: 1 }}>注文をさばく</AppText>
-        <Ionicons name="chevron-forward" size={18} color={palette.inkFaint} />
-      </Pressable>
-      <Rule />
-      <Gap h={space.lg} />
-
-      {/* 決済が完了するとここに積まれる。数字ではなく件名を出して、
-          何が売れたのかを開かずに掴めるようにする。 */}
-      {notifications.length > 0 && (
-        <>
-          <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <Eyebrow tone={unread.length ? 'shu' : 'matcha'}>
-              {unread.length ? `新しい注文（${unread.length}件）` : '注文のお知らせ'}
-            </Eyebrow>
-            {unread.length > 0 && (
-              <Pressable onPress={() => markRead()} hitSlop={8}>
-                <AppText variant="small" tone="inkFaint">すべて既読にする</AppText>
-              </Pressable>
-            )}
-          </Row>
-          <Gap h={space.md} />
-          <Panel>
-            {notifications.slice(0, 6).map((n, i) => (
-              <View key={n.id}>
-                {i > 0 && <Rule />}
-                <Pressable
-                  onPress={() => markRead(n.id)}
-                  style={{ paddingVertical: space.sm, opacity: n.readAt ? 0.55 : 1 }}
-                >
-                  <Row style={{ gap: space.sm, alignItems: 'flex-start' }}>
-                    <Ionicons
-                      name={n.readAt ? 'ellipse-outline' : 'ellipse'}
-                      size={9}
-                      color={n.readAt ? palette.inkFaint : palette.shu}
-                      style={{ marginTop: 6 }}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <AppText variant="bodyStrong" tone="ink">{n.title}</AppText>
-                      {!!n.body && <AppText variant="small" tone="inkSoft">{n.body}</AppText>}
-                      <AppText variant="small" tone="inkFaint" style={{ fontSize: 11 }}>
-                        {n.createdAt.slice(0, 16).replace('T', ' ')}
-                      </AppText>
-                    </View>
-                  </Row>
-                </Pressable>
-              </View>
-            ))}
-          </Panel>
-          <Gap h={space.xl} />
-        </>
-      )}
-
       <Eyebrow tone="matcha">全体</Eyebrow>
       <Gap h={space.md} />
       <Tiles

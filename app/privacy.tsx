@@ -52,13 +52,7 @@ const POLICY: { title: string; paragraphs: string[] }[] = [
     ],
   },
   {
-    title: '5. Orders and payment',
-    paragraphs: [
-      'If you order a printed book, we keep your email address, recipient name, shipping address and delivery region so we can produce and post it. Card details are handled by the payment provider and never reach our servers.',
-    ],
-  },
-  {
-    title: '6. Your choices',
+    title: '5. Your choices',
     paragraphs: [
       '· You can edit or delete your trips, stops, photos and comments at any time.',
       '· You can change a trip between private and public whenever you like.',
@@ -67,7 +61,7 @@ const POLICY: { title: string; paragraphs: string[] }[] = [
     ],
   },
   {
-    title: '7. Contact',
+    title: '6. Contact',
     paragraphs: [
       'For questions about this policy or your data, reach us at iino@matcha-jp.com.',
     ],

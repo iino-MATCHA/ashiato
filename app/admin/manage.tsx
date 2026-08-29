@@ -1,5 +1,5 @@
 /**
- * /admin/manage — 運営作業のページ。製本の注文、管理者の付け外し、直近の登録と旅。
+ * /admin/manage — 運営作業のページ。管理者の付け外し、直近の登録と旅。
  *
  * 管理者の付け外しは 0032 の admin_set_role() を叩く。
  * 真偽値ではなく理由が返るので、「いない利用者」「権限が足りない」「自分自身」を
@@ -26,12 +26,6 @@ const ROLE_LABEL: Record<string, string> = {
   viewer: '閲覧のみ', moderator: '編集', superadmin: '全権',
 };
 
-/** 注文の状態（/admin/orders と同じ言い方に揃える） */
-const ORDER_LABEL: Record<string, string> = {
-  pending: '未入金', paid: '入金済み', printing: '印刷中', shipped: '発送済み',
-  delivered: 'お届け済み', cancelled: 'キャンセル', refunded: '返金済み',
-};
-
 /** 結果を日本語の一言に。何が悪かったのかまで書く */
 function messageFor(result: AdminEmailResult, email: string, roleLabel: string): string {
   switch (result) {
@@ -48,7 +42,7 @@ function messageFor(result: AdminEmailResult, email: string, roleLabel: string):
 
 export default function AdminManage() {
   const { palette } = useTheme();
-  const { role, stats, orders, admins, reload } = useAdmin();
+  const { role, stats, admins, reload } = useAdmin();
   const [grantEmail, setGrantEmail] = useState('');
   const [grantRole, setGrantRole] = useState('moderator');
   const [msg, setMsg] = useState<string | null>(null);
@@ -95,33 +89,11 @@ export default function AdminManage() {
 
   return (
     <AdminShell title="運営" role={role}>
-      {/* 製本 */}
-      <Eyebrow tone="matcha">製本の注文</Eyebrow>
-      <Gap h={space.md} />
-      {(orders ?? []).length === 0 ? (
-        <View style={[styles.empty, { borderColor: palette.rule }]}>
-          <Ionicons name="book-outline" size={22} color={palette.inkFaint} />
-          <AppText variant="small" tone="inkFaint" center>注文はまだありません。買われるとここに並びます。</AppText>
-        </View>
-      ) : (
-        <Panel>
-          <TableRow cells={['注文日', '買った人', '本', '状態', '¥']} header wide={2} />
-          {(orders ?? []).map((o: any) => (
-            <TableRow
-              key={o.id}
-              wide={2}
-              cells={[o.ordered, `@${o.buyer ?? '-'}`, o.book_title ?? '-', ORDER_LABEL[o.status] ?? o.status, String(o.amount_jpy ?? 0)]}
-            />
-          ))}
-        </Panel>
-      )}
-
       {/* 管理者 */}
-      <Gap h={space.xl} />
       <Eyebrow tone="matcha">管理者</Eyebrow>
       <Gap h={space.sm} />
       <AppText variant="small" tone="inkFaint">
-        閲覧のみ＝見るだけ。編集＝注文や記事を触れる。全権＝広告と管理者の付け外しまで。
+        閲覧のみ＝見るだけ。編集＝記事や都道府県の紹介文を触れる。全権＝広告と管理者の付け外しまで。
       </AppText>
       <Gap h={space.md} />
       <Panel>

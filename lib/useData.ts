@@ -9,7 +9,6 @@ import { useFocusEffect } from 'expo-router';
 import { isSupabaseConfigured } from './supabase';
 import {
   fetchTrips, fetchTrip, fetchVisitedPrefectureCodes, fetchPublicTrips,
-  fetchCart, fetchMyOrders, type CartItem, type OrderRow,
 } from './api';
 import { subscribe } from './refresh';
 import { readCache, writeCache } from './localCache';
@@ -99,45 +98,6 @@ export function usePublicTrips(): { trips: Trip[]; loading: boolean } {
   return { trips, loading };
 }
 
-/** 購入かご。かごへ入れる/外すたびに bump('cart') で即座に描き直る。 */
-export function useCart(): { items: CartItem[]; loading: boolean } {
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(isSupabaseConfigured);
-  const alive = useRef(true);
-
-  const load = useCallback(() => {
-    if (!isSupabaseConfigured) { setLoading(false); return; }
-    fetchCart()
-      .then((c) => alive.current && setItems(c))
-      .catch(() => alive.current && setItems([]))
-      .finally(() => alive.current && setLoading(false));
-  }, []);
-
-  useFocusEffect(useCallback(() => { alive.current = true; load(); return () => { alive.current = false; }; }, [load]));
-  useEffect(() => subscribe('cart', load), [load]);
-
-  return { items, loading };
-}
-
-/** 自分の注文（印刷版）。 */
-export function useOrders(): { orders: OrderRow[]; loading: boolean } {
-  const [orders, setOrders] = useState<OrderRow[]>([]);
-  const [loading, setLoading] = useState(isSupabaseConfigured);
-  const alive = useRef(true);
-
-  const load = useCallback(() => {
-    if (!isSupabaseConfigured) { setLoading(false); return; }
-    fetchMyOrders()
-      .then((o) => alive.current && setOrders(o))
-      .catch(() => alive.current && setOrders([]))
-      .finally(() => alive.current && setLoading(false));
-  }, []);
-
-  useFocusEffect(useCallback(() => { alive.current = true; load(); return () => { alive.current = false; }; }, [load]));
-  useEffect(() => subscribe('orders', load), [load]);
-
-  return { orders, loading };
-}
 
 export function useTrip(id?: string): { trip: Trip | null; loading: boolean } {
   // 一覧を見てから開くのが普通なので、そのキャッシュから先に出せる

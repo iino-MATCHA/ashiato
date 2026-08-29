@@ -171,7 +171,7 @@ export default function TripBook() {
           </AppText>
         </Row>
 
-        {/* 印刷版への導線。PDF自体には入れない（綺麗なまま共有された方が宣伝になる） */}
+        {/* 直しに戻る道。編集はすべて bind 側に集めてある */}
         <Gap h={space.lg} />
         <Pressable
           onPress={() => router.push(`/trip/${id}/bind`)}
@@ -179,10 +179,10 @@ export default function TripBook() {
         >
           <Rule />
           <Row style={{ gap: space.sm, alignItems: 'center', paddingVertical: space.md }}>
-            <Ionicons name="book-outline" size={20} color={palette.matcha} />
+            <Ionicons name="create-outline" size={20} color={palette.matcha} />
             <View style={{ flex: 1 }}>
-              <AppText variant="bodyStrong" tone="ink">{t('book.printTitle')}</AppText>
-              <AppText variant="small" tone="inkFaint">{t('book.printBody')}</AppText>
+              <AppText variant="bodyStrong" tone="ink">{t('book.editTitle')}</AppText>
+              <AppText variant="small" tone="inkFaint">{t('book.editBody')}</AppText>
             </View>
             <Ionicons name="chevron-forward" size={18} color={palette.matcha} />
           </Row>

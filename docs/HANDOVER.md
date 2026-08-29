@@ -4,14 +4,15 @@
 **上から順に進めれば、権限・知識・残作業のすべてが引き継がれる**ように並べてある。
 アプリの使い方・運営の日常作業は `docs/MANUAL.md` に分けてある。
 
-最終更新: 2026-08-29
+最終更新: 2026-08-29（印刷版の販売取りやめを反映）
 
 ---
 
 ## 0. このアプリの全体像（5分で読む）
 
 - **My Japan** — 日本を旅した記録を残し、都道府県ごとに御朱印を集め、
-  旅を製本（御朱印帳）にできるアプリ。運営は株式会社MATCHA
+  旅をジャーナル（PDF）にできるアプリ。運営は株式会社MATCHA。
+  **印刷版の販売は 2026-08 に取りやめ**、軸はアフィリエイトとMATCHAの体験向上に移した
 - 本番: https://www.my-japan-matcha.com （Vercel。apexはwwwへ転送）
 - リポジトリ: https://github.com/iino-MATCHA/ashiato
 - 構成: Expo (React Native) + expo-router。**Web運用が前提**（ネイティブは未検証）。
@@ -31,11 +32,10 @@
 | Supabase | project `tcyclvfinguwudztfgsb` | Organization に後任を Owner で招待 → 前任を外す。**支払い方法が個人のカードなら会社のものに差し替える** |
 | Vercel | 本番のプロジェクト | Hobby（個人）なら Team を作ってプロジェクトを移す。Teamなら招待するだけ。**環境変数一覧のスクリーンショットを先に取る** |
 | ドメイン | my-japan-matcha.com | レジストラの管理権限を移す（DNSはVercel向け）。**招待の仕組みが無いので、ログイン情報ごと渡すか移管手続きが要る** |
-| Stripe | テストアカウント | 後任をチームに追加。本番化は §4-1 |
 | Mapbox | アクセストークン | トークンの持ち主アカウントを確認し、後任のアカウントで発行し直すのが安全 |
 
-**招待（メールアドレスを教えてもらえば済む）で足りるのは Supabase / Stripe /
-Vercel(Team) の3つだけ。** GitHub は譲渡、ドメインは移管、Mapbox は再発行、
+**招待（メールアドレスを教えてもらえば済む）で足りるのは Supabase と
+Vercel(Team) の2つだけ。** GitHub は譲渡、ドメインは移管、Mapbox は再発行、
 アプリ内の全権は §1-2 の手順が別に要る。
 
 ### 1-2. アプリ内の全権を後任に移す
@@ -60,7 +60,6 @@ Vercel(Team) の3つだけ。** GitHub は譲渡、ドメインは移管、Mapbo
 |---|---|
 | Supabase anon key / URL | Vercel の環境変数（`EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`）。anon keyは公開前提の鍵 |
 | Supabase service role key | Supabase Dashboard → Settings → API。**絶対にクライアントへ出さない** |
-| Stripe 鍵（テスト） | Supabase の Edge Function secrets（`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET`） |
 | Mapbox トークン | Vercel の環境変数（`EXPO_PUBLIC_MAPBOX_TOKEN`） |
 | デモ用アカウント | パスワードは全員 `ashiato-demo-2026`（CLAUDE.md「データ」節に一覧）。**引き継ぎ後に変える** |
 
@@ -82,24 +81,12 @@ SQL Editor に**手で貼る**運用（サービスキーを環境に置かな�
 - ✅ 0001〜0032 適用済み（記事721件・場所の札197件・スポンサーカード表も確認）
 - ⬜ **0033_admin_by_email.sql が未適用**。これを貼るとメールアドレスでの
   管理者の付け外しと、`iino@matcha-jp.com` の全権が有効になる（§1-2の前提）
+- ⬜ **0034_drop_book_orders.sql が未適用**。印刷版の販売をやめたので、
+  かご・注文・決済・注文通知の表と関数を落とす。**0033 のあとに貼る**。
+  ローカルのPostgreSQLで、18個の表・関数・型がすべて消えること、
+  二度貼っても壊れないこと、trips/logs/photos/profiles が無事なことを確認済み
 
-### 2-2. Stripe をテストカードで1件通す（30分）
-
-実装は**完成してデプロイ済み**（`stripe-checkout` / `stripe-webhook`、DB側は 0020）。
-未確認なのは通しの動作だけ。
-
-1. Stripe Dashboard（テストモード）→ Webhook に
-   `https://tcyclvfinguwudztfgsb.supabase.co/functions/v1/stripe-webhook` が
-   登録されているか確認（イベント: `checkout.session.completed`）
-2. アプリで旅を製本 → かご → 購入手続き → 支払い（Stripeのページに飛ぶ）
-3. テストカード `4242 4242 4242 4242` で支払う
-4. 注文が `pending` → `paid` に変わること、管理画面の通知に
-   `order_paid` が出ることを確認
-
-うまくいかないときは Supabase Dashboard → Edge Functions → Logs を見る。
-入金の確定は webhook **だけ**が行う（戻りURLは信じない設計）。
-
-### 2-3. 掃除（10分）
+### 2-2. 掃除（10分）
 
 - Supabase Auth に動作検証で作ったテストユーザーが残っている。削除する:
   `claude-fa-1@my-japan-demo.local` / `claude-fb-1@my-japan-demo.local` /
@@ -113,10 +100,11 @@ SQL Editor に**手で貼る**運用（サービスキーを環境に置かな�
 - **DBへの書き込みはSQLの手貼り**。PAT・サービスキーを開発環境に置かない
   （「環境変数は全員に見える」前提）。AIに開発させるときも、AIはSQLファイルを
   作って渡すだけで、貼るのは人
-- **金額はクライアントから受け取らない**。`checkout_cart()` がDBの単価から
-  組み直す。Stripe に渡す金額も注文IDからDBを引いて組む
-- **かごに入れた時点で全ページを画像として焼く**。あとから旅を編集しても
-  届く本は変わらない。印刷所に渡すのは `order_items.page_urls`
+- **印刷版の販売はやめた（2026-08）**。売れる見込みが立たなかったため、
+  購入導線とStripeを丸ごと削除した。**PDFのジャーナルだけが残る** ――
+  これはクライアント側で完結していてDBを使わない。
+  Supabase のシークレットに残る `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` は
+  もう誰も使っていないので、引き継ぎのときに消してよい
 - **ゲストには「見せるは素通し、保存するだけ止める」**。RLSは触らず、
   画面側で SignInPrompt を出す
 - **記事の本文の一部は Wikipedia 由来（CC BY-SA 4.0）**。172件の本文が
@@ -133,9 +121,8 @@ SQL Editor に**手で貼る**運用（サービスキーを環境に置かな�
 
 | 優先 | なに | いまの状態 | 次の一歩 |
 |---|---|---|---|
-| 高 | Stripe 本番化 | テスト鍵で動く | 本番鍵を Supabase secrets に入れ替え、本番Webhookを登録、少額で実決済を1件 |
-| 高 | 印刷所への入稿 | `order_items.page_urls` に全ページのURLが揃う。渡す先が未定 | 印刷所を決め、管理画面の注文詳細からURL一覧を渡す運用を作る |
-| 中 | 記事→アプリの導線 | 未着手。集客の本体 | MATCHA記事側に「My Japanに保存」を埋める。アプリ側の受け口は `/explore` と旅作成 |
+| 高 | 記事→アプリの導線 | 未着手。集客の本体 | MATCHA記事側に「My Japanに保存」を埋める。アプリ側の受け口は `/explore` と旅作成 |
+| 高 | アフィリエイトの拡充 | /quiz の結果とスポンサーカード（/admin → 広告）が入口 | 提携先を増やし、どのカードが押されているかを測れるようにする |
 | 中 | ネイティブビルド | 未検証（Web運用中） | expo prebuild → 実機で、特にSNS共有（expo-sharing + view-shot）を確認 |
 | 低 | 「MATCHA 200」制覇軸 | 構想のみ | `tourism_area_master`（200件）を制覇バッジ化する案 |
 | 低 | 診断の希少県 | 全47県が「出うる」ことは保証済み | 素点が0..3で頭打ちのため一部の県は稀。軸を0..5に広げると分布が良くなる |
@@ -167,6 +154,6 @@ npx expo start --web
 |---|---|
 | 開発の決まり・ハマりどころ | `CLAUDE.md` |
 | アプリと管理画面の使い方 | `docs/MANUAL.md` |
-| 製本（PDF）の設計思想 | `docs/photobook.md` |
-| DBの変更履歴 | `supabase/migrations/0001〜0033` |
+| ジャーナル（PDF）の設計思想 | `docs/photobook.md` |
+| DBの変更履歴 | `supabase/migrations/0001〜0034` |
 | 記事の取り込み道具 | `scripts/import-matcha-articles.mjs` ほか（MANUAL §5） |

@@ -23,7 +23,7 @@ export function SignInPrompt({
    * どの操作で止まったか。文面は一種類に統一したので表示には使わないが、
    * 呼び出し側が渡しているので受け口だけ残してある。
    */
-  reason?: 'save' | 'comment' | 'like' | 'collect' | 'order';
+  reason?: 'save' | 'comment' | 'like' | 'collect';
 }) {
   const { palette } = useTheme();
   const { t } = useI18n();

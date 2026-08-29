@@ -6,21 +6,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { isSupabaseConfigured } from './supabase';
 import {
-  fetchMyAdminRole, fetchAdminStats, fetchAdminOrders, fetchAdminPeople, fetchAnalytics,
-  fetchAdminNotifications, markAdminNotificationsRead, type AdminNotification,
+  fetchMyAdminRole, fetchAdminStats, fetchAdminPeople, fetchAnalytics,
 } from './api';
 
 export interface AdminData {
   role: string | null | 'loading';
   stats: any | null;
-  orders: any[] | null;
   admins: { username: string; name: string; email: string; role: string; isOwner: boolean }[];
   analytics: Awaited<ReturnType<typeof fetchAnalytics>> | null;
-  /** 決済完了などの通知。新しい順。 */
-  notifications: AdminNotification[];
 }
 
-const EMPTY: AdminData = { role: 'loading', stats: null, orders: null, admins: [], analytics: null, notifications: [] };
+const EMPTY: AdminData = { role: 'loading', stats: null, admins: [], analytics: null };
 let cache: AdminData = EMPTY;
 let inflight: Promise<void> | null = null;
 const listeners = new Set<() => void>();
@@ -43,10 +39,10 @@ async function loadAll(force: boolean) {
       emit();
       return;
     }
-    const [stats, orders, admins, analytics, notifications] = await Promise.all([
-      fetchAdminStats(), fetchAdminOrders(), fetchAdminPeople(), fetchAnalytics(), fetchAdminNotifications(),
+    const [stats, admins, analytics] = await Promise.all([
+      fetchAdminStats(), fetchAdminPeople(), fetchAnalytics(),
     ]);
-    cache = { role, stats, orders, admins, analytics, notifications };
+    cache = { role, stats, admins, analytics };
     emit();
   })().finally(() => { inflight = null; });
   return inflight;
@@ -61,18 +57,5 @@ export function useAdmin() {
     return () => { listeners.delete(l); };
   }, []);
   const reload = useCallback(() => loadAll(true), []);
-  /** 既読にする（idを省くと未読すべて）。押した瞬間に画面へ反映してから取り直す。 */
-  const markRead = useCallback(async (id?: string) => {
-    const now = new Date().toISOString();
-    cache = {
-      ...cache,
-      notifications: cache.notifications.map((n) =>
-        (id ? n.id === id : true) && !n.readAt ? { ...n, readAt: now } : n
-      ),
-    };
-    emit();
-    await markAdminNotificationsRead(id);
-    loadAll(true);
-  }, []);
-  return { ...data, reload, markRead };
+  return { ...data, reload };
 }

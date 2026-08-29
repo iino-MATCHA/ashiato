@@ -160,7 +160,7 @@ export default function ProfilePage() {
         {[
           { icon: 'map-outline', label: t('settings.editPrefectures'), onPress: () => router.push('/(auth)/prefectures?edit=1') },
           { icon: 'share-social-outline', label: t('settings.shareCard'), onPress: () => router.push('/goshuin/share') },
-          { icon: 'receipt-outline', label: t('settings.orders'), onPress: () => router.push('/orders' as any) },
+          { icon: 'book-outline', label: t('settings.journals'), onPress: () => router.push('/journals' as any) },
           { icon: 'key-outline', label: t('password.title'), onPress: () => router.push('/profile/password' as any) },
           { icon: 'lock-closed-outline', label: t('settings.privacy'), onPress: () => router.push('/privacy') },
           ...(adminRole ? [{ icon: 'shield-checkmark-outline', label: t('settings.admin'), onPress: () => router.push('/admin') }] : []),

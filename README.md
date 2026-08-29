@@ -1,7 +1,8 @@
 # My Japan（リポジトリ名: ashiato）
 
-日本を旅した記録を残し、都道府県ごとに御朱印を集め、旅を製本（御朱印帳）に
+日本を旅した記録を残し、都道府県ごとに御朱印を集め、旅をジャーナル（PDF）に
 できるアプリ。運営は株式会社MATCHA。UIは5言語（en / ja / ko / zh-Hans / zh-Hant）。
+印刷版の販売は 2026-08 に取りやめ、アプリの軸はアフィリエイトとMATCHAの体験向上に移した。
 
 - 本番: https://www.my-japan-matcha.com
 - 構成: Expo (React Native) + expo-router + Supabase。**Web運用が前提**（Vercel）
@@ -15,7 +16,7 @@
 | 開発の決まりごと・ハマりどころ（**開発前に必読**） | [`CLAUDE.md`](CLAUDE.md) |
 | 引き継ぎの段取り（権限・秘密情報・残作業） | [`docs/HANDOVER.md`](docs/HANDOVER.md) |
 | アプリ・管理画面・運営道具の使い方 | [`docs/MANUAL.md`](docs/MANUAL.md) |
-| 製本（PDF）の設計思想 | [`docs/photobook.md`](docs/photobook.md) |
+| ジャーナル（PDF）の設計思想 | [`docs/photobook.md`](docs/photobook.md) |
 
 ## 動かす
 
@@ -35,16 +36,15 @@ npx expo start --web
 
 ```
 app/(tabs)/        ホーム(map) / 御朱印(goshuin) / 発見(explore)
-app/trip/[id]/     旅の地図・共有カード・ジャーナル(book)・製本(bind)
-app/cart.tsx ほか  かご → 購入手続き → 控え
+app/trip/[id]/     旅の地図・共有カード・ジャーナル(book)・その編集(bind)
+app/journals.tsx   旅ごとのジャーナル(PDF)一覧
 app/admin/         管理コンソール（日本語・管理者のみ）
 lib/i18n.ts        5言語の辞書と t()
 lib/api.ts         Supabaseアクセス層（ほぼ全てのクエリ）
-lib/photobook/     製本の台割と紙面描画
+lib/photobook/     ジャーナルの台割と紙面描画
 lib/quiz/          都道府県診断
 scripts/           MATCHA記事の取り込み道具（読み取り専用）
 supabase/migrations/  DBの変更履歴。SQL Editor に手で貼る運用
-supabase/functions/   Stripe決済（checkout / webhook）
 ```
 
 DBの変更はサービスキーを環境に置かず、migrationファイルを

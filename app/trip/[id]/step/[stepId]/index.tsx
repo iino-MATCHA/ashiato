@@ -180,7 +180,7 @@ export default function StepDetail() {
             <AppText variant="small" style={{ color: '#fff' }}>{transportLabel[step.transport]}</AppText>
           </View>
           <AppText variant="small" tone="inkFaint">
-            {step.loggedAt.replace(/-/g, '.')} · {t('orders.photosCount', { n: step.images.length })}
+            {step.loggedAt.replace(/-/g, '.')} · {t('journals.photosCount', { n: step.images.length })}
           </AppText>
         </Row>
 

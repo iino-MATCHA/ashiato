@@ -16,7 +16,6 @@ const TABS = [
   { path: '/admin', label: '全国' },
   { path: '/admin/prefectures', label: '都道府県' },
   { path: '/admin/spots', label: '市区町村' },
-  { path: '/admin/orders', label: '注文' },
   { path: '/admin/sponsors', label: '広告' },
   { path: '/admin/manage', label: '運営' },
 ];
