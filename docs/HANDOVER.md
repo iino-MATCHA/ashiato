@@ -27,12 +27,16 @@
 
 | なに | どこ | やること |
 |---|---|---|
-| GitHub | `iino-MATCHA/ashiato` | 後任を admin に追加（org の場合は owner 移管） |
-| Supabase | project `tcyclvfinguwudztfgsb` | Organization に後任を Owner で招待 → 前任を外す |
-| Vercel | 本番のプロジェクト | 後任を招待 → 前任を外す。**環境変数一覧のスクリーンショットを先に取る** |
-| ドメイン | my-japan-matcha.com | レジストラの管理権限を移す（DNSはVercel向け） |
+| GitHub | `iino-MATCHA/ashiato` | **`iino-MATCHA` は個人アカウント**（2026-08-29 に確認。共同作業者も本人1名だけ）。招待では引き継げない。会社のOrganizationを作って **Transfer ownership** するか、後任の個人アカウントへ譲渡する |
+| Supabase | project `tcyclvfinguwudztfgsb` | Organization に後任を Owner で招待 → 前任を外す。**支払い方法が個人のカードなら会社のものに差し替える** |
+| Vercel | 本番のプロジェクト | Hobby（個人）なら Team を作ってプロジェクトを移す。Teamなら招待するだけ。**環境変数一覧のスクリーンショットを先に取る** |
+| ドメイン | my-japan-matcha.com | レジストラの管理権限を移す（DNSはVercel向け）。**招待の仕組みが無いので、ログイン情報ごと渡すか移管手続きが要る** |
 | Stripe | テストアカウント | 後任をチームに追加。本番化は §4-1 |
 | Mapbox | アクセストークン | トークンの持ち主アカウントを確認し、後任のアカウントで発行し直すのが安全 |
+
+**招待（メールアドレスを教えてもらえば済む）で足りるのは Supabase / Stripe /
+Vercel(Team) の3つだけ。** GitHub は譲渡、ドメインは移管、Mapbox は再発行、
+アプリ内の全権は §1-2 の手順が別に要る。
 
 ### 1-2. アプリ内の全権を後任に移す
 
