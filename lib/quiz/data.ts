@@ -143,11 +143,11 @@ export const PREFECTURE_PROFILES: PrefectureProfile[] = [
   { code: 6, s: s(2, 3, 2, 1, 3, 0, 1, 1, 1, 3, 0), popularity: 2, budget: 1, days: 3, seasons: se(2, 2, 3, 3) },
   { code: 7, s: s(2, 3, 3, 1, 3, 0, 2, 1, 1, 3, 1), popularity: 2, budget: 1, days: 3, seasons: se(2, 2, 3, 2) }, // 会津塗
   // ------------------------------------------------------------ 関東
-  { code: 8, s: s(2, 2, 1, 1, 1, 0, 0, 1, 2, 1, 1), popularity: 1, budget: 1, days: 2, seasons: se(3, 1, 2, 1) },
+  { code: 8, s: s(2, 3, 2, 1, 1, 0, 0, 1, 2, 2, 1), popularity: 1, budget: 1, days: 2, seasons: se(3, 1, 2, 1) }, // ひたち海浜公園・袋田の滝・筑波山
   { code: 9, s: s(2, 3, 3, 1, 3, 0, 2, 1, 0, 3, 1), popularity: 3, budget: 2, days: 2, seasons: se(2, 2, 3, 2) }, // 益子焼
   { code: 10, s: s(1, 3, 1, 1, 3, 0, 1, 1, 0, 3, 0), popularity: 2, budget: 1, days: 2, seasons: se(1, 2, 3, 3) },
-  { code: 11, s: s(2, 1, 2, 2, 1, 0, 0, 0, 0, 1, 2), popularity: 1, budget: 1, days: 2, seasons: se(2, 1, 2, 1) },
-  { code: 12, s: s(2, 2, 1, 2, 1, 0, 0, 0, 3, 1, 2), popularity: 2, budget: 2, days: 2, seasons: se(2, 3, 1, 1) },
+  { code: 11, s: s(2, 2, 2, 2, 1, 0, 1, 0, 0, 2, 2), popularity: 1, budget: 1, days: 2, seasons: se(2, 1, 2, 1) }, // 秩父・長瀞・岩槻人形
+  { code: 12, s: s(2, 2, 2, 2, 1, 0, 0, 1, 3, 1, 2), popularity: 3, budget: 2, days: 2, seasons: se(2, 3, 1, 1) }, // 成田山・鴨川シーワールド・ディズニー
   { code: 13, s: s(3, 1, 2, 3, 1, 1, 1, 0, 1, 1, 3), popularity: 5, budget: 3, days: 3, seasons: se(3, 2, 2, 2) }, // 江戸切子
   { code: 14, s: s(2, 2, 3, 2, 3, 1, 0, 0, 2, 2, 3), popularity: 4, budget: 2, days: 2, seasons: se(2, 2, 3, 2) },
   // ------------------------------------------------------------ 中部
@@ -161,12 +161,12 @@ export const PREFECTURE_PROFILES: PrefectureProfile[] = [
   { code: 22, s: s(3, 3, 1, 1, 3, 1, 1, 1, 3, 3, 1), popularity: 3, budget: 2, days: 3, seasons: se(2, 3, 2, 2) },
   { code: 23, s: s(3, 1, 3, 3, 1, 1, 2, 0, 1, 0, 3), popularity: 3, budget: 2, days: 2, seasons: se(2, 2, 2, 2) }, // 瀬戸焼
   // ------------------------------------------------------------ 関西
-  { code: 24, s: s(3, 2, 3, 1, 2, 1, 1, 1, 3, 1, 0), popularity: 2, budget: 2, days: 2, seasons: se(2, 2, 2, 1) },
+  { code: 24, s: s(3, 2, 3, 1, 2, 1, 1, 1, 3, 1, 0), popularity: 3, budget: 2, days: 2, seasons: se(2, 2, 2, 1) }, // 伊勢神宮・伊勢志摩
   { code: 25, s: s(2, 3, 3, 1, 1, 0, 1, 1, 1, 2, 1), popularity: 1, budget: 1, days: 2, seasons: se(2, 2, 3, 1) },
   { code: 26, s: s(3, 2, 3, 3, 1, 0, 3, 0, 1, 2, 3), popularity: 5, budget: 3, days: 4, seasons: se(3, 1, 3, 2) }, // 西陣織・京焼
   { code: 27, s: s(3, 1, 2, 3, 1, 0, 1, 0, 1, 0, 3), popularity: 5, budget: 2, days: 2, seasons: se(2, 2, 2, 2) },
   { code: 28, s: s(3, 2, 3, 2, 3, 1, 1, 1, 3, 2, 3), popularity: 3, budget: 2, days: 3, seasons: se(2, 2, 2, 3) },
-  { code: 29, s: s(1, 2, 3, 1, 1, 0, 2, 2, 0, 2, 1), popularity: 4, budget: 1, days: 2, seasons: se(3, 1, 3, 1) }, // 奈良墨・奈良の鹿
+  { code: 29, s: s(2, 2, 3, 1, 1, 0, 2, 3, 0, 2, 1), popularity: 4, budget: 1, days: 2, seasons: se(3, 1, 3, 1) }, // 奈良墨・奈良公園の鹿・柿の葉寿司
   { code: 30, s: s(2, 3, 3, 1, 3, 0, 1, 2, 3, 3, 0), popularity: 2, budget: 2, days: 3, seasons: se(2, 3, 3, 1) }, // クジラ・熊野の原生林
   // ------------------------------------------------------------ 中国
   { code: 31, s: s(3, 3, 1, 1, 2, 0, 1, 1, 3, 2, 0), popularity: 1, budget: 1, days: 2, seasons: se(1, 2, 2, 3) },
@@ -184,7 +184,7 @@ export const PREFECTURE_PROFILES: PrefectureProfile[] = [
   { code: 41, s: s(3, 1, 3, 1, 2, 0, 3, 1, 2, 1, 0), popularity: 1, budget: 1, days: 2, seasons: se(3, 1, 3, 1) }, // 有田・伊万里・唐津焼
   { code: 42, s: s(3, 2, 3, 2, 2, 3, 1, 2, 3, 1, 2), popularity: 3, budget: 2, days: 3, seasons: se(2, 2, 2, 2) }, // 五島・イルカ
   { code: 43, s: s(2, 3, 3, 2, 3, 1, 1, 2, 2, 3, 2), popularity: 3, budget: 1, days: 3, seasons: se(3, 2, 3, 1) }, // 阿蘇の草原
-  { code: 44, s: s(2, 3, 1, 1, 3, 1, 2, 1, 2, 3, 1), popularity: 3, budget: 1, days: 3, seasons: se(2, 2, 3, 3) }, // 別府・竹田の竹細工
+  { code: 44, s: s(2, 3, 1, 1, 3, 1, 2, 1, 2, 3, 1), popularity: 4, budget: 1, days: 3, seasons: se(2, 2, 3, 3) }, // 別府・由布院・竹田の竹細工
   { code: 45, s: s(3, 3, 2, 1, 2, 0, 1, 2, 3, 3, 0), popularity: 1, budget: 1, days: 3, seasons: se(2, 3, 2, 1) }, // 都井岬の野生馬
   { code: 46, s: s(3, 3, 2, 1, 3, 3, 2, 3, 3, 2, 1), popularity: 3, budget: 2, days: 4, seasons: se(2, 3, 2, 2) }, // 薩摩焼・屋久島・奄美
   { code: 47, s: s(3, 3, 2, 1, 1, 3, 2, 3, 3, 1, 1), popularity: 5, budget: 3, days: 4, seasons: se(3, 3, 2, 2) }, // 琉球ガラス・紅型・イリオモテヤマネコ
