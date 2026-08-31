@@ -17,6 +17,7 @@ import { track } from '@/lib/analytics';
 import { PREFECTURE_ID_BY_SLUG, slugForName } from '@/lib/prefectures';
 
 import { useI18n } from '@/lib/i18n';
+import { siteUrl } from '@/lib/site';
 function daysBetween(a?: string, b?: string): number {
   if (!a || !b) return 0;
   const d1 = new Date(a).getTime();
@@ -94,7 +95,7 @@ export default function TripShare() {
    * Web は Canvas で 1080px に描き直し、ネイティブは画面のカードを写し取る。
    */
   /** 旅の共有ページ。投稿にこれを添えると、貼り先でOGPのカードが開く */
-  const tripUrl = `https://www.my-japan-matcha.com/trip/${trip.id}`;
+  const tripUrl = siteUrl(`trip/${trip.id}`);
 
   const send = async (to: ShareTarget) => {
     track('share_ugc', { type: 'trip', method: to });

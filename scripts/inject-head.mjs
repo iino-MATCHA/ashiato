@@ -11,9 +11,21 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
 const FILE = 'dist/index.html';
-// 本番ドメイン。Vercel のプレビュー等で変えたいときは SITE_ORIGIN を渡す。
-// apex は www へ 301 されるので、正規のホストは www 側。
-const ORIGIN = (process.env.SITE_ORIGIN || 'https://www.my-japan-matcha.com').replace(/\/$/, '');
+
+/**
+ * 本番ドメイン。**値の出どころは lib/site.ts の SITE_HOST 一箇所だけ。**
+ * ここは Node のスクリプトで TypeScript を読み込めないので、素直に
+ * ファイルから拾う（ビルド手順を増やさないため）。
+ * Vercel のプレビュー等で一時的に変えたいときは環境変数 SITE_ORIGIN が勝つ。
+ */
+function siteOriginFromSource() {
+  const src = readFileSync(new URL('../lib/site.ts', import.meta.url), 'utf8');
+  const m = /SITE_HOST\s*=\s*'([^']+)'/.exec(src);
+  if (!m) throw new Error('lib/site.ts から SITE_HOST を読めませんでした');
+  return `https://${m[1]}`;
+}
+
+const ORIGIN = (process.env.SITE_ORIGIN || siteOriginFromSource()).replace(/\/$/, '');
 
 const TITLE = 'My Japan — Keep all your Japan memories in one place';
 /** リンクを貼ったときカードに出る文章。ここが読まれる本文になる。

@@ -7,11 +7,15 @@
  *
  * ログイン画面と診断LPの両方から使う（片方だけ直すと戻り先が食い違う）。
  */
-const CANONICAL = 'https://www.my-japan-matcha.com';
+import { SITE_ORIGIN, SITE_DOMAIN } from '@/lib/site';
+
+/** 本番のホスト（apex も www も）かどうか。ドメイン名は lib/site.ts が持つ */
+const isCanonicalHost = (host: string) =>
+  host === SITE_DOMAIN || host.endsWith(`.${SITE_DOMAIN}`);
 
 export const authRedirectTo: string | undefined =
   typeof window === 'undefined'
     ? undefined
-    : /(^|\.)my-japan-matcha\.com$/.test(window.location.hostname)
-      ? CANONICAL
+    : isCanonicalHost(window.location.hostname)
+      ? SITE_ORIGIN
       : window.location.origin;

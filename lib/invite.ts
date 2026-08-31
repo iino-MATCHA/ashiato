@@ -13,8 +13,9 @@
 import { t } from '@/lib/i18n';
 import { track } from '@/lib/analytics';
 import { fetchInviteToken } from '@/lib/api';
+import { SITE_ORIGIN } from '@/lib/site';
 
-const SITE = 'https://www.my-japan-matcha.com';
+const SITE = SITE_ORIGIN;
 
 export type InviteResult = 'shared' | 'copied' | 'failed';
 

@@ -31,7 +31,7 @@
 | GitHub | `iino-MATCHA/ashiato` | **`iino-MATCHA` は個人アカウント**（2026-08-29 に確認。共同作業者も本人1名だけ）。招待では引き継げない。会社のOrganizationを作って **Transfer ownership** するか、後任の個人アカウントへ譲渡する |
 | Supabase | project `tcyclvfinguwudztfgsb` | Organization に後任を Owner で招待 → 前任を外す。**支払い方法が個人のカードなら会社のものに差し替える** |
 | Vercel | 本番のプロジェクト | Hobby（個人）なら Team を作ってプロジェクトを移す。Teamなら招待するだけ。**環境変数一覧のスクリーンショットを先に取る** |
-| ドメイン | my-japan-matcha.com | レジストラの管理権限を移す（DNSはVercel向け）。**招待の仕組みが無いので、ログイン情報ごと渡すか移管手続きが要る** |
+| ドメイン | my-japan-matcha.com | **DNSはお名前.comでホストされている**（NSは `01〜04.dnsv.jp`、レコードはVercel向けのA/CNAMEの2件だけ）。お名前.comのアカウントごと引き渡すのが最短。別ドメインへ移る場合は `docs/DOMAIN-MIGRATION.md` |
 | Mapbox | アクセストークン | トークンの持ち主アカウントを確認し、後任のアカウントで発行し直すのが安全 |
 
 **招待（メールアドレスを教えてもらえば済む）で足りるのは Supabase と
@@ -175,5 +175,6 @@ npx expo start --web
 | 開発の決まり・ハマりどころ | `CLAUDE.md` |
 | アプリと管理画面の使い方 | `docs/MANUAL.md` |
 | ジャーナル（PDF）の設計思想 | `docs/photobook.md` |
+| ドメインを変えるときの手順 | `docs/DOMAIN-MIGRATION.md` |
 | DBの変更履歴 | `supabase/migrations/0001〜0035` |
 | 記事の取り込み道具 | `scripts/import-matcha-articles.mjs` ほか（MANUAL §5） |

@@ -21,6 +21,7 @@ import { captureCard } from '@/lib/cardShot';
 import { CopyLink } from '@/components/CopyLink';
 import { track } from '@/lib/analytics';
 import { useI18n } from '@/lib/i18n';
+import { siteUrl } from '@/lib/site';
 
 export default function StepShare() {
   const { palette } = useTheme();
@@ -57,7 +58,7 @@ export default function StepShare() {
   };
 
   /** この地点のページ。投稿に添えると、貼り先でその旅が開く */
-  const url = `https://www.my-japan-matcha.com/trip/${trip.id}/step/${step.id}`;
+  const url = siteUrl(`trip/${trip.id}/step/${step.id}`);
 
   const download = async () => {
     track('share_ugc', { type: 'stop', method: 'download' });

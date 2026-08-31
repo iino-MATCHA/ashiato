@@ -18,6 +18,19 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
+/**
+ * OG画像に焼くドメイン。**出どころは lib/site.ts の SITE_HOST だけ。**
+ * ドメインを変えたらこのスクリプトを回し直して public/og*.png を作り直す
+ * （画像の中に文字として入っているので、置換では直らない）。
+ */
+const SITE_HOST_BARE = (() => {
+  const src = fs.readFileSync(new URL('../lib/site.ts', import.meta.url), 'utf8');
+  const m = /SITE_HOST\s*=\s*'([^']+)'/.exec(src);
+  if (!m) throw new Error('lib/site.ts から SITE_HOST を読めませんでした');
+  return m[1].replace(/^www\./, '');
+})();
+
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LANG = (process.argv[2] || 'ja').toLowerCase();
 const OUT = path.join(ROOT, 'public', LANG === 'en' ? 'og-en.png' : 'og.png');
@@ -133,7 +146,7 @@ ctx.font = "bold 30px 'Yu Gothic','Helvetica Neue',Arial,sans-serif";
 ctx.fillText('My Japan', 78, 543);
 ctx.fillStyle = '#8A867E';
 ctx.font = "18px 'Yu Gothic','Helvetica Neue',Arial,sans-serif";
-ctx.fillText('by MATCHA  \\u00b7  my-japan-matcha.com', 78, 573);
+ctx.fillText('by MATCHA  \\u00b7  ${SITE_HOST_BARE}', 78, 573);
 </script></body>`;
 
 const tmp = path.join(os.tmpdir(), `og-${LANG}.html`);

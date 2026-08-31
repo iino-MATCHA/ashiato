@@ -4,6 +4,7 @@
  * 数値をそちらと揃えてあるので、見えている通りに保存される。
  */
 import { PALETTE } from './ugc/layout';
+import { SITE_HOST } from './site';
 import { wrapText } from './ugc/wrap';
 
 export interface StopCardMeta {
@@ -103,7 +104,7 @@ export async function exportStopCard(meta: StopCardMeta): Promise<string | null>
 
     ctx.fillStyle = PALETTE.inkFaint;
     ctx.font = `400 ${W * 0.026}px ${SANS}`;
-    ctx.fillText('my-japan-matcha.com', m, H - m * 0.7);
+    ctx.fillText(SITE_HOST.replace(/^www\./, ''), m, H - m * 0.7);
 
     return canvas.toDataURL('image/png');
   } catch {

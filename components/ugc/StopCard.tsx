@@ -14,6 +14,7 @@ import Svg, {
 import { PALETTE } from '@/lib/ugc/layout';
 import { wrapText } from '@/lib/ugc/wrap';
 import { fonts } from '@/lib/theme';
+import { SITE_HOST } from '@/lib/site';
 
 export interface StopCardProps {
   width: number;
@@ -126,7 +127,7 @@ export function StopCard(props: StopCardProps) {
         x={m} y={h - m * 0.7}
         fontFamily={fonts.gothicRegular} fontSize={t.mark} fill={PALETTE.inkFaint}
       >
-        my-japan-matcha.com
+        {SITE_HOST.replace(/^www\./, '')}
       </SvgText>
     </Svg>
   );

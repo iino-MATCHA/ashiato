@@ -17,6 +17,7 @@
 | 引き継ぎの段取り（権限・秘密情報・残作業） | [`docs/HANDOVER.md`](docs/HANDOVER.md) |
 | アプリ・管理画面・運営道具の使い方 | [`docs/MANUAL.md`](docs/MANUAL.md) |
 | ジャーナル（PDF）の設計思想 | [`docs/photobook.md`](docs/photobook.md) |
+| **ドメインを変えるときの手順** | [`docs/DOMAIN-MIGRATION.md`](docs/DOMAIN-MIGRATION.md) |
 
 ## 動かす
 

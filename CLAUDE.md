@@ -8,6 +8,8 @@ Storageのパス・bundle id は `ashiato` のまま（変えると既存デー�
 運営は株式会社MATCHA。Expo(React Native) + expo-router + Supabase、Web(Vercel)が主戦場。
 
 - 本番: https://www.my-japan-matcha.com （apex は www へ転送。OGP・認証の戻り先はすべて www 側）
+  **ドメイン名を書くのは `lib/site.ts` の SITE_HOST 1行だけ。** ベタ書きを増やさない
+  （本番のheadは `app/+html.tsx` ではなく `scripts/inject-head.mjs` が作る ―― web.output が "single" のため）
 - リポジトリ: https://github.com/iino-MATCHA/ashiato （`iino-MATCHA` の M A T C H A は大文字）
 - Supabase project ref: `tcyclvfinguwudztfgsb`
 
@@ -18,6 +20,7 @@ Storageのパス・bundle id は `ashiato` のまま（変えると既存デー�
 | 目的 | ファイル |
 |---|---|
 | ジャーナル(PDF)の設計思想とアルゴリズム | `docs/photobook.md` |
+| ドメインを変えるときの手順 | `docs/DOMAIN-MIGRATION.md` |
 | 進捗表 | `docs/progress.xlsx` |
 
 ---
@@ -107,6 +110,7 @@ app/(tabs)/        ホーム(map) / 御朱印(goshuin) / 発見(explore)
 app/trip/[id]/     旅の地図・共有カード・ジャーナル(book)・編集・stop・ジャーナルの編集(bind)
 app/journals.tsx   旅ごとのジャーナル(PDF)一覧
 app/admin/         管理コンソール（Japan / Prefectures / Spots / Sponsors / Manage）
+lib/site.ts        **ドメインを書くのはここだけ**（SITE_HOST の1行）
 lib/i18n.ts        辞書と t()。localizeMatchaUrl もここ
 lib/api.ts         Supabaseアクセス層（ほぼ全てのクエリ）
 lib/photobook/     台割(plan) と 紙面描画(render.web)

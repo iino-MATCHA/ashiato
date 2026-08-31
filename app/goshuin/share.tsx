@@ -20,6 +20,7 @@ import { currentUserId } from '@/lib/api';
 import { track } from '@/lib/analytics';
 
 import { useI18n } from '@/lib/i18n';
+import { siteUrl } from '@/lib/site';
 export default function GoshuinShare() {
   const { palette } = useTheme();
   const { t } = useI18n();
@@ -35,7 +36,7 @@ export default function GoshuinShare() {
   useEffect(() => {
     let alive = true;
     currentUserId().then((uid) => {
-      if (alive && uid) setProfileUrl(`https://www.my-japan-matcha.com/friends/${uid}`);
+      if (alive && uid) setProfileUrl(siteUrl(`friends/${uid}`));
     });
     return () => { alive = false; };
   }, []);
