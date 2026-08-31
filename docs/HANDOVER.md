@@ -175,6 +175,7 @@ npx expo start --web
 | 開発の決まり・ハマりどころ | `CLAUDE.md` |
 | アプリと管理画面の使い方 | `docs/MANUAL.md` |
 | ジャーナル（PDF）の設計思想 | `docs/photobook.md` |
+| ドメインを引き継ぐか取り直すかの判断材料 | `docs/DOMAIN-DECISION.md` |
 | ドメインを変えるときの手順 | `docs/DOMAIN-MIGRATION.md` |
 | DBの変更履歴 | `supabase/migrations/0001〜0035` |
 | 記事の取り込み道具 | `scripts/import-matcha-articles.mjs` ほか（MANUAL §5） |

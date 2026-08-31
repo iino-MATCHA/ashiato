@@ -20,6 +20,7 @@ Storageのパス・bundle id は `ashiato` のまま（変えると既存デー�
 | 目的 | ファイル |
 |---|---|
 | ジャーナル(PDF)の設計思想とアルゴリズム | `docs/photobook.md` |
+| ドメインを引き継ぐか取り直すかの判断材料 | `docs/DOMAIN-DECISION.md` |
 | ドメインを変えるときの手順 | `docs/DOMAIN-MIGRATION.md` |
 | 進捗表 | `docs/progress.xlsx` |
 
