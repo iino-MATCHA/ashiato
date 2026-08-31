@@ -63,7 +63,9 @@ LP・/explore・公開の旅・/map・/goshuin は入れる。旅の作成・い
 ## 3. 管理画面 `/admin`（日本語のみ・管理者のみ）
 
 権限は3段階: **閲覧のみ / 編集 / 全権**。全権の出どころは
-`iino@matcha-jp.com`（変え方は HANDOVER §1-2）。
+`iino@matcha-jp.com` と `takeda@matcha-jp.com` の2つ
+（DB関数 `owner_emails()`。増減のしかたは HANDOVER §1-2）。
+この2人は一覧に「（持ち主）」と出て、画面からは外せない。
 
 | タブ | できること |
 |---|---|

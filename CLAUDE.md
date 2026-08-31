@@ -94,6 +94,9 @@ Storageのパス・bundle id は `ashiato` のまま（変えると既存デー�
   - `emma_travels` `minjun_kim` `yuki_hokkaido` `chloe_paris` `wei_formosa`
     `haruto_umi` `sofia_berlin` `liam_sydney` `aoi_yama` `nina_bkk` … モブ10名
 - マスターアカウント: `iino_matcha`（superadmin）
+- **全権は「メールアドレス」から来る**（DB関数 `owner_emails()` / 0035）。
+  いまは `iino@matcha-jp.com` と `takeda@matcha-jp.com` の2つ。
+  この住所でログインしていれば profiles の権限が消えても入れる（締め出され対策）
 
 ---
 
@@ -115,7 +118,7 @@ lib/cardShot.*     ネイティブでカードのビューを写し取って画�
 lib/autotrip.ts    写真 → 立ち寄り先 → 旅（写真から記録を起こす本体）
 lib/useSession.ts  ログインしているかの唯一の入口（ゲスト判定）
 lib/localCache.ts  前回のデータを端末に残して即座に出す（遅い回線対策）
-supabase/migrations/  0001〜0034
+supabase/migrations/  0001〜0035
 ```
 
 ---

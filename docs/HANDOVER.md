@@ -40,19 +40,34 @@ Vercel(Team) の2つだけ。** GitHub は譲渡、ドメインは移管、Mapbo
 
 ### 1-2. アプリ内の全権を後任に移す
 
-全権（superadmin）は **`iino@matcha-jp.com` というメールアドレスから出ている**。
-出どころはDB関数 `owner_email()`（migration 0033）。移すには:
+全権（superadmin）は **メールアドレスから出ている**。出どころはDB関数
+`owner_emails()`（migration 0035）で、いまは**2人**が入っている:
 
-1. 後任が普通にアプリへ登録する（メールアドレスでサインアップ）
-2. Supabase の SQL Editor で1行:
-   ```sql
-   create or replace function owner_email()
-   returns text language sql immutable as $$
-     select '後任のアドレス@matcha-jp.com'::text;
-   $$;
-   ```
-3. 管理画面（/admin → 運営）で後任のアドレスに「全権」を付けておく
-   （owner_email と二重にしておくと、どちらかが欠けても締め出されない）
+```
+iino@matcha-jp.com
+takeda@matcha-jp.com
+```
+
+この住所でログインしていれば、`profiles.admin_role` が何かの拍子に消えても
+全権として通る ―― 締め出されないための土台。**引き継ぎ期間は2人のまま**にし、
+前任が完全に離れてから片方を外す。
+
+増やす／減らすときは、Supabase の SQL Editor でこの関数だけ書き換える:
+
+```sql
+create or replace function owner_emails()
+returns text[] language sql immutable as $$
+  select array[
+    'takeda@matcha-jp.com',
+    '次の担当@matcha-jp.com'
+  ]::text[];
+$$;
+```
+
+**最後の1人になっても空にしない。** 空にすると誰も管理画面へ入れなくなる。
+
+※ 一般の管理者（閲覧のみ / 編集）は、画面から追加できる。
+  /admin → 運営 → 権限を選ぶ → メールアドレス（相手が先に登録している必要あり）
 
 ### 1-3. 秘密情報の場所（値はここに書かない）
 
@@ -82,9 +97,14 @@ SQL Editor に**手で貼る**運用（サービスキーを環境に置かな�
 - ⬜ **0033_admin_by_email.sql が未適用**。これを貼るとメールアドレスでの
   管理者の付け外しと、`iino@matcha-jp.com` の全権が有効になる（§1-2の前提）
 - ⬜ **0034_drop_book_orders.sql が未適用**。印刷版の販売をやめたので、
-  かご・注文・決済・注文通知の表と関数を落とす。**0033 のあとに貼る**。
+  かご・注文・決済・注文通知の表と関数を落とす。
   ローカルのPostgreSQLで、18個の表・関数・型がすべて消えること、
   二度貼っても壊れないこと、trips/logs/photos/profiles が無事なことを確認済み
+- ⬜ **0035_owner_emails.sql が未適用**。全権の出どころを1人から2人
+  （iino / takeda）に広げる。**0033 の関数をすべて置き換えるので、
+  0033 を貼っていなくてもこれ1本で成立する。**
+
+**貼る順番: 0033 → 0034 → 0035**（0033 を飛ばして 0034 → 0035 でも可）。
 
 ### 2-2. 掃除（10分）
 
@@ -155,5 +175,5 @@ npx expo start --web
 | 開発の決まり・ハマりどころ | `CLAUDE.md` |
 | アプリと管理画面の使い方 | `docs/MANUAL.md` |
 | ジャーナル（PDF）の設計思想 | `docs/photobook.md` |
-| DBの変更履歴 | `supabase/migrations/0001〜0034` |
+| DBの変更履歴 | `supabase/migrations/0001〜0035` |
 | 記事の取り込み道具 | `scripts/import-matcha-articles.mjs` ほか（MANUAL §5） |
